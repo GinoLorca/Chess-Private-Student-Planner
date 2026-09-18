@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPuzzle, deletePuzzle, deleteSection, listPuzzles, updateSection } from '../../lib/api'
 import type { LessonSection, Puzzle } from '../../types/domain'
 
@@ -13,10 +13,18 @@ export function SectionBlock({
 }) {
   const [title, setTitle] = useState(section.title)
   const [puzzles, setPuzzles] = useState<Puzzle[] | null>(null)
+  const titleRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     listPuzzles(section.id).then(setPuzzles)
   }, [section.id])
+
+  useEffect(() => {
+    const el = titleRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [title])
 
   async function handleAddPuzzle() {
     const puzzle = await createPuzzle(section.id)
@@ -37,15 +45,17 @@ export function SectionBlock({
 
   return (
     <div className="rounded-xl border border-ink-800 bg-ink-900/50 p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <input
+      <div className="mb-3 flex items-start gap-2">
+        <textarea
+          ref={titleRef}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={() => updateSection(section.id, { title })}
           placeholder="Section theme, e.g. Tactics: My Opponent's Move"
-          className="flex-1 border-b border-transparent bg-transparent text-sm font-semibold uppercase tracking-wide text-gold-400 outline-none focus:border-gold-500"
+          rows={1}
+          className="flex-1 resize-none overflow-hidden border-b border-transparent bg-transparent text-sm font-semibold uppercase leading-snug tracking-wide text-gold-400 outline-none focus:border-gold-500"
         />
-        <button onClick={handleDeleteSection} className="text-xs text-ink-500 hover:text-red-400">
+        <button onClick={handleDeleteSection} className="mt-0.5 shrink-0 text-xs text-ink-500 hover:text-red-400">
           delete section
         </button>
       </div>

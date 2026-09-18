@@ -1,11 +1,11 @@
 export type FolderKind = 'misc' | 'game_review' | 'invoices' | 'lesson_plan' | 'student_notes'
 
 export const FOLDER_KINDS: { kind: FolderKind; label: string }[] = [
-  { kind: 'misc', label: 'MISC' },
-  { kind: 'game_review', label: 'Game Review' },
-  { kind: 'invoices', label: 'Invoices' },
   { kind: 'lesson_plan', label: 'Lesson Plan' },
+  { kind: 'invoices', label: 'Invoices' },
+  { kind: 'game_review', label: 'Game Review' },
   { kind: 'student_notes', label: 'Student Notes' },
+  { kind: 'misc', label: 'MISC' },
 ]
 
 export interface Student {

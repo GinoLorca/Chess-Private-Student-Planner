@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Chessboard } from 'react-chessboard'
 import type { Arrow, SquareHandlerArgs } from 'react-chessboard'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
+import { chessPieceSet } from '../../lib/chessPieces'
 
 const COLORS = [
   { name: 'green', value: 'rgba(74, 222, 128, 0.9)', fill: 'rgba(74, 222, 128, 0.55)' },
@@ -76,8 +77,11 @@ export function AnnotateBoard({
     arrows: arrows as Arrow[],
     onSquareClick: handleSquareClick,
     squareStyles,
-    darkSquareStyle: { backgroundColor: 'var(--color-board-dark)' },
-    lightSquareStyle: { backgroundColor: 'var(--color-board-light)' },
+    pieces: chessPieceSet,
+    darkSquareStyle: { backgroundColor: 'var(--color-board-dark)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
+    lightSquareStyle: { backgroundColor: 'var(--color-board-light)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
+    darkSquareNotationStyle: { color: 'var(--color-board-coord)', fontWeight: 700 },
+    lightSquareNotationStyle: { color: 'var(--color-board-coord)', fontWeight: 700 },
   }
 
   return (

@@ -21,8 +21,10 @@
   --color-gold-500: #f0b429;
   --color-gold-600: #d69a1a;
 
-  --color-board-light: #e9d6ba;
-  --color-board-dark: #7a5c3e;
+  --color-board-light: #ece4d3;
+  --color-board-dark: #33569e;
+  --color-board-line: #111111;
+  --color-board-coord: #2c4a86;
 }
 
 html {

@@ -1,6 +1,7 @@
 import { Chessboard } from 'react-chessboard'
 import type { Arrow } from 'react-chessboard'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
+import { chessPieceSet } from '../../lib/chessPieces'
 
 export function DisplayBoard({
   fen,
@@ -25,8 +26,11 @@ export function DisplayBoard({
     allowDrawingArrows: false,
     arrows: arrows as Arrow[],
     squareStyles,
-    darkSquareStyle: { backgroundColor: 'var(--color-board-dark)' },
-    lightSquareStyle: { backgroundColor: 'var(--color-board-light)' },
+    pieces: chessPieceSet,
+    darkSquareStyle: { backgroundColor: 'var(--color-board-dark)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
+    lightSquareStyle: { backgroundColor: 'var(--color-board-light)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
+    darkSquareNotationStyle: { color: 'var(--color-board-coord)', fontWeight: 700 },
+    lightSquareNotationStyle: { color: 'var(--color-board-coord)', fontWeight: 700 },
   }
 
   return <Chessboard options={options} />

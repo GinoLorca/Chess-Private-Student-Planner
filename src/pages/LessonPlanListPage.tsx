@@ -62,10 +62,9 @@ export function LessonPlanListPage() {
               onClick={() => navigate(`/students/${studentId}/lessons/${plan.id}`)}
               className="flex-1 text-left"
             >
-              <div className="text-[15px] font-medium text-ink-100">
-                {student?.name} Lesson Plan {plan.number}
-              </div>
-              {plan.title && <div className="text-xs text-ink-400">{plan.title}</div>}
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-400">{student?.name}</div>
+              <div className="text-[15px] font-semibold text-ink-100">Lesson Plan {plan.number}</div>
+              {plan.title && <div className="text-xs text-gold-400">{plan.title}</div>}
             </button>
             <button
               onClick={() => setDeleteTarget(plan)}

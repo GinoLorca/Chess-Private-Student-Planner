@@ -74,7 +74,7 @@ export function SolutionRecorderBoard({
   return (
     <div className="space-y-3">
       {loadError && <p className="text-xs text-amber-400">{loadError}</p>}
-      <div className="mx-auto max-w-md">
+      <div className="mx-auto max-w-md" onContextMenu={(e) => e.preventDefault()}>
         <Chessboard options={options} />
       </div>
       <div className="flex gap-2">

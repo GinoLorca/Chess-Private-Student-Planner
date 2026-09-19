@@ -96,8 +96,10 @@ function Knight({ fill, stroke, detail }: { fill: string; stroke: string; detail
 function Pawn({ fill, stroke }: { fill: string; stroke: string }) {
   return (
     <Svg>
-      <circle cx={50} cy={27} r={10.5} fill={fill} stroke={stroke} strokeWidth={3.2} />
-      <Body d="M42 39h16c0 10 6 20 11 30H31c5-10 11-20 11-30Z" fill={fill} stroke={stroke} />
+      <g transform="translate(50,69) scale(0.62) translate(-50,-69)">
+        <circle cx={50} cy={27} r={10.5} fill={fill} stroke={stroke} strokeWidth={3.2} />
+        <Body d="M42 39h16c0 10 6 20 11 30H31c5-10 11-20 11-30Z" fill={fill} stroke={stroke} />
+      </g>
       <Base fill={fill} stroke={stroke} />
     </Svg>
   )

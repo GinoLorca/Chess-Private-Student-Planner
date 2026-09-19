@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { getLessonPlan, listPuzzles, listSections } from '../lib/api'
 import type { LessonPlan, Puzzle } from '../types/domain'
 import { DisplayBoard } from '../components/puzzle/DisplayBoard'
+import { useSessionSet } from '../hooks/useSessionSet'
 
 type FlatPuzzle = Puzzle & { sectionTitle: string }
 
@@ -14,6 +15,7 @@ export function ViewerPage({ mode }: { mode: 'present' | 'coach' }) {
   const [items, setItems] = useState<FlatPuzzle[] | null>(null)
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(mode === 'coach')
+  const { add: markReviewed } = useSessionSet(`reviewed:${lessonPlanId}`)
 
   const backHref = `/students/${studentId}/lessons/${lessonPlanId}`
 
@@ -34,6 +36,11 @@ export function ViewerPage({ mode }: { mode: 'present' | 'coach' }) {
   useEffect(() => {
     setRevealed(mode === 'coach')
   }, [index, mode])
+
+  useEffect(() => {
+    const puzzleId = items?.[index]?.id
+    if (puzzleId) markReviewed(puzzleId)
+  }, [items, index, markReviewed])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

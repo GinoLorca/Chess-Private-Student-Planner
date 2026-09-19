@@ -177,6 +177,19 @@ export async function deleteSection(id: string) {
 // puzzles
 // ---------------------------------------------------------------------------
 
+/** All puzzle ids across every section of a lesson plan — used for a plan-wide progress count. */
+export async function listAllPuzzleIds(lessonPlanId: string): Promise<string[]> {
+  const sections = await listSections(lessonPlanId)
+  const perSection = await Promise.all(
+    sections.map(async (section) => {
+      const { data, error } = await supabase.from('puzzles').select('id').eq('section_id', section.id)
+      if (error) throw error
+      return (data ?? []).map((row) => row.id as string)
+    }),
+  )
+  return perSection.flat()
+}
+
 export async function listPuzzles(sectionId: string): Promise<Puzzle[]> {
   const { data, error } = await supabase
     .from('puzzles')

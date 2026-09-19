@@ -1,21 +1,31 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { createSection, getLessonPlan, listSections, updateLessonPlan } from '../lib/api'
+import { createSection, getLessonPlan, listAllPuzzleIds, listSections, updateLessonPlan } from '../lib/api'
 import type { LessonPlan, LessonSection } from '../types/domain'
 import { AgendaEditor } from '../components/lessons/AgendaEditor'
 import { SectionBlock } from '../components/lessons/SectionBlock'
+import { useSessionSet } from '../hooks/useSessionSet'
 
 export function LessonPlanDetailPage() {
   const { studentId, lessonPlanId } = useParams<{ studentId: string; lessonPlanId: string }>()
   const navigate = useNavigate()
   const [plan, setPlan] = useState<LessonPlan | null>(null)
   const [sections, setSections] = useState<LessonSection[] | null>(null)
+  const [totalPuzzles, setTotalPuzzles] = useState<number | null>(null)
+  const { set: reviewedIds, add: markReviewed } = useSessionSet(`reviewed:${lessonPlanId}`)
 
   useEffect(() => {
     if (!lessonPlanId) return
     getLessonPlan(lessonPlanId).then(setPlan)
     listSections(lessonPlanId).then(setSections)
+    refreshPuzzleCount()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonPlanId])
+
+  function refreshPuzzleCount() {
+    if (!lessonPlanId) return
+    listAllPuzzleIds(lessonPlanId).then((ids) => setTotalPuzzles(ids.length))
+  }
 
   async function saveTitle(title: string) {
     if (!plan) return
@@ -38,9 +48,18 @@ export function LessonPlanDetailPage() {
   function refreshSections() {
     if (!lessonPlanId) return
     listSections(lessonPlanId).then(setSections)
+    refreshPuzzleCount()
+  }
+
+  function openPuzzle(puzzleId: string) {
+    markReviewed(puzzleId)
+    navigate(`/students/${studentId}/lessons/${lessonPlanId}/puzzles/${puzzleId}`)
   }
 
   if (!plan) return null
+
+  const reviewedCount = totalPuzzles === null ? 0 : [...reviewedIds].length
+  const progressPct = totalPuzzles ? Math.round((Math.min(reviewedCount, totalPuzzles) / totalPuzzles) * 100) : 0
 
   return (
     <div className="mx-auto min-h-svh max-w-3xl px-6 py-10">
@@ -51,7 +70,7 @@ export function LessonPlanDetailPage() {
         ← Back to plans
       </button>
 
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <input
           value={plan.title}
           onChange={(e) => setPlan({ ...plan, title: e.target.value })}
@@ -75,9 +94,26 @@ export function LessonPlanDetailPage() {
         </div>
       </div>
 
+      {!!totalPuzzles && (
+        <div className="mb-6 flex items-center gap-3">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-800">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-gold-600 to-gold-400 transition-all duration-300"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+          <span className="shrink-0 text-xs font-semibold text-ink-400">
+            {Math.min(reviewedCount, totalPuzzles)} / {totalPuzzles} positions reviewed
+          </span>
+        </div>
+      )}
+
       <div className="mb-8 rounded-xl border border-ink-800 bg-ink-900/50 p-4">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-400">Agenda</h2>
-        <AgendaEditor items={plan.agenda} onChange={saveAgenda} />
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-400">Agenda</h2>
+          <span className="text-[10.5px] text-ink-500">tap to check off</span>
+        </div>
+        <AgendaEditor items={plan.agenda} onChange={saveAgenda} storageKey={plan.id} />
       </div>
 
       <div className="space-y-4">
@@ -85,10 +121,10 @@ export function LessonPlanDetailPage() {
           <SectionBlock
             key={section.id}
             section={section}
-            onOpenPuzzle={(puzzleId) =>
-              navigate(`/students/${studentId}/lessons/${plan.id}/puzzles/${puzzleId}`)
-            }
+            onOpenPuzzle={openPuzzle}
             onDeleted={refreshSections}
+            onPuzzlesChanged={refreshPuzzleCount}
+            reviewedIds={reviewedIds}
           />
         ))}
         <button

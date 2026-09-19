@@ -49,9 +49,14 @@ export function DashboardPage() {
           <h1 className="font-marker text-3xl text-gold-500">Lesson Planner</h1>
           <p className="mt-1 text-sm text-ink-300">Tap a folder to open a student.</p>
         </div>
-        <button onClick={() => signOut()} className="text-xs text-ink-400 hover:text-ink-100">
-          Sign out
-        </button>
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/settings')} className="text-xs text-ink-400 hover:text-ink-100">
+            Settings
+          </button>
+          <button onClick={() => signOut()} className="text-xs text-ink-400 hover:text-ink-100">
+            Sign out
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 md:grid-cols-4">

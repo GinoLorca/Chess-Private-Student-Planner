@@ -67,6 +67,12 @@ export interface Puzzle {
   reference_label: string | null
 }
 
+export interface UserSettings {
+  user_id: string
+  piece_set: 'classic' | 'arcade' | 'wavy'
+  updated_at: string
+}
+
 export interface Note {
   id: string
   student_id: string

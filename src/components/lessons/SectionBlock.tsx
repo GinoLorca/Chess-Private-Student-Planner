@@ -1,16 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { createPuzzle, deletePuzzle, deleteSection, listPuzzles, updateSection } from '../../lib/api'
 import type { LessonSection, Puzzle } from '../../types/domain'
 import { PuzzleThumb } from './PuzzleThumb'
 
 export function SectionBlock({
   section,
+  studentId,
+  lessonPlanId,
   onOpenPuzzle,
   onDeleted,
   onPuzzlesChanged,
   reviewedIds,
 }: {
   section: LessonSection
+  studentId: string
+  lessonPlanId: string
   onOpenPuzzle: (puzzleId: string) => void
   onDeleted: () => void
   onPuzzlesChanged: () => void
@@ -93,10 +98,13 @@ export function SectionBlock({
             {puzzles?.map((puzzle, i) => {
               const reviewed = reviewedIds.has(puzzle.id)
               return (
-                <button
+                <div
                   key={puzzle.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onOpenPuzzle(puzzle.id)}
-                  className={`group flex w-full items-center justify-between gap-3 rounded-lg border bg-ink-950/60 px-3 py-2 text-left transition-colors ${
+                  onKeyDown={(e) => e.key === 'Enter' && onOpenPuzzle(puzzle.id)}
+                  className={`group flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border bg-ink-950/60 px-3 py-2 text-left transition-colors ${
                     reviewed ? 'border-green-700/40' : 'border-ink-800 hover:border-gold-600/50'
                   }`}
                 >
@@ -112,6 +120,13 @@ export function SectionBlock({
                       )}
                     </span>
                   </span>
+                  <Link
+                    to={`/students/${studentId}/lessons/${lessonPlanId}/puzzles/${puzzle.id}/study`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="shrink-0 rounded-full bg-ink-800 px-2.5 py-1 text-[10.5px] font-semibold text-ink-300 opacity-0 transition group-hover:opacity-100 hover:bg-gold-500 hover:text-ink-950"
+                  >
+                    Study
+                  </Link>
                   <span
                     onClick={(e) => {
                       e.stopPropagation()
@@ -121,7 +136,7 @@ export function SectionBlock({
                   >
                     delete
                   </span>
-                </button>
+                </div>
               )
             })}
           </div>

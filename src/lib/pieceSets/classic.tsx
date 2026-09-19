@@ -100,7 +100,7 @@ function King({ fill }: { fill: string }) {
   )
 }
 
-export const chessPieceSet: PieceRenderObject = {
+export const classicPieceSet: PieceRenderObject = {
   wP: () => <Pawn fill={WHITE_FILL} />,
   wR: () => <Rook fill={WHITE_FILL} />,
   wN: () => <Knight fill={WHITE_FILL} accent={BLACK_FILL} />,

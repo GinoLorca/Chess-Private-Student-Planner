@@ -121,6 +121,8 @@ export function LessonPlanDetailPage() {
           <SectionBlock
             key={section.id}
             section={section}
+            studentId={studentId!}
+            lessonPlanId={plan.id}
             onOpenPuzzle={openPuzzle}
             onDeleted={refreshSections}
             onPuzzlesChanged={refreshPuzzleCount}

@@ -9,6 +9,7 @@ import type {
   Puzzle,
   SolutionMove,
   Student,
+  UserSettings,
 } from '../types/domain'
 
 // ---------------------------------------------------------------------------
@@ -290,5 +291,24 @@ export async function updateNote(id: string, patch: Partial<Pick<Note, 'title' |
 
 export async function deleteNote(id: string) {
   const { error } = await supabase.from('notes').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------------------------------------------------------------------------
+// user settings
+// ---------------------------------------------------------------------------
+
+/** Null when the signed-in user has never saved a preference yet — callers should fall back to defaults. */
+export async function getUserSettings(): Promise<UserSettings | null> {
+  const { data, error } = await supabase.from('user_settings').select('*').maybeSingle()
+  if (error) throw error
+  return data as UserSettings | null
+}
+
+export async function updateUserSettings(patch: Partial<Pick<UserSettings, 'piece_set'>>) {
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData.user?.id
+  if (!userId) throw new Error('Not signed in')
+  const { error } = await supabase.from('user_settings').upsert({ user_id: userId, ...patch }, { onConflict: 'user_id' })
   if (error) throw error
 }

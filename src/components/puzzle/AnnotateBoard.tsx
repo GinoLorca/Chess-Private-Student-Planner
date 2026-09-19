@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import { Chessboard } from 'react-chessboard'
-import type { Arrow, SquareHandlerArgs } from 'react-chessboard'
+import type { SquareHandlerArgs } from 'react-chessboard'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
-import { chessPieceSet } from '../../lib/chessPieces'
+import { usePieceSet } from '../../state/PieceSetContext'
+import { ArrowOverlay } from './ArrowOverlay'
 
-const COLORS = [
-  { name: 'green', value: 'rgba(74, 222, 128, 0.9)', fill: 'rgba(74, 222, 128, 0.55)' },
-  { name: 'red', value: 'rgba(248, 113, 113, 0.9)', fill: 'rgba(248, 113, 113, 0.55)' },
-  { name: 'yellow', value: 'rgba(250, 204, 21, 0.9)', fill: 'rgba(250, 204, 21, 0.55)' },
+// Same four pens as Repertoire Lab's analysis board (green/red/blue/yellow),
+// so a coach's color coding means the same thing across both tools.
+const PENS = [
+  { id: 'green', name: 'Green', value: '#2ecc71' },
+  { id: 'red', name: 'Red', value: '#e5534b' },
+  { id: 'blue', name: 'Blue', value: '#3b9cff' },
+  { id: 'yellow', name: 'Yellow', value: '#e8b339' },
 ]
 
 type Mode = 'arrow' | 'highlight'
@@ -26,19 +30,21 @@ export function AnnotateBoard({
   onHighlightsChange: (highlights: BoardHighlight[]) => void
 }) {
   const [mode, setMode] = useState<Mode>('arrow')
-  const [colorIndex, setColorIndex] = useState(0)
+  const [penIndex, setPenIndex] = useState(0)
   const [arrowStart, setArrowStart] = useState<string | null>(null)
-  const activeColor = COLORS[colorIndex]
+  const pen = PENS[penIndex]
+  const { pieces } = usePieceSet()
 
   function handleSquareClick({ square }: SquareHandlerArgs) {
     if (mode === 'highlight') {
+      const fillColor = `${pen.value}66`
       const existing = highlights.find((h) => h.square === square)
-      if (existing && existing.color === activeColor.fill) {
+      if (existing && existing.color === fillColor) {
         onHighlightsChange(highlights.filter((h) => h.square !== square))
       } else if (existing) {
-        onHighlightsChange(highlights.map((h) => (h.square === square ? { ...h, color: activeColor.fill } : h)))
+        onHighlightsChange(highlights.map((h) => (h.square === square ? { ...h, color: fillColor } : h)))
       } else {
-        onHighlightsChange([...highlights, { square, color: activeColor.fill }])
+        onHighlightsChange([...highlights, { square, color: fillColor }])
       }
       return
     }
@@ -56,7 +62,7 @@ export function AnnotateBoard({
     if (existingIndex >= 0) {
       onArrowsChange(arrows.filter((_, i) => i !== existingIndex))
     } else {
-      onArrowsChange([...arrows, { startSquare: arrowStart, endSquare: square, color: activeColor.value }])
+      onArrowsChange([...arrows, { startSquare: arrowStart, endSquare: square, color: pen.value }])
     }
     setArrowStart(null)
   }
@@ -65,7 +71,7 @@ export function AnnotateBoard({
     highlights.map((h) => [h.square, { backgroundColor: h.color, boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.25)' }]),
   )
   if (arrowStart) {
-    squareStyles[arrowStart] = { ...(squareStyles[arrowStart] || {}), boxShadow: `inset 0 0 0 3px ${activeColor.value}` }
+    squareStyles[arrowStart] = { ...(squareStyles[arrowStart] || {}), boxShadow: `inset 0 0 0 3px ${pen.value}` }
   }
 
   const options = {
@@ -74,10 +80,9 @@ export function AnnotateBoard({
     boardOrientation: 'white' as const,
     allowDragging: false,
     allowDrawingArrows: false,
-    arrows: arrows as Arrow[],
     onSquareClick: handleSquareClick,
     squareStyles,
-    pieces: chessPieceSet,
+    pieces,
     darkSquareStyle: { backgroundColor: 'var(--color-board-dark)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
     lightSquareStyle: { backgroundColor: 'var(--color-board-light)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
     darkSquareNotationStyle: { color: 'var(--color-board-coord)', fontWeight: 700 },
@@ -93,7 +98,7 @@ export function AnnotateBoard({
               setMode('arrow')
               setArrowStart(null)
             }}
-            className={`rounded-md px-3 py-1 text-xs font-medium ${mode === 'arrow' ? 'bg-gold-500 text-ink-950' : 'text-ink-300'}`}
+            className={`rounded-md px-3 py-1 text-xs font-medium transition ${mode === 'arrow' ? 'bg-gold-500 text-ink-950' : 'text-ink-300 hover:text-ink-100'}`}
           >
             Arrow
           </button>
@@ -102,20 +107,23 @@ export function AnnotateBoard({
               setMode('highlight')
               setArrowStart(null)
             }}
-            className={`rounded-md px-3 py-1 text-xs font-medium ${mode === 'highlight' ? 'bg-gold-500 text-ink-950' : 'text-ink-300'}`}
+            className={`rounded-md px-3 py-1 text-xs font-medium transition ${mode === 'highlight' ? 'bg-gold-500 text-ink-950' : 'text-ink-300 hover:text-ink-100'}`}
           >
             Highlight
           </button>
         </div>
-        <div className="flex items-center gap-1.5">
-          {COLORS.map((c, i) => (
+        <div className="flex items-center gap-2">
+          {PENS.map((p, i) => (
             <button
-              key={c.name}
-              onClick={() => setColorIndex(i)}
-              className="h-5 w-5 rounded-full"
-              style={{ backgroundColor: c.value, boxShadow: colorIndex === i ? '0 0 0 2px #fff' : 'none' }}
-              aria-label={c.name}
-            />
+              key={p.id}
+              onClick={() => setPenIndex(i)}
+              title={p.name}
+              aria-label={p.name}
+              className="grid h-6 w-6 place-items-center rounded-full transition"
+              style={{ boxShadow: penIndex === i ? `0 0 0 2px var(--color-ink-950), 0 0 0 3.5px ${p.value}` : 'none' }}
+            >
+              <span className="block h-4 w-4 rounded-full" style={{ backgroundColor: p.value }} />
+            </button>
           ))}
         </div>
         {highlights.length > 0 && (
@@ -136,8 +144,9 @@ export function AnnotateBoard({
             : 'Click a square to start an arrow, then click where it points.'
           : 'Click a square to toggle a highlight in the selected color.'}
       </p>
-      <div className="mx-auto max-w-md">
+      <div className="relative mx-auto max-w-md">
         <Chessboard options={options} />
+        <ArrowOverlay arrows={arrows} orientation="white" />
       </div>
     </div>
   )

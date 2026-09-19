@@ -3,7 +3,7 @@ import { Chess } from 'chess.js'
 import { Chessboard } from 'react-chessboard'
 import type { PieceDropHandlerArgs } from 'react-chessboard'
 import type { SolutionMove } from '../../types/domain'
-import { chessPieceSet } from '../../lib/chessPieces'
+import { usePieceSet } from '../../state/PieceSetContext'
 
 export function SolutionRecorderBoard({
   startingFen,
@@ -17,6 +17,7 @@ export function SolutionRecorderBoard({
   const [chess] = useState(() => new Chess())
   const [fen, setFen] = useState(startingFen)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const { pieces } = usePieceSet()
 
   useEffect(() => {
     try {
@@ -63,7 +64,7 @@ export function SolutionRecorderBoard({
     allowDragging: !loadError,
     allowDrawingArrows: false,
     onPieceDrop: handleDrop,
-    pieces: chessPieceSet,
+    pieces,
     darkSquareStyle: { backgroundColor: 'var(--color-board-dark)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
     lightSquareStyle: { backgroundColor: 'var(--color-board-light)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
     darkSquareNotationStyle: { color: 'var(--color-board-coord)', fontWeight: 700 },

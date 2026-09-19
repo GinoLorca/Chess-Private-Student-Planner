@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Chessboard, ChessboardProvider, SparePiece, fenStringToPositionObject } from 'react-chessboard'
 import type { PieceDropHandlerArgs, PositionDataType } from 'react-chessboard'
 import { EMPTY_FEN, START_FEN, SPARE_PIECE_TYPES, positionToFen } from '../../lib/chessboardUtils'
-import { chessPieceSet } from '../../lib/chessPieces'
+import { usePieceSet } from '../../state/PieceSetContext'
 
 export function PositionSetupBoard({
   fen,
@@ -17,6 +17,7 @@ export function PositionSetupBoard({
 }) {
   const [fenDraft, setFenDraft] = useState(fen)
   const position = fenStringToPositionObject(fen, 8, 8)
+  const { pieces } = usePieceSet()
 
   function handleDrop({ piece, sourceSquare, targetSquare }: PieceDropHandlerArgs): boolean {
     if (!targetSquare) {
@@ -47,7 +48,7 @@ export function PositionSetupBoard({
     allowDragOffBoard: true,
     allowDrawingArrows: false,
     onPieceDrop: handleDrop,
-    pieces: chessPieceSet,
+    pieces,
     darkSquareStyle: { backgroundColor: 'var(--color-board-dark)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
     lightSquareStyle: { backgroundColor: 'var(--color-board-light)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
     darkSquareNotationStyle: { color: 'var(--color-board-coord)', fontWeight: 700 },

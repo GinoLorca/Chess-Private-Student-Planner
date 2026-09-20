@@ -37,17 +37,19 @@ export function AnnotateBoard({
   const pen = PENS[penIndex]
   const { pieces } = usePieceSet()
 
-  // Arrows are drawn with a right-button drag, which never fires a native
-  // "click" event — so a plain left click anywhere on the page is free to
-  // mean "clear the arrows" without ever fighting the drawing gesture.
+  // Arrows and highlights are drawn with a right-button drag, which never
+  // fires a native "click" event — so a plain left click anywhere on the
+  // page is free to mean "clear everything" without ever fighting the
+  // drawing gesture.
   useEffect(() => {
-    if (arrows.length === 0) return
+    if (arrows.length === 0 && highlights.length === 0) return
     function handleClick() {
-      onArrowsChange([])
+      if (arrows.length > 0) onArrowsChange([])
+      if (highlights.length > 0) onHighlightsChange([])
     }
     document.addEventListener('click', handleClick)
     return () => document.removeEventListener('click', handleClick)
-  }, [arrows, onArrowsChange])
+  }, [arrows, highlights, onArrowsChange, onHighlightsChange])
 
   function toggleHighlight(square: string) {
     const fillColor = `${pen.value}66`
@@ -153,10 +155,11 @@ export function AnnotateBoard({
       </div>
       <p className="text-xs text-ink-400">
         Right-click and drag to draw an arrow (drag on a touchscreen). Drag back onto the same square to toggle a
-        highlight instead. Repeat the same arrow or highlight to remove it. A left click anywhere clears all arrows.
+        highlight instead. Repeat the same arrow or highlight to remove it. A left click anywhere clears all arrows
+        and highlights.
       </p>
       <div
-        className="relative mx-auto max-w-md touch-none select-none"
+        className="relative mx-auto max-w-[650px] touch-none select-none"
         onContextMenu={(e) => e.preventDefault()}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

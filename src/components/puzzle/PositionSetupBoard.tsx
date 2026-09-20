@@ -80,7 +80,7 @@ export function PositionSetupBoard({
             </div>
           ))}
         </div>
-        <div className="mx-auto max-w-md" onContextMenu={(e) => e.preventDefault()}>
+        <div className="mx-auto max-w-[650px]" onContextMenu={(e) => e.preventDefault()}>
           <Chessboard />
         </div>
       </ChessboardProvider>

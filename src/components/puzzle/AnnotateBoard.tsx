@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Chessboard } from 'react-chessboard'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
 import { usePieceSet } from '../../state/PieceSetContext'
@@ -36,6 +36,18 @@ export function AnnotateBoard({
   const [dragTo, setDragTo] = useState<string | null>(null)
   const pen = PENS[penIndex]
   const { pieces } = usePieceSet()
+
+  // Arrows are drawn with a right-button drag, which never fires a native
+  // "click" event — so a plain left click anywhere on the page is free to
+  // mean "clear the arrows" without ever fighting the drawing gesture.
+  useEffect(() => {
+    if (arrows.length === 0) return
+    function handleClick() {
+      onArrowsChange([])
+    }
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [arrows, onArrowsChange])
 
   function toggleHighlight(square: string) {
     const fillColor = `${pen.value}66`
@@ -141,7 +153,7 @@ export function AnnotateBoard({
       </div>
       <p className="text-xs text-ink-400">
         Right-click and drag to draw an arrow (drag on a touchscreen). Drag back onto the same square to toggle a
-        highlight instead. Repeat the same arrow or highlight to remove it.
+        highlight instead. Repeat the same arrow or highlight to remove it. A left click anywhere clears all arrows.
       </p>
       <div
         className="relative mx-auto max-w-md touch-none select-none"

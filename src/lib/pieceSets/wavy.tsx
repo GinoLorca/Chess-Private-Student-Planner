@@ -31,9 +31,11 @@ function Base({ fill, stroke }: { fill: string; stroke: string }) {
 function King({ fill, stroke, detail }: { fill: string; stroke: string; detail: string }) {
   return (
     <Svg>
-      <Detail d="M50 8v18M41 16h18" color={detail} strokeWidth={4} />
-      <Body d="M50 25c9 0 16 7 16 16 0 8-5 14-11 18l11 10H34l11-10c-6-4-11-10-11-18 0-9 7-16 16-16Z" fill={fill} stroke={stroke} />
-      <Detail d="M38 65h24" color={detail} />
+      <g transform="translate(50,69) scale(1.1) translate(-50,-69)">
+        <Detail d="M50 8v18M41 16h18" color={detail} strokeWidth={4} />
+        <Body d="M50 25c9 0 16 7 16 16 0 8-5 14-11 18l11 10H34l11-10c-6-4-11-10-11-18 0-9 7-16 16-16Z" fill={fill} stroke={stroke} />
+        <Detail d="M38 65h24" color={detail} />
+      </g>
       <Base fill={fill} stroke={stroke} />
     </Svg>
   )
@@ -42,17 +44,19 @@ function King({ fill, stroke, detail }: { fill: string; stroke: string; detail: 
 function Queen({ fill, stroke, detail }: { fill: string; stroke: string; detail: string }) {
   return (
     <Svg>
-      {[
-        [23, 25],
-        [37, 17],
-        [50, 12],
-        [63, 17],
-        [77, 25],
-      ].map(([cx, cy]) => (
-        <circle key={cx} cx={cx} cy={cy} r={4.5} fill={fill} stroke={stroke} strokeWidth={3.2} />
-      ))}
-      <Body d="M23 29l9 34h36l9-34-15 17-12-29-12 29-15-17Z" fill={fill} stroke={stroke} />
-      <Detail d="M33 63h34" color={detail} />
+      <g transform="translate(50,69) scale(1.1) translate(-50,-69)">
+        {[
+          [23, 25],
+          [37, 17],
+          [50, 12],
+          [63, 17],
+          [77, 25],
+        ].map(([cx, cy]) => (
+          <circle key={cx} cx={cx} cy={cy} r={4.5} fill={fill} stroke={stroke} strokeWidth={3.2} />
+        ))}
+        <Body d="M23 29l9 34h36l9-34-15 17-12-29-12 29-15-17Z" fill={fill} stroke={stroke} />
+        <Detail d="M33 63h34" color={detail} />
+      </g>
       <Base fill={fill} stroke={stroke} />
     </Svg>
   )
@@ -61,8 +65,10 @@ function Queen({ fill, stroke, detail }: { fill: string; stroke: string; detail:
 function Rook({ fill, stroke, detail }: { fill: string; stroke: string; detail: string }) {
   return (
     <Svg>
-      <Body d="M28 17h12v10h7V17h6v10h7V17h12v22l-6 6 4 24H30l4-24-6-6V17Z" fill={fill} stroke={stroke} />
-      <Detail d="M34 44h32M33 65h34" color={detail} />
+      <g transform="translate(50,69) scale(0.88) translate(-50,-69)">
+        <Body d="M28 17h12v10h7V17h6v10h7V17h12v22l-6 6 4 24H30l4-24-6-6V17Z" fill={fill} stroke={stroke} />
+        <Detail d="M34 44h32M33 65h34" color={detail} />
+      </g>
       <Base fill={fill} stroke={stroke} />
     </Svg>
   )
@@ -71,8 +77,10 @@ function Rook({ fill, stroke, detail }: { fill: string; stroke: string; detail: 
 function Bishop({ fill, stroke, detail }: { fill: string; stroke: string; detail: string }) {
   return (
     <Svg>
-      <Body d="M50 12c10 10 17 20 16 31-1 9-6 15-12 19l12 7H34l12-7c-6-4-11-10-12-19-1-11 6-21 16-31Z" fill={fill} stroke={stroke} />
-      <Detail d="m56 26-13 24" color={detail} strokeWidth={4} />
+      <g transform="translate(50,69) scale(0.88) translate(-50,-69)">
+        <Body d="M50 12c10 10 17 20 16 31-1 9-6 15-12 19l12 7H34l12-7c-6-4-11-10-12-19-1-11 6-21 16-31Z" fill={fill} stroke={stroke} />
+        <Detail d="m56 26-13 24" color={detail} strokeWidth={4} />
+      </g>
       <Base fill={fill} stroke={stroke} />
     </Svg>
   )
@@ -81,13 +89,15 @@ function Bishop({ fill, stroke, detail }: { fill: string; stroke: string; detail
 function Knight({ fill, stroke, detail }: { fill: string; stroke: string; detail: string }) {
   return (
     <Svg>
-      <Body
-        d="M39 69c1-8 4-14 11-19 7-5 11-11 11-18-3 8-9 13-16 13-5 0-9 2-11 8-7 0-12-4-13-10 6-6 11-11 15-18l9-7c0-4-1-8-3-12 5 1 9 3 12 7 12 0 22 8 26 20 4 13 0 26-10 36l1-13c-3 6-6 10-10 13H39Z"
-        fill={fill}
-        stroke={stroke}
-      />
-      <path d="m39 29 8-3-4 7-7 2 3-6Z" fill={detail} />
-      <Detail d="M70 35c5 11 2 22-5 30" color={detail} />
+      <g transform="translate(50,69) scale(0.88) translate(-50,-69)">
+        <Body
+          d="M39 69c1-8 4-14 11-19 7-5 11-11 11-18-3 8-9 13-16 13-5 0-9 2-11 8-7 0-12-4-13-10 6-6 11-11 15-18l9-7c0-4-1-8-3-12 5 1 9 3 12 7 12 0 22 8 26 20 4 13 0 26-10 36l1-13c-3 6-6 10-10 13H39Z"
+          fill={fill}
+          stroke={stroke}
+        />
+        <path d="m39 29 8-3-4 7-7 2 3-6Z" fill={detail} />
+        <Detail d="M70 35c5 11 2 22-5 30" color={detail} />
+      </g>
       <Base fill={fill} stroke={stroke} />
     </Svg>
   )

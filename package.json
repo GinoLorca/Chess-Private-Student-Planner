@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "fens:convert": "node tools/chessable/2026-09-21-fens-to-line.mjs",
+    "chessable:login": "node tools/chessable/2026-09-21-chessable-capture.mjs login",
+    "chessable:capture": "node tools/chessable/2026-09-21-chessable-capture.mjs",
+    "chessable:probe": "node tools/chessable/2026-09-21-chessable-capture.mjs probe",
+    "chessable:selftest": "node tools/chessable/2026-09-21-chessable-capture.mjs mock --all --pgn --out captures/selftest"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
@@ -30,6 +35,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.6.1",
     "oxlint": "^1.81.0",
+    "playwright": "^1.63.0",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",

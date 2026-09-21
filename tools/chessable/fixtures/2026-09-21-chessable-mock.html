@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mock Chessable viewer (for testing the capture script offline)</title>
+<style>
+  body { font: 16px/1.4 system-ui, sans-serif; background: #1f2630; color: #eee; margin: 0; padding: 24px; }
+  .crumbs a { color: #6cb6ff; text-decoration: none; }
+  h1 { margin: 4px 0 16px; }
+  .board { width: 320px; height: 320px; background:
+    repeating-conic-gradient(#8fa8c8 0 25%, #dbe6f5 0 50%) 0 0 / 80px 80px; border-radius: 4px; }
+  #status { margin: 8px 0 12px; }
+  .controls { display: flex; gap: 8px; align-items: center; margin: 12px 0; }
+  .btn, .pager, .train { background: #2b3440; color: #eee; border: 1px solid #3f4a58; border-radius: 6px; padding: 8px 14px; text-decoration: none; }
+  .pager[aria-disabled="true"] { opacity: .4; pointer-events: none; }
+  .fa::before { display: inline-block; width: 1em; text-align: center; }
+  .fa-refresh::before { content: "⟳"; } .fa-fast-backward::before { content: "⏮"; } .fa-chevron-left::before { content: "‹"; }
+  .fa-chevron-right::before { content: "›"; } .fa-fast-forward::before { content: "⏭"; }
+  .fenrow { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
+  .fenrow input { width: 560px; padding: 8px; font: 15px monospace; }
+  .text { max-width: 640px; color: #cfd6df; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="#course">The Foundational Concepts of Positional Play</a> &gt;
+  <a href="#chapters">Chapters</a> &gt;
+  <a href="#chapter" id="chapter"></a>
+</nav>
+<h1 id="title"></h1>
+<div class="board" id="board"></div>
+<div id="status"></div>
+<div class="controls">
+  <button class="btn" title="Flip board"><i class="fa fa-refresh"></i></button>
+  <button class="btn" id="first"><i class="fa fa-fast-backward"></i></button>
+  <button class="btn" id="prev"><i class="fa fa-chevron-left"></i></button>
+  <button class="btn" id="next"><i class="fa fa-chevron-right"></i></button>
+  <button class="btn" id="last"><i class="fa fa-fast-forward"></i></button>
+  <a href="#" class="pager" id="prevVar">« Previous</a>
+  <a href="#" class="pager" id="nextVar">Next »</a>
+  <button class="train">Train</button>
+</div>
+<div class="text" id="commentary">Let's look at the white bishop in this position. How happy is it? (The "initial position" wording in commentary must not confuse the script.)</div>
+<div class="fenrow">
+  <label for="fenInput">FEN:</label>
+  <input id="fenInput" autofocus>
+  <button>Find position in course</button>
+</div>
+<script>
+  // Query options for the self-test:  ?startPly=2   open part-way through the line
+  //                                   ?nokeys=1     arrow keys do nothing (buttons only)
+  const VARIATIONS = [
+    {
+      chapter: '3. From Piece Happiness to Positional Evaluation',
+      title: 'The Bad Bishop: Trapped by Its Own Pawns',
+      fens: [
+        '1r2r1k1/p2b1pp1/1p5p/2p1p3/2P1P3/1P1B4/P4PPP/1R2R1K1 b - - 0 5',
+        '1r1r2k1/p2b1pp1/1p5p/2p1p3/2P1P3/1P1B4/P4PPP/1R2R1K1 w - - 1 6',
+        '1r1r2k1/p2b1pp1/1p5p/2p1p3/2P1P3/1P1B1P2/P5PP/1R2R1K1 b - - 0 6',
+        '1r1r2k1/p4pp1/1p2b2p/2p1p3/2P1P3/1P1B1P2/P5PP/1R2R1K1 w - - 1 7',
+        '1r1r2k1/p4pp1/1p2b2p/2p1p3/2P1P3/1P1B1P2/P5PP/3RR1K1 b - - 2 7',
+        '1r4k1/p4pp1/1p2b2p/2p1p3/2PrP3/1P1B1P2/P5PP/3RR1K1 w - - 3 8',
+        '1r4k1/p4pp1/1p2b2p/2p1p3/2PrP3/1P1B1P2/P4KPP/3RR3 b - - 4 8',
+        '3r2k1/p4pp1/1p2b2p/2p1p3/2PrP3/1P1B1P2/P4KPP/3RR3 w - - 5 9',
+      ],
+    },
+    {
+      chapter: '3. From Piece Happiness to Positional Evaluation',
+      title: 'The Good Bishop: An Open Diagonal',
+      fens: [
+        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+        'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+        'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2',
+        'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3',
+        'r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3',
+      ],
+    },
+    {
+      chapter: '4. Special Moves',
+      title: 'En Passant, Castling and Promotion in One Line',
+      fens: [
+        'r3k2r/1P3ppp/8/3pP3/8/8/5PPP/R3K2R w KQkq d6 0 20',
+        'r3k2r/1P3ppp/3P4/8/8/8/5PPP/R3K2R b KQkq - 0 20',
+        'r4rk1/1P3ppp/3P4/8/8/8/5PPP/R3K2R w KQ - 1 21',
+        'Q4rk1/5ppp/3P4/8/8/8/5PPP/R3K2R b KQ - 0 21',
+        'r5k1/5ppp/3P4/8/8/8/5PPP/R3K2R w KQ - 0 22',
+        'r5k1/5ppp/3P4/8/8/8/5PPP/2KR3R b - - 1 22',
+      ],
+    },
+  ]
+
+  const params = new URLSearchParams(location.search)
+  const NOKEYS = params.get('nokeys') === '1'
+  const state = {
+    v: Number((location.hash.match(/v(\d+)/) || [])[1] || 0),
+    ply: Number(params.get('startPly') || 0),
+  }
+  const $ = (id) => document.getElementById(id)
+
+  function render() {
+    const v = VARIATIONS[state.v]
+    $('chapter').textContent = v.chapter
+    $('title').textContent = v.title
+    const fen = v.fens[state.ply]
+    const side = fen.split(' ')[1] === 'w' ? 'White' : 'Black'
+    $('status').innerHTML = `<b>${side}</b> to move, ${state.ply === 0 ? 'Initial position' : `last move ${state.ply}`}`
+    $('nextVar').setAttribute('aria-disabled', state.v === VARIATIONS.length - 1 ? 'true' : 'false')
+    $('prevVar').setAttribute('aria-disabled', state.v === 0 ? 'true' : 'false')
+    // The real viewer animates the piece first and updates the FEN box a moment later.
+    setTimeout(() => { $('fenInput').value = fen }, 150)
+  }
+  function go(ply) {
+    const v = VARIATIONS[state.v]
+    state.ply = Math.max(0, Math.min(v.fens.length - 1, ply))
+    render()
+  }
+  function goVariation(delta) {
+    const next = state.v + delta
+    if (next < 0 || next >= VARIATIONS.length) return
+    state.v = next
+    state.ply = 0
+    location.hash = `v${next}`
+    render()
+  }
+  $('first').onclick = () => go(0)
+  $('prev').onclick = () => go(state.ply - 1)
+  $('next').onclick = () => go(state.ply + 1)
+  $('last').onclick = () => go(VARIATIONS[state.v].fens.length - 1)
+  $('nextVar').onclick = (e) => { e.preventDefault(); goVariation(1) }
+  $('prevVar').onclick = (e) => { e.preventDefault(); goVariation(-1) }
+  if (!NOKEYS) {
+    document.addEventListener('keydown', (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return
+      if (e.key === 'ArrowRight') go(state.ply + 1)
+      if (e.key === 'ArrowLeft') go(state.ply - 1)
+    })
+  }
+  render()
+</script>
+</body>
+</html>

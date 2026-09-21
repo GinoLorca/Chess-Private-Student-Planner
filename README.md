@@ -137,3 +137,11 @@ Imported sets are stored with your account and sync across devices.
 - Lesson rows flag an answer that doesn't replay from its position (e.g. an imported castling move
   on a position saved without castling rights) so it can be re-recorded before the lesson.
 - Reviewed marks and agenda ticks are per device per session; a new lesson day starts clean.
+
+## Pulling lines out of a Chessable course
+
+`tools/chessable` holds two small command-line tools: a converter that turns a list of FENs into
+one `<start FEN> 5...Red8 6.f3 Be6` line per variation, and a Playwright script that signs in to
+Chessable with your own account, steps through a variation (or a whole chapter), records the FEN
+after every move and writes those lines out. See
+[tools/chessable/2026-09-21-chessable-capture-README.md](tools/chessable/2026-09-21-chessable-capture-README.md).

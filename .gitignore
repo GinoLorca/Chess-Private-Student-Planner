@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Chessable capture: saved browser session and captured lines
+.chessable/
+captures/

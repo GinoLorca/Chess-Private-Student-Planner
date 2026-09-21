@@ -3,6 +3,7 @@ import { useLesson, usePuzzle, usePuzzleMutations, useStudent } from '../lib/que
 import { normalizeFen } from '../lib/fen'
 import { Page, Card, LoadingPage, SectionLabel } from '../components/ui/Page'
 import { effectiveQuizPrompt } from '../lib/prompts'
+import { penHint } from '../lib/pens'
 import { Button } from '../components/ui/Button'
 import { DrawableBoard } from '../components/board/DrawableBoard'
 import { Pencil, Play } from '../components/ui/Icons'
@@ -48,8 +49,8 @@ export function PuzzlePage() {
       }
     >
       {/* Desktop (a mouse or trackpad, wide window) gets a board about a third larger; iPad and iPhone keep their layout. */}
-      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start pointer-fine:min-[1280px]:max-w-[1400px] pointer-fine:min-[1280px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="mx-auto w-full max-w-[560px] pointer-fine:min-[1280px]:max-w-[756px]">
+      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start pointer-fine:min-[1280px]:max-w-[1300px] pointer-fine:min-[1280px]:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <div className="mx-auto w-full max-w-[560px] pointer-fine:min-[1280px]:max-w-[605px]">
           <div className="mb-2 flex items-baseline justify-between">
             <h1 className="text-[26px] font-bold tracking-tight text-ink">{puzzle.label || 'Untitled position'}</h1>
             <span className="text-[14px] font-semibold text-ink-2">{toMove} to play</span>
@@ -62,7 +63,9 @@ export function PuzzlePage() {
             onArrowsChange={(arrows) => update.mutate({ arrows })}
             onHighlightsChange={(highlights) => update.mutate({ highlights })}
           />
-          <p className="mt-2 text-[12.5px] text-ink-3">Right-drag to draw an arrow, right-click a square to highlight it. Same again removes it.</p>
+          <p className="mt-2 text-[12.5px] text-ink-3">
+            Right-drag for an arrow, right-click a square to highlight it, left-click to clear. Hold {penHint()}.
+          </p>
         </div>
 
         <div className="space-y-4">

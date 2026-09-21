@@ -3,17 +3,9 @@ import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
 import { Board } from '../board/Board'
 import { squareAtPoint, DRAG_THRESHOLD } from '../board/pointer'
-import { PEN_COLORS, HIGHLIGHT_ALPHA } from '../../lib/import/pgn'
+import { HIGHLIGHT_ALPHA, PENS, currentPen, penHint } from '../../lib/pens'
 import { Button } from '../ui/Button'
 import type { Orientation } from '../../lib/fen'
-
-// Lichess's four pens, so an arrow drawn here matches one imported from a study.
-const PENS = [
-  { id: 'G', name: 'Green', value: PEN_COLORS.G },
-  { id: 'R', name: 'Red', value: PEN_COLORS.R },
-  { id: 'B', name: 'Blue', value: PEN_COLORS.B },
-  { id: 'Y', name: 'Yellow', value: PEN_COLORS.Y },
-]
 
 interface AnnotateBoardProps {
   fen: string
@@ -25,9 +17,11 @@ interface AnnotateBoardProps {
 }
 
 /**
- * Drag from square to square to draw an arrow, tap a square to toggle a
- * highlight, in the current pen colour. Repeating either removes it. On a
- * mouse the right button draws too, like Lichess.
+ * The touch-friendly pen: drag from square to square for an arrow, tap a
+ * square to highlight it, in the selected pen. Repeating either removes it.
+ * On a mouse it's the Repertoire Lab gesture too: right-drag draws, a held
+ * Z / R / F / C picks the colour for that arrow, and a plain left click on
+ * an empty square clears everything.
  */
 export function AnnotateBoard({
   fen,
@@ -41,9 +35,15 @@ export function AnnotateBoard({
   const [preview, setPreview] = useState<BoardArrow | null>(null)
   const [from, setFrom] = useState<string | null>(null)
   const boardRef = useRef<HTMLDivElement>(null)
-  const pen = PENS[penIndex]
+  const selectedPen = PENS[penIndex]
+  const hasMarks = arrows.length > 0 || highlights.length > 0
 
-  function toggleHighlight(square: string) {
+  function clearAll() {
+    if (highlights.length) onHighlightsChange([])
+    if (arrows.length) onArrowsChange([])
+  }
+
+  function toggleHighlight(square: string, pen = selectedPen) {
     const color = pen.value + HIGHLIGHT_ALPHA
     const existing = highlights.find((h) => h.square === square)
     if (existing && existing.color === color) onHighlightsChange(highlights.filter((h) => h.square !== square))
@@ -51,7 +51,7 @@ export function AnnotateBoard({
     else onHighlightsChange([...highlights, { square, color }])
   }
 
-  function toggleArrow(start: string, end: string) {
+  function toggleArrow(start: string, end: string, pen = selectedPen) {
     const i = arrows.findIndex((a) => a.startSquare === start && a.endSquare === end)
     if (i >= 0 && arrows[i].color === pen.value) onArrowsChange(arrows.filter((_, j) => j !== i))
     else if (i >= 0) onArrowsChange(arrows.map((a, j) => (j === i ? { ...a, color: pen.value } : a)))
@@ -62,6 +62,14 @@ export function AnnotateBoard({
     if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 2) return
     const start = squareAtPoint(e.clientX, e.clientY, boardRef.current)
     if (!start) return
+    // Mouse: a plain left click wipes the marks; the right button draws with a
+    // held pen key (or green). Touch: the selected pen, and tapping draws.
+    const mouseLeft = e.pointerType === 'mouse' && e.button === 0
+    if (mouseLeft && hasMarks) {
+      clearAll()
+      return
+    }
+    const penFor = () => (e.pointerType === 'mouse' && e.button === 2 ? currentPen() : selectedPen)
     e.preventDefault()
     const target = e.currentTarget
     target.setPointerCapture(e.pointerId)
@@ -77,7 +85,7 @@ export function AnnotateBoard({
       const sq = squareAtPoint(ev.clientX, ev.clientY, boardRef.current)
       if (sq && sq !== last) {
         last = sq
-        setPreview(sq === start ? null : { startSquare: start, endSquare: sq, color: pen.value })
+        setPreview(sq === start ? null : { startSquare: start, endSquare: sq, color: penFor().value })
       }
     }
     const onUp = (ev: PointerEvent) => {
@@ -87,8 +95,8 @@ export function AnnotateBoard({
       setPreview(null)
       setFrom(null)
       const end = squareAtPoint(ev.clientX, ev.clientY, boardRef.current) ?? last
-      if (!dragging || end === start) toggleHighlight(start)
-      else toggleArrow(start, end)
+      if (!dragging || end === start) toggleHighlight(start, penFor())
+      else toggleArrow(start, end, penFor())
     }
     target.addEventListener('pointermove', onMove)
     target.addEventListener('pointerup', onUp)
@@ -127,7 +135,8 @@ export function AnnotateBoard({
         )}
       </div>
       <p className="text-[13px] text-ink-3">
-        Drag between squares to draw an arrow, tap a square to highlight it. Draw the same thing again to remove it.
+        Drag between squares for an arrow, tap a square to highlight it; the same again removes it. With a mouse:
+        right-drag draws, hold {penHint()}, left-click clears.
       </p>
       <div className="mx-auto w-full max-w-[560px]">
         <Board

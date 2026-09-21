@@ -1,10 +1,14 @@
 import { useState, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent, type RefObject } from 'react'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
-import { PEN_COLORS, HIGHLIGHT_ALPHA } from '../../lib/import/pgn'
+import { HIGHLIGHT_ALPHA, currentPen } from '../../lib/pens'
 import { DRAG_THRESHOLD, isSecondaryButton, squareAtPoint } from './pointer'
 
 export interface RightClickDraw {
-  /** Handles a secondary-button press; returns true when it took the event. */
+  /**
+   * Handles the drawing gestures; returns true when it took the event. A
+   * left press only clears (and returns false) so the board's own left-click
+   * behaviour still runs.
+   */
   onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => boolean
   onContextMenu: (e: ReactMouseEvent) => void
   /** The saved arrows plus the one being dragged out. */
@@ -24,11 +28,11 @@ interface Options {
 }
 
 /**
- * Lichess's right-button gesture on any board: right-drag draws an arrow,
- * right-click a square highlights it, the same again removes it. The pen
- * follows the modifier keys as on Lichess: plain green, Shift red, Alt blue,
- * Ctrl/Cmd yellow. A trackpad two-finger tap on the iPad counts as the right
- * button too. Left-button presses are left alone for whatever the board does.
+ * The Repertoire Lab gesture on any board: right-drag draws an arrow,
+ * right-click a square highlights it, the same again removes it, and a plain
+ * left click wipes everything drawn. Hold Z / R / F / C while dragging for
+ * green / red / blue / yellow; green with nothing held. A trackpad
+ * two-finger tap counts as the right button.
  */
 export function useRightClickDraw({ boardRef, arrows, highlights, onArrowsChange, onHighlightsChange, enabled = true }: Options): RightClickDraw {
   const [preview, setPreview] = useState<BoardArrow | null>(null)
@@ -50,12 +54,19 @@ export function useRightClickDraw({ boardRef, arrows, highlights, onArrowsChange
   }
 
   function onPointerDown(e: ReactPointerEvent<HTMLDivElement>): boolean {
-    if (!enabled || !isSecondaryButton(e)) return false
+    if (!enabled) return false
+    if (e.pointerType === 'mouse' && e.button === 0) {
+      // A plain left click wipes this position's marks; the board's own
+      // left-click handling carries on as usual.
+      if (arrows.length) onArrowsChange([])
+      if (highlights.length) onHighlightsChange([])
+      return false
+    }
+    if (!isSecondaryButton(e)) return false
     const start = squareAtPoint(e.clientX, e.clientY, boardRef.current)
     if (!start) return false
     e.preventDefault()
     e.stopPropagation()
-    const pen = e.shiftKey ? PEN_COLORS.R : e.altKey ? PEN_COLORS.B : e.ctrlKey || e.metaKey ? PEN_COLORS.Y : PEN_COLORS.G
     const target = e.currentTarget
     target.setPointerCapture(e.pointerId)
     const startX = e.clientX
@@ -70,7 +81,7 @@ export function useRightClickDraw({ boardRef, arrows, highlights, onArrowsChange
       const sq = squareAtPoint(ev.clientX, ev.clientY, boardRef.current)
       if (sq && sq !== last) {
         last = sq
-        setPreview(sq === start ? null : { startSquare: start, endSquare: sq, color: pen })
+        setPreview(sq === start ? null : { startSquare: start, endSquare: sq, color: currentPen().value })
       }
     }
     const onUp = (ev: PointerEvent) => {
@@ -79,6 +90,8 @@ export function useRightClickDraw({ boardRef, arrows, highlights, onArrowsChange
       target.removeEventListener('pointercancel', onUp)
       setPreview(null)
       setFrom(null)
+      // The pen is read at release, so a key pressed mid-drag still counts.
+      const pen = currentPen().value
       const end = squareAtPoint(ev.clientX, ev.clientY, boardRef.current) ?? last
       if (!dragging || end === start) toggleHighlight(start, pen)
       else toggleArrow(start, end, pen)

@@ -15,6 +15,8 @@ import { Button, IconButton } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Board } from '../components/board/Board'
+import { StatusStamp } from '../components/lesson/Folder'
+import { FOLDER_COLORS } from '../lib/colors'
 import { Check, Moon, Sun, Trash, Upload } from '../components/ui/Icons'
 
 const APPEARANCES: { id: Appearance; label: string }[] = [
@@ -40,7 +42,7 @@ export function SettingsPage() {
 
   return (
     <Page back="/" title="Settings">
-      <SectionLabel>Appearance</SectionLabel>
+      <SectionLabel tone="page">Appearance</SectionLabel>
       <Card className="mb-8 flex gap-1 p-1.5">
         {APPEARANCES.map((a) => (
           <button
@@ -58,8 +60,8 @@ export function SettingsPage() {
         ))}
       </Card>
 
-      <SectionLabel>Skin</SectionLabel>
-      <p className="mb-3 text-[14px] text-ink-2">
+      <SectionLabel tone="page">Skin</SectionLabel>
+      <p className="mb-3 text-[14px] text-on-bg-2">
         The whole app in a different material. Folder is the planner's own look; the rest are Chess Arcade's skins,
         colours, board and piece treatment included.
       </p>
@@ -78,9 +80,7 @@ export function SettingsPage() {
               data-skin={sk.id === FOLDER_SKIN ? undefined : sk.id}
               style={{ background: 'var(--surface)', color: 'var(--ink)', fontFamily: 'var(--font-sans)' }}
             >
-              <div className="mx-auto w-[92px]">
-                <Board fen={PREVIEW_FEN} coordinates={false} className="shadow-none" />
-              </div>
+              <SkinPreview />
               <span className="mt-2.5 block truncate text-[15px] leading-tight font-bold" style={{ fontFamily: 'var(--font-display)' }}>
                 {sk.label}
               </span>
@@ -97,9 +97,11 @@ export function SettingsPage() {
         })}
       </div>
 
-      <SectionLabel>Board colours</SectionLabel>
+      <SectionLabel tone="page">Board colours</SectionLabel>
       {skin !== FOLDER_SKIN && (
-        <p className="mb-3 text-[13px] text-ink-3">The {SKINS.find((sk) => sk.id === skin)?.label} skin brings its own board. These presets apply to the Folder skin.</p>
+        <p className="mb-3 text-[13px] text-on-bg-2">
+          The {SKINS.find((sk) => sk.id === skin)?.label} skin brings its own board. These presets apply to the Folder skin.
+        </p>
       )}
       <div className="mb-3 grid grid-cols-4 gap-2 sm:grid-cols-8">
         {BOARD_THEMES.map((t) => (
@@ -113,7 +115,7 @@ export function SettingsPage() {
             )}
           >
             <Swatch light={t.light} dark={t.dark} />
-            <span className="mt-1 block text-center text-[12px] font-semibold text-ink-2">{t.label}</span>
+            <span className="mt-1 block text-center text-[12px] font-semibold text-on-bg-2">{t.label}</span>
           </button>
         ))}
       </div>
@@ -124,8 +126,8 @@ export function SettingsPage() {
         {boardTheme === 'custom' && <Check className="text-accent" />}
       </Card>
 
-      <SectionLabel>Chess pieces</SectionLabel>
-      <p className="-mt-1 mb-3 text-[14px] text-ink-3">
+      <SectionLabel tone="page">Chess pieces</SectionLabel>
+      <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">
         Used on every board in the app. Import a set from Chess Arcade or anywhere else — 12 images named like wK, bQ.
       </p>
       <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -155,8 +157,8 @@ export function SettingsPage() {
         Import piece set
       </Button>
 
-      <SectionLabel>Game accounts</SectionLabel>
-      <p className="-mt-1 mb-3 text-[14px] text-ink-3">Lets Quick Add find your own games by link.</p>
+      <SectionLabel tone="page">Game accounts</SectionLabel>
+      <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">Lets Quick Add find your own games by link.</p>
       <Card className="mb-8 grid gap-3 p-4 sm:grid-cols-2">
         <label className="block">
           <span className="mb-1 block text-[13px] font-medium text-ink-2">Lichess username</span>
@@ -180,7 +182,7 @@ export function SettingsPage() {
         </label>
       </Card>
 
-      <SectionLabel>Account</SectionLabel>
+      <SectionLabel tone="page">Account</SectionLabel>
       <Card className="flex items-center justify-between gap-3 p-4">
         <div className="min-w-0">
           <p className="truncate text-[15px] font-semibold text-ink">{session?.user.email}</p>
@@ -205,6 +207,41 @@ export function SettingsPage() {
         }}
       />
     </Page>
+  )
+}
+
+/** A folder in miniature: tab, stamp, sticky note and a board on an index card, all in the card's skin. */
+function SkinPreview() {
+  const color = FOLDER_COLORS[0]
+  return (
+    <div className="pointer-events-none" aria-hidden>
+      <div className="pl-2">
+        <span
+          className="folder-tab flex h-5 w-fit items-center gap-1 rounded-t-lg px-2 text-[9px] font-bold tracking-[0.08em] text-black/60 uppercase"
+          style={{ background: color }}
+        >
+          <span className="block h-1.5 w-1.5 rounded-[1px] bg-black/35" />
+          Student
+        </span>
+      </div>
+      <div className="folder-body rounded-r-xl rounded-bl-xl p-2 shadow-[0_10px_22px_-16px_rgba(0,0,0,0.45)]" style={{ background: color }}>
+        <div className="flex items-start gap-2">
+          <div className="index-card w-[62px] shrink-0 rounded-md border border-line bg-surface p-1 shadow-[0_6px_14px_-10px_rgba(0,0,0,0.5)]">
+            <Board fen={PREVIEW_FEN} coordinates={false} className="rounded-[2px] shadow-none" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5 pt-0.5">
+            <StatusStamp status="taught" size="sm" />
+            <div className="folder-sticky w-full rotate-[1.5deg]">
+              <div className="sticky-paper rounded-xs bg-sticky px-2 py-1.5 text-[9px] leading-snug font-semibold text-sticky-ink">
+                Agenda
+                <br />
+                Back rank
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 

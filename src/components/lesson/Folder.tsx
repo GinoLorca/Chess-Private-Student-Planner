@@ -316,7 +316,7 @@ export function LessonCard({
         <div className="flex items-start gap-3.5">
           <div className="flex shrink-0 items-baseline gap-1.5">
             <span className="text-[11px] font-bold tracking-[0.14em] text-ink-3 uppercase">Lesson</span>
-            <span className="folder-number font-display text-[40px] leading-none font-bold tracking-[-0.02em] text-ink">{number}</span>
+            <span className="font-display text-[40px] leading-none font-bold tracking-[-0.02em] text-ink">{number}</span>
           </div>
           <div className="min-w-0 flex-1 pt-1">
             <p className="truncate font-display text-[20px] leading-tight font-semibold text-ink">{title || (theme ? '\u00a0' : 'Untitled')}</p>

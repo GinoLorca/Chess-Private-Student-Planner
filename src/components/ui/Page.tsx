@@ -86,9 +86,12 @@ export function Card({ className, children, ...rest }: React.HTMLAttributes<HTML
   )
 }
 
-export function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
+/** `tone="page"` for a label straight on the page background (Settings), where a skin's table may be dark. */
+export function SectionLabel({ children, className, tone = 'card' }: { children: ReactNode; className?: string; tone?: 'card' | 'page' }) {
   return (
-    <p className={clsx('mb-2 text-[12px] font-semibold tracking-wider text-ink-3 uppercase', className)}>{children}</p>
+    <p className={clsx('mb-2 text-[12px] font-semibold tracking-wider uppercase', tone === 'page' ? 'text-on-bg-2' : 'text-ink-3', className)}>
+      {children}
+    </p>
   )
 }
 

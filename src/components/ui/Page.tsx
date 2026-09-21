@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft } from './Icons'
+import { ChevronLeft, Home } from './Icons'
 
 interface PageProps {
   title?: ReactNode
@@ -49,6 +49,16 @@ export function Page({ title, eyebrow, back, actions, width = 'reading', childre
             )
           ) : (
             <div className="w-2" />
+          )}
+          {back !== undefined && back !== '/' && (
+            <Link
+              to="/"
+              aria-label="Students"
+              title="Students"
+              className="grid h-11 w-11 place-items-center rounded-xl text-accent active:opacity-60"
+            >
+              <Home size={21} />
+            </Link>
           )}
           <div className="flex-1" />
           <div className="flex items-center gap-1">{actions}</div>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { Link, useNavigate } from 'react-router-dom'
+import { Rolodex } from '../components/students/Rolodex'
 import type { Student } from '../types/domain'
 import { useStudentMutations, useStudents } from '../lib/queries'
 import { Page, EmptyState, LoadingPage } from '../components/ui/Page'
@@ -12,6 +12,7 @@ import { More, Pencil, Plus, Settings, Trash } from '../components/ui/Icons'
 import { FOLDER_COLORS } from '../lib/colors'
 
 export function DashboardPage() {
+  const navigate = useNavigate()
   const { data: students, isLoading } = useStudents()
   const { create, update, remove } = useStudentMutations()
   const [adding, setAdding] = useState(false)
@@ -49,11 +50,7 @@ export function DashboardPage() {
           }
         />
       ) : (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4">
-          {students?.map((s, i) => (
-            <FolderCard key={s.id} student={s} index={i} onMenu={() => setMenuFor(s)} />
-          ))}
-        </div>
+        <Rolodex students={students ?? []} onOpen={(s) => navigate(`/students/${s.id}`)} onMenu={setMenuFor} />
       )}
 
       <InputModal
@@ -111,40 +108,6 @@ export function DashboardPage() {
         }}
       />
     </Page>
-  )
-}
-
-function FolderCard({ student, index, onMenu }: { student: Student; index: number; onMenu: () => void }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.04, 0.3), duration: 0.25 }}
-      className="relative"
-    >
-      <Link to={`/students/${student.id}`} className="group block">
-        <div className="relative pt-5">
-          <span
-            className="absolute top-0 left-4 h-6 w-[46%] rounded-t-lg"
-            style={{ background: student.color, filter: 'brightness(0.92)' }}
-          />
-          <div
-            className="relative flex h-32 items-end overflow-hidden rounded-xl p-3.5 shadow-card transition duration-200 group-hover:-translate-y-1 group-active:scale-[0.98]"
-            style={{ background: `linear-gradient(160deg, ${student.color} 0%, ${student.color} 55%, rgba(0,0,0,0.06) 100%)` }}
-          >
-            <span className="absolute inset-x-0 top-0 h-1/3 bg-white/25" />
-            <span className="relative text-[17px] leading-tight font-bold text-black/75">{student.name}</span>
-          </div>
-        </div>
-      </Link>
-      <button
-        onClick={onMenu}
-        aria-label={`Options for ${student.name}`}
-        className="absolute top-6 right-1 grid h-11 w-11 place-items-center rounded-full text-black/50 hover:bg-black/10"
-      >
-        <More size={18} />
-      </button>
-    </motion.div>
   )
 }
 

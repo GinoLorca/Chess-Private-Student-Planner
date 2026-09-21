@@ -65,7 +65,11 @@ export const Board = memo(function Board({
           key={square}
           data-square={square}
           className="relative"
-          style={{ background: light ? 'var(--board-light)' : 'var(--board-dark)' }}
+          style={{
+            background: light ? 'var(--board-light)' : 'var(--board-dark)',
+            // Each square draws half the line; neighbours meet to make one stroke.
+            boxShadow: 'inset 0 0 0 0.14cqw var(--board-line)',
+          }}
         >
           {isLast && <div className="absolute inset-0" style={{ background: 'var(--board-last-move)' }} />}
           {highlight && <div className="absolute inset-0" style={{ background: highlight }} />}
@@ -100,13 +104,17 @@ export const Board = memo(function Board({
 
   // A container so coordinate labels can size themselves in cqw — a fixed
   // fraction of the board's width, whatever size the board is rendered at.
-  const boardStyle: CSSProperties = { containerType: 'inline-size', ...style }
+  const boardStyle: CSSProperties = {
+    containerType: 'inline-size',
+    border: 'max(1px, 0.55cqw) solid var(--board-line)',
+    ...style,
+  }
 
   return (
     <div
       {...rest}
       className={clsx(
-        'relative grid aspect-square w-full grid-cols-8 grid-rows-8 overflow-hidden rounded-md shadow-card select-none',
+        'relative grid aspect-square w-full grid-cols-8 grid-rows-8 overflow-hidden rounded-sm shadow-card select-none',
         interactive && 'touch-none',
         className,
       )}

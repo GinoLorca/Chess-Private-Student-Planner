@@ -31,6 +31,8 @@
   --board-coord-on-dark: #f0d9b5;
   --board-last-move: rgba(155, 199, 0, 0.41);
   --board-select: rgba(20, 85, 30, 0.5);
+  /* Square outlines and the board frame, as on a printed diagram. */
+  --board-line: #1b1b19;
 }
 
 :root[data-theme='dark'] {

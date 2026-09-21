@@ -1,4 +1,4 @@
-import { memo, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react'
+import { memo, type CSSProperties, type HTMLAttributes, type ReactNode, type Ref } from 'react'
 import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
 import { FILES, cellToSquare, isLightSquare, parsePlacement, type Orientation } from '../../lib/fen'
@@ -6,6 +6,7 @@ import { usePieceSet } from '../../state/PieceSetContext'
 import { Arrows } from './Arrows'
 
 export interface BoardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
+  ref?: Ref<HTMLDivElement>
   fen: string
   orientation?: Orientation
   arrows?: BoardArrow[]

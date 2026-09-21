@@ -11,7 +11,9 @@ import { InputModal } from '../components/ui/InputModal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { ActionSheet } from '../components/ui/ActionSheet'
 import { Board } from '../components/board/Board'
-import { Check, ChevronRight, Eye, Knight, More, Pencil, Plus, Trash } from '../components/ui/Icons'
+import { ImportSheet } from '../components/import/ImportSheet'
+import { patchFromImported } from '../lib/import'
+import { Check, ChevronRight, Download, Eye, Knight, More, Pencil, Plus, Trash } from '../components/ui/Icons'
 
 export function LessonPlanDetailPage() {
   const { studentId = '', lessonPlanId = '' } = useParams<{ studentId: string; lessonPlanId: string }>()
@@ -25,6 +27,7 @@ export function LessonPlanDetailPage() {
   const [renamingSection, setRenamingSection] = useState<LessonSection | null>(null)
   const [deletingSection, setDeletingSection] = useState<LessonSection | null>(null)
   const [deletingPuzzle, setDeletingPuzzle] = useState<Puzzle | null>(null)
+  const [quickAddFor, setQuickAddFor] = useState<LessonSection | null>(null)
 
   if (isLoading && !lesson) return <LoadingPage />
   if (!lesson) return <Page back={`/students/${studentId}/lessons`}>Lesson not found.</Page>
@@ -34,7 +37,7 @@ export function LessonPlanDetailPage() {
   const puzzleCount = Object.values(puzzlesBySection).reduce((n, list) => n + list.length, 0)
 
   async function addPuzzle(sectionId: string) {
-    const puzzle = await content.createPuzzle.mutateAsync(sectionId)
+    const puzzle = await content.createPuzzle.mutateAsync({ sectionId })
     navigate(`${base}/puzzles/${puzzle.id}/edit`)
   }
 
@@ -46,7 +49,15 @@ export function LessonPlanDetailPage() {
           <TitleField
             key={plan.title}
             value={plan.title}
+            placeholder="Add a title…"
             onCommit={(title) => title !== plan.title && planMutations.update.mutate({ id: plan.id, patch: { title } })}
+          />
+          <TitleField
+            key={`theme-${plan.theme ?? ''}`}
+            value={plan.theme ?? ''}
+            placeholder="Theme block, e.g. Endgames — October"
+            small
+            onCommit={(theme) => theme !== (plan.theme ?? '') && planMutations.update.mutate({ id: plan.id, patch: { theme } })}
           />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex">
@@ -94,12 +105,20 @@ export function LessonPlanDetailPage() {
                 />
               ))}
             </div>
-            <button
-              onClick={() => addPuzzle(section.id)}
-              className="flex h-12 w-full items-center gap-2 border-t border-line px-4 text-[15px] font-semibold text-accent transition active:bg-surface-2"
-            >
-              <Plus size={18} /> Add position
-            </button>
+            <div className="flex border-t border-line">
+              <button
+                onClick={() => setQuickAddFor(section)}
+                className="flex h-12 flex-1 items-center justify-center gap-2 text-[15px] font-semibold text-accent transition active:bg-surface-2"
+              >
+                <Download size={18} /> Quick add
+              </button>
+              <button
+                onClick={() => addPuzzle(section.id)}
+                className="flex h-12 flex-1 items-center justify-center gap-2 border-l border-line text-[15px] font-semibold text-accent transition active:bg-surface-2"
+              >
+                <Plus size={18} /> Blank position
+              </button>
+            </div>
           </Card>
         ))}
 
@@ -153,6 +172,15 @@ export function LessonPlanDetailPage() {
           if (deletingSection) await content.deleteSection.mutateAsync(deletingSection.id)
         }}
       />
+      <ImportSheet
+        open={Boolean(quickAddFor)}
+        mode="add"
+        onClose={() => setQuickAddFor(null)}
+        onImport={async (position) => {
+          if (!quickAddFor) return
+          await content.createPuzzle.mutateAsync({ sectionId: quickAddFor.id, initial: patchFromImported(position) })
+        }}
+      />
       <ConfirmDialog
         open={Boolean(deletingPuzzle)}
         title={`Delete ${deletingPuzzle?.label || 'this position'}?`}
@@ -167,15 +195,28 @@ export function LessonPlanDetailPage() {
 }
 
 // Keyed on the saved value by its parent, so a fresh server value resets the draft.
-function TitleField({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+function TitleField({
+  value,
+  placeholder,
+  small,
+  onCommit,
+}: {
+  value: string
+  placeholder: string
+  small?: boolean
+  onCommit: (v: string) => void
+}) {
   const [draft, setDraft] = useState(value)
   return (
     <input
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => onCommit(draft.trim())}
-      placeholder="Add a title or theme…"
-      className="mt-0.5 w-full max-w-md bg-transparent text-[17px] text-ink-2 outline-none placeholder:text-ink-3"
+      placeholder={placeholder}
+      className={clsx(
+        'mt-0.5 block w-full max-w-md bg-transparent outline-none placeholder:text-ink-3',
+        small ? 'text-[14px] text-ink-3' : 'text-[17px] text-ink-2',
+      )}
     />
   )
 }

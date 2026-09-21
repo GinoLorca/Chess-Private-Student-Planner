@@ -2,11 +2,14 @@ import { supabase } from './supabase'
 import type {
   BoardArrow,
   BoardHighlight,
+  CustomPieceSet,
   FolderKind,
   LessonPlan,
   LessonSection,
   Note,
+  PieceImages,
   Puzzle,
+  PuzzleSource,
   SolutionMove,
   Student,
   UserSettings,
@@ -123,7 +126,7 @@ export async function createLessonPlan(studentId: string, title: string): Promis
   return data as LessonPlan
 }
 
-export async function updateLessonPlan(id: string, patch: Partial<Pick<LessonPlan, 'title' | 'agenda'>>) {
+export async function updateLessonPlan(id: string, patch: Partial<Pick<LessonPlan, 'title' | 'agenda' | 'theme'>>) {
   const { error } = await supabase.from('lesson_plans').update(patch).eq('id', id)
   if (error) throw error
 }
@@ -232,7 +235,24 @@ export async function getPuzzle(id: string): Promise<Puzzle> {
   return data as Puzzle
 }
 
-export async function createPuzzle(sectionId: string): Promise<Puzzle> {
+export interface PuzzlePatch {
+  label?: string
+  starting_fen?: string
+  side_to_move?: 'w' | 'b'
+  arrows?: BoardArrow[]
+  highlights?: BoardHighlight[]
+  quiz_prompt?: string
+  summary?: string
+  solution?: SolutionMove[]
+  reference_url?: string | null
+  reference_label?: string | null
+  sort_order?: number
+  source?: PuzzleSource | null
+  themes?: string[]
+}
+
+/** A blank position, or one pre-filled from an import. */
+export async function createPuzzle(sectionId: string, initial: PuzzlePatch = {}): Promise<Puzzle> {
   const { data: existing } = await supabase
     .from('puzzles')
     .select('sort_order')
@@ -253,25 +273,12 @@ export async function createPuzzle(sectionId: string): Promise<Puzzle> {
       quiz_prompt: '',
       summary: '',
       solution: [],
+      ...initial,
     })
     .select()
     .single()
   if (error) throw error
   return data as Puzzle
-}
-
-export interface PuzzlePatch {
-  label?: string
-  starting_fen?: string
-  side_to_move?: 'w' | 'b'
-  arrows?: BoardArrow[]
-  highlights?: BoardHighlight[]
-  quiz_prompt?: string
-  summary?: string
-  solution?: SolutionMove[]
-  reference_url?: string | null
-  reference_label?: string | null
-  sort_order?: number
 }
 
 export async function updatePuzzle(id: string, patch: PuzzlePatch) {
@@ -330,10 +337,40 @@ export async function getUserSettings(): Promise<UserSettings | null> {
   return data as UserSettings | null
 }
 
-export async function updateUserSettings(patch: Partial<Pick<UserSettings, 'piece_set'>>) {
+export type SettingsPatch = Partial<
+  Pick<UserSettings, 'piece_set' | 'lichess_username' | 'chesscom_username' | 'board_theme' | 'custom_board'>
+>
+
+export async function updateUserSettings(patch: SettingsPatch) {
   const { data: userData } = await supabase.auth.getUser()
   const userId = userData.user?.id
   if (!userId) throw new Error('Not signed in')
   const { error } = await supabase.from('user_settings').upsert({ user_id: userId, ...patch }, { onConflict: 'user_id' })
+  if (error) throw error
+}
+
+// ---------------------------------------------------------------------------
+// custom piece sets (imported images)
+// ---------------------------------------------------------------------------
+
+export async function listCustomPieceSets(): Promise<CustomPieceSet[]> {
+  const { data, error } = await supabase.from('custom_piece_sets').select('*').order('created_at', { ascending: true })
+  if (error) throw error
+  return data as CustomPieceSet[]
+}
+
+export async function createCustomPieceSet(name: string, images: PieceImages): Promise<CustomPieceSet> {
+  const { data: userData } = await supabase.auth.getUser()
+  const { data, error } = await supabase
+    .from('custom_piece_sets')
+    .insert({ name, images, user_id: userData.user?.id })
+    .select()
+    .single()
+  if (error) throw error
+  return data as CustomPieceSet
+}
+
+export async function deleteCustomPieceSet(id: string) {
+  const { error } = await supabase.from('custom_piece_sets').delete().eq('id', id)
   if (error) throw error
 }

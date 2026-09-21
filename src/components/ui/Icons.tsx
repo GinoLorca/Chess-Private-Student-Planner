@@ -114,6 +114,16 @@ export const Grip = (p: IconProps) => (
     <circle cx="15" cy="18" r="1.5" />
   </svg>
 )
+export const Download = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 4v11M7 10l5 5 5-5M4 19h16" />
+  </svg>
+)
+export const Upload = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 15V4M7 9l5-5 5 5M4 19h16" />
+  </svg>
+)
 export const Knight = (p: IconProps) => (
   <svg {...base(p)} fill="currentColor" stroke="none">
     <path d="M6.5 20h11v-1.5c0-1.2-.6-1.8-1.5-2.2 1.7-2.2 2.2-5 1.6-7.4C17 6.3 15 4.4 12 4l-.4 1.7-1.6.6c-1.7.7-2.8 2-3.2 3.5-.2.7.2 1.4.9 1.6l1.6.4.4-1.2c.3-.8 1.1-1 1.5-.6.5.5.2 1.5-.5 2.1-1.5 1.1-3.3 2.1-3.7 3.9-.3 1.3-.2 2.6-.5 4Z" />

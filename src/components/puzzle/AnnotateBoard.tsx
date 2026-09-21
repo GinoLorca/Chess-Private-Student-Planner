@@ -1,128 +1,98 @@
-import { useEffect, useState } from 'react'
-import { Chessboard } from 'react-chessboard'
+import { useRef, useState } from 'react'
+import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
-import { usePieceSet } from '../../state/PieceSetContext'
-import { ArrowOverlay } from './ArrowOverlay'
+import { Board } from '../board/Board'
+import { squareAtPoint, DRAG_THRESHOLD } from '../board/pointer'
+import { PEN_COLORS, HIGHLIGHT_ALPHA } from '../../lib/import/pgn'
+import { Button } from '../ui/Button'
+import type { Orientation } from '../../lib/fen'
 
-// Same four pens as Repertoire Lab's analysis board (green/red/blue/yellow),
-// so a coach's color coding means the same thing across both tools.
+// Lichess's four pens, so an arrow drawn here matches one imported from a study.
 const PENS = [
-  { id: 'green', name: 'Green', value: '#2ecc71' },
-  { id: 'red', name: 'Red', value: '#e5534b' },
-  { id: 'blue', name: 'Blue', value: '#3b9cff' },
-  { id: 'yellow', name: 'Yellow', value: '#e8b339' },
+  { id: 'G', name: 'Green', value: PEN_COLORS.G },
+  { id: 'R', name: 'Red', value: PEN_COLORS.R },
+  { id: 'B', name: 'Blue', value: PEN_COLORS.B },
+  { id: 'Y', name: 'Yellow', value: PEN_COLORS.Y },
 ]
 
-function squareFromPoint(x: number, y: number): string | null {
-  const el = document.elementFromPoint(x, y)
-  return el?.closest?.('[data-square]')?.getAttribute('data-square') ?? null
-}
-
-export function AnnotateBoard({
-  fen,
-  arrows,
-  highlights,
-  onArrowsChange,
-  onHighlightsChange,
-}: {
+interface AnnotateBoardProps {
   fen: string
+  orientation?: Orientation
   arrows: BoardArrow[]
   highlights: BoardHighlight[]
   onArrowsChange: (arrows: BoardArrow[]) => void
   onHighlightsChange: (highlights: BoardHighlight[]) => void
-}) {
-  const [penIndex, setPenIndex] = useState(0)
-  const [dragFrom, setDragFrom] = useState<string | null>(null)
-  const [dragTo, setDragTo] = useState<string | null>(null)
-  const pen = PENS[penIndex]
-  const { pieces } = usePieceSet()
+}
 
-  // Arrows and highlights are drawn with a right-button drag, which never
-  // fires a native "click" event — so a plain left click anywhere on the
-  // page is free to mean "clear everything" without ever fighting the
-  // drawing gesture.
-  useEffect(() => {
-    if (arrows.length === 0 && highlights.length === 0) return
-    function handleClick() {
-      if (arrows.length > 0) onArrowsChange([])
-      if (highlights.length > 0) onHighlightsChange([])
-    }
-    document.addEventListener('click', handleClick)
-    return () => document.removeEventListener('click', handleClick)
-  }, [arrows, highlights, onArrowsChange, onHighlightsChange])
+/**
+ * Drag from square to square to draw an arrow, tap a square to toggle a
+ * highlight, in the current pen colour. Repeating either removes it. On a
+ * mouse the right button draws too, like Lichess.
+ */
+export function AnnotateBoard({
+  fen,
+  orientation = 'white',
+  arrows,
+  highlights,
+  onArrowsChange,
+  onHighlightsChange,
+}: AnnotateBoardProps) {
+  const [penIndex, setPenIndex] = useState(0)
+  const [preview, setPreview] = useState<BoardArrow | null>(null)
+  const [from, setFrom] = useState<string | null>(null)
+  const boardRef = useRef<HTMLDivElement>(null)
+  const pen = PENS[penIndex]
 
   function toggleHighlight(square: string) {
-    const fillColor = `${pen.value}66`
+    const color = pen.value + HIGHLIGHT_ALPHA
     const existing = highlights.find((h) => h.square === square)
-    if (existing && existing.color === fillColor) {
-      onHighlightsChange(highlights.filter((h) => h.square !== square))
-    } else if (existing) {
-      onHighlightsChange(highlights.map((h) => (h.square === square ? { ...h, color: fillColor } : h)))
-    } else {
-      onHighlightsChange([...highlights, { square, color: fillColor }])
-    }
+    if (existing && existing.color === color) onHighlightsChange(highlights.filter((h) => h.square !== square))
+    else if (existing) onHighlightsChange(highlights.map((h) => (h.square === square ? { ...h, color } : h)))
+    else onHighlightsChange([...highlights, { square, color }])
   }
 
-  function toggleArrow(from: string, to: string) {
-    const existingIndex = arrows.findIndex((a) => a.startSquare === from && a.endSquare === to)
-    if (existingIndex >= 0) {
-      onArrowsChange(arrows.filter((_, i) => i !== existingIndex))
-    } else {
-      onArrowsChange([...arrows, { startSquare: from, endSquare: to, color: pen.value }])
-    }
+  function toggleArrow(start: string, end: string) {
+    const i = arrows.findIndex((a) => a.startSquare === start && a.endSquare === end)
+    if (i >= 0 && arrows[i].color === pen.value) onArrowsChange(arrows.filter((_, j) => j !== i))
+    else if (i >= 0) onArrowsChange(arrows.map((a, j) => (j === i ? { ...a, color: pen.value } : a)))
+    else onArrowsChange([...arrows, { startSquare: start, endSquare: end, color: pen.value }])
   }
 
-  // Right-click-drag on a mouse (Repertoire Lab's own gesture), or press-drag
-  // on touch/pen, which has no right button. A drag that lands back on its
-  // own start square toggles a highlight instead of an arrow.
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (e.pointerType === 'mouse' && e.button !== 2) return
-    const square = squareFromPoint(e.clientX, e.clientY)
-    if (!square) return
+    if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 2) return
+    const start = squareAtPoint(e.clientX, e.clientY, boardRef.current)
+    if (!start) return
     e.preventDefault()
-    setDragFrom(square)
-    setDragTo(square)
-  }
+    const target = e.currentTarget
+    target.setPointerCapture(e.pointerId)
+    const startX = e.clientX
+    const startY = e.clientY
+    let dragging = false
+    let last = start
+    setFrom(start)
 
-  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragFrom) return
-    const square = squareFromPoint(e.clientX, e.clientY)
-    if (square && square !== dragTo) setDragTo(square)
-  }
-
-  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragFrom) return
-    const to = squareFromPoint(e.clientX, e.clientY) ?? dragTo
-    const from = dragFrom
-    setDragFrom(null)
-    setDragTo(null)
-    if (!to) return
-    if (to === from) toggleHighlight(from)
-    else toggleArrow(from, to)
-  }
-
-  const livePreview: BoardArrow[] =
-    dragFrom && dragTo && dragTo !== dragFrom ? [{ startSquare: dragFrom, endSquare: dragTo, color: pen.value }] : []
-
-  const squareStyles: Record<string, React.CSSProperties> = Object.fromEntries(
-    highlights.map((h) => [h.square, { backgroundColor: h.color, boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.25)' }]),
-  )
-  if (dragFrom) {
-    squareStyles[dragFrom] = { ...(squareStyles[dragFrom] || {}), boxShadow: `inset 0 0 0 3px ${pen.value}` }
-  }
-
-  const options = {
-    id: 'annotate-board',
-    position: fen,
-    boardOrientation: 'white' as const,
-    allowDragging: false,
-    allowDrawingArrows: false,
-    squareStyles,
-    pieces,
-    darkSquareStyle: { backgroundColor: 'var(--color-board-dark)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
-    lightSquareStyle: { backgroundColor: 'var(--color-board-light)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
-    darkSquareNotationStyle: { color: 'var(--color-board-coord)', fontWeight: 700 },
-    lightSquareNotationStyle: { color: 'var(--color-board-coord)', fontWeight: 700 },
+    const onMove = (ev: PointerEvent) => {
+      if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return
+      dragging = true
+      const sq = squareAtPoint(ev.clientX, ev.clientY, boardRef.current)
+      if (sq && sq !== last) {
+        last = sq
+        setPreview(sq === start ? null : { startSquare: start, endSquare: sq, color: pen.value })
+      }
+    }
+    const onUp = (ev: PointerEvent) => {
+      target.removeEventListener('pointermove', onMove)
+      target.removeEventListener('pointerup', onUp)
+      target.removeEventListener('pointercancel', onUp)
+      setPreview(null)
+      setFrom(null)
+      const end = squareAtPoint(ev.clientX, ev.clientY, boardRef.current) ?? last
+      if (!dragging || end === start) toggleHighlight(start)
+      else toggleArrow(start, end)
+    }
+    target.addEventListener('pointermove', onMove)
+    target.addEventListener('pointerup', onUp)
+    target.addEventListener('pointercancel', onUp)
   }
 
   return (
@@ -133,44 +103,44 @@ export function AnnotateBoard({
             <button
               key={p.id}
               onClick={() => setPenIndex(i)}
-              title={p.name}
               aria-label={p.name}
-              className="grid h-6 w-6 place-items-center rounded-full transition"
-              style={{ boxShadow: penIndex === i ? `0 0 0 2px var(--color-ink-950), 0 0 0 3.5px ${p.value}` : 'none' }}
+              aria-pressed={penIndex === i}
+              className={clsx(
+                'grid h-11 w-11 place-items-center rounded-full transition',
+                penIndex === i ? 'bg-surface-2 ring-2 ring-ink' : 'hover:bg-surface-2',
+              )}
             >
-              <span className="block h-4 w-4 rounded-full" style={{ backgroundColor: p.value }} />
+              <span className="block h-6 w-6 rounded-full" style={{ background: p.value }} />
             </button>
           ))}
         </div>
+        <div className="flex-1" />
         {highlights.length > 0 && (
-          <button onClick={() => onHighlightsChange([])} className="text-xs text-ink-400 hover:text-red-400">
-            clear highlights
-          </button>
+          <Button size="sm" variant="ghost" onClick={() => onHighlightsChange([])}>
+            Clear highlights
+          </Button>
         )}
         {arrows.length > 0 && (
-          <button onClick={() => onArrowsChange([])} className="text-xs text-ink-400 hover:text-red-400">
-            clear arrows
-          </button>
+          <Button size="sm" variant="ghost" onClick={() => onArrowsChange([])}>
+            Clear arrows
+          </Button>
         )}
       </div>
-      <p className="text-xs text-ink-400">
-        Right-click and drag to draw an arrow (drag on a touchscreen). Drag back onto the same square to toggle a
-        highlight instead. Repeat the same arrow or highlight to remove it. A left click anywhere clears all arrows
-        and highlights.
+      <p className="text-[13px] text-ink-3">
+        Drag between squares to draw an arrow, tap a square to highlight it. Draw the same thing again to remove it.
       </p>
-      <div
-        className="relative mx-auto max-w-[650px] touch-none select-none"
-        onContextMenu={(e) => e.preventDefault()}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={() => {
-          setDragFrom(null)
-          setDragTo(null)
-        }}
-      >
-        <Chessboard options={options} />
-        <ArrowOverlay arrows={[...arrows, ...livePreview]} orientation="white" />
+      <div className="mx-auto w-full max-w-[560px]">
+        <Board
+          ref={boardRef}
+          fen={fen}
+          orientation={orientation}
+          arrows={preview ? [...arrows, preview] : arrows}
+          highlights={highlights}
+          selected={from}
+          interactive
+          onPointerDown={onPointerDown}
+          onContextMenu={(e) => e.preventDefault()}
+        />
       </div>
     </div>
   )

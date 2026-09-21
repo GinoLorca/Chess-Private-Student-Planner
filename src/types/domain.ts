@@ -23,6 +23,8 @@ export interface LessonPlan {
   number: number
   title: string
   agenda: string[]
+  /** Multi-week theme block this lesson belongs to, e.g. "Endgames — October". */
+  theme?: string
   created_at: string
   updated_at: string
 }
@@ -51,6 +53,26 @@ export interface SolutionMove {
   comment?: string
 }
 
+export type PuzzleSourceKind =
+  | 'lichess_puzzle'
+  | 'lichess_study'
+  | 'lichess_game'
+  | 'chesscom_game'
+  | 'pgn'
+  | 'fen'
+  | 'screenshot'
+  | 'manual'
+
+export interface PuzzleSource {
+  kind: PuzzleSourceKind
+  url?: string
+  id?: string
+  /** For games: the ply the puzzle starts from. */
+  ply?: number
+  /** Lichess puzzle rating, when known. */
+  rating?: number
+}
+
 export interface Puzzle {
   id: string
   section_id: string
@@ -65,12 +87,35 @@ export interface Puzzle {
   solution: SolutionMove[]
   reference_url: string | null
   reference_label: string | null
+  source?: PuzzleSource | null
+  themes?: string[]
+}
+
+export interface CustomBoard {
+  light: string
+  dark: string
 }
 
 export interface UserSettings {
   user_id: string
-  piece_set: 'classic' | 'arcade' | 'wavy'
+  /** A built-in id, or 'custom:<id>' for an imported set. */
+  piece_set: string
+  lichess_username?: string
+  chesscom_username?: string
+  board_theme?: string
+  custom_board?: CustomBoard | null
   updated_at: string
+}
+
+/** Twelve images keyed wK, wQ, wR, wB, wN, wP, bK, bQ, bR, bB, bN, bP — data URLs. */
+export type PieceImages = Record<string, string>
+
+export interface CustomPieceSet {
+  id: string
+  user_id: string
+  name: string
+  images: PieceImages
+  created_at: string
 }
 
 export interface Note {

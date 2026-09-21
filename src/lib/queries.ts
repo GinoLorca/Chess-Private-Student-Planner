@@ -10,6 +10,7 @@ export const keys = {
   puzzle: (puzzleId: string) => ['puzzle', puzzleId] as const,
   notes: (studentId: string, kind: Note['folder_kind']) => ['notes', studentId, kind] as const,
   settings: ['settings'] as const,
+  pieceSets: ['pieceSets'] as const,
 }
 
 // ---------------------------------------------------------------------------
@@ -88,7 +89,7 @@ export function useLessonPlanMutations(studentId: string) {
     onSuccess: invalidate,
   })
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<LessonPlan, 'title' | 'agenda'>> }) =>
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<LessonPlan, 'title' | 'agenda' | 'theme'>> }) =>
       api.updateLessonPlan(id, patch),
     onMutate: async ({ id, patch }) => {
       await qc.cancelQueries({ queryKey: keys.lesson(id) })
@@ -125,11 +126,24 @@ export function useLessonContentMutations(planId: string) {
   })
   const deleteSection = useMutation({ mutationFn: (id: string) => api.deleteSection(id), onSuccess: invalidate })
   const createPuzzle = useMutation({
-    mutationFn: (sectionId: string) => api.createPuzzle(sectionId),
+    mutationFn: ({ sectionId, initial }: { sectionId: string; initial?: api.PuzzlePatch }) =>
+      api.createPuzzle(sectionId, initial),
     onSuccess: invalidate,
   })
   const deletePuzzle = useMutation({ mutationFn: (id: string) => api.deletePuzzle(id), onSuccess: invalidate })
   return { createSection, updateSection, deleteSection, createPuzzle, deletePuzzle }
+}
+
+export function useCustomPieceSetMutations() {
+  const qc = useQueryClient()
+  const invalidate = () => qc.invalidateQueries({ queryKey: keys.pieceSets })
+  const create = useMutation({
+    mutationFn: ({ name, images }: { name: string; images: Record<string, string> }) =>
+      api.createCustomPieceSet(name, images),
+    onSuccess: invalidate,
+  })
+  const remove = useMutation({ mutationFn: (id: string) => api.deleteCustomPieceSet(id), onSuccess: invalidate })
+  return { create, remove }
 }
 
 export function usePuzzle(puzzleId: string | undefined) {

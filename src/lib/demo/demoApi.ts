@@ -1,6 +1,16 @@
 import fixtures from './fixtures.json'
-import type { LessonBundle, PuzzlePatch } from '../api'
-import type { FolderKind, LessonPlan, LessonSection, Note, Puzzle, Student, UserSettings } from '../../types/domain'
+import type { LessonBundle, PuzzlePatch, SettingsPatch } from '../api'
+import type {
+  CustomPieceSet,
+  FolderKind,
+  LessonPlan,
+  LessonSection,
+  Note,
+  PieceImages,
+  Puzzle,
+  Student,
+  UserSettings,
+} from '../../types/domain'
 
 /**
  * In-memory stand-in for the Supabase API, seeded with the real imported
@@ -15,6 +25,7 @@ interface Store {
   puzzles: Puzzle[]
   notes: Note[]
   settings: UserSettings | null
+  pieceSets?: CustomPieceSet[]
 }
 
 const KEY = 'lesson-planner-demo-store-v1'
@@ -157,7 +168,7 @@ export async function createLessonPlan(studentId: string, title: string): Promis
   return plan
 }
 
-export async function updateLessonPlan(id: string, patch: Partial<Pick<LessonPlan, 'title' | 'agenda'>>) {
+export async function updateLessonPlan(id: string, patch: Partial<Pick<LessonPlan, 'title' | 'agenda' | 'theme'>>) {
   db().plans = db().plans.map((p) => (p.id === id ? { ...p, ...patch, updated_at: now() } : p))
   save()
 }
@@ -222,7 +233,7 @@ export async function getPuzzle(id: string): Promise<Puzzle> {
   return puzzle
 }
 
-export async function createPuzzle(sectionId: string): Promise<Puzzle> {
+export async function createPuzzle(sectionId: string, initial: PuzzlePatch = {}): Promise<Puzzle> {
   const existing = await listPuzzles(sectionId)
   const puzzle: Puzzle = {
     id: uid('pz'),
@@ -238,6 +249,7 @@ export async function createPuzzle(sectionId: string): Promise<Puzzle> {
     solution: [],
     reference_url: null,
     reference_label: null,
+    ...initial,
   }
   db().puzzles.push(puzzle)
   save()
@@ -295,7 +307,25 @@ export async function getUserSettings(): Promise<UserSettings | null> {
   return db().settings
 }
 
-export async function updateUserSettings(patch: Partial<Pick<UserSettings, 'piece_set'>>) {
+export async function updateUserSettings(patch: SettingsPatch) {
   db().settings = { user_id: 'demo', piece_set: 'classic', ...db().settings, ...patch, updated_at: now() }
+  save()
+}
+
+// custom piece sets ---------------------------------------------------------------
+
+export async function listCustomPieceSets(): Promise<CustomPieceSet[]> {
+  return db().pieceSets ?? []
+}
+
+export async function createCustomPieceSet(name: string, images: PieceImages): Promise<CustomPieceSet> {
+  const set: CustomPieceSet = { id: uid('set'), user_id: 'demo', name, images, created_at: now() }
+  db().pieceSets = [...(db().pieceSets ?? []), set]
+  save()
+  return set
+}
+
+export async function deleteCustomPieceSet(id: string) {
+  db().pieceSets = (db().pieceSets ?? []).filter((s) => s.id !== id)
   save()
 }

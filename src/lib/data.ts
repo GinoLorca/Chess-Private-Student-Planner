@@ -33,5 +33,8 @@ export const updateNote = impl.updateNote
 export const deleteNote = impl.deleteNote
 export const getUserSettings = impl.getUserSettings
 export const updateUserSettings = impl.updateUserSettings
+export const listCustomPieceSets = impl.listCustomPieceSets
+export const createCustomPieceSet = impl.createCustomPieceSet
+export const deleteCustomPieceSet = impl.deleteCustomPieceSet
 
-export type { LessonBundle, PuzzlePatch } from './api'
+export type { LessonBundle, PuzzlePatch, SettingsPatch } from './api'

@@ -1,4 +1,4 @@
-import { Chessboard } from 'react-chessboard'
+import { Chessboard, type PieceRenderObject } from 'react-chessboard'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
 import { usePieceSet } from '../../state/PieceSetContext'
 import { ArrowOverlay } from './ArrowOverlay'
@@ -28,7 +28,7 @@ export function DisplayBoard({
     allowDragging: false,
     allowDrawingArrows: false,
     squareStyles,
-    pieces,
+    pieces: pieces as unknown as PieceRenderObject,
     showNotation,
     darkSquareStyle: { backgroundColor: 'var(--color-board-dark)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },
     lightSquareStyle: { backgroundColor: 'var(--color-board-light)', boxShadow: 'inset 0 0 0 1.5px var(--color-board-line)' },

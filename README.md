@@ -57,6 +57,34 @@ Vercel or Netlify are the simplest:
 5. Deploy. Sign in on any device — laptop for building lessons, tablet/phone for
    presenting — and everything stays in sync through Supabase.
 
+## Try it without a backend
+
+```bash
+VITE_DEMO=1 npm run dev
+```
+
+Demo mode runs the whole app against the imported sample lessons in memory (edits persist in the
+browser's localStorage). It's the quickest way to see a build on an iPad before deploying.
+
+## Migrations
+
+Run these in the Supabase SQL editor, in order, once each. All of them are additive — re-running
+is harmless and existing rows are never touched.
+
+| File | Adds |
+|---|---|
+| `0001_init.sql` | students, lesson plans, sections, puzzles, notes + RLS |
+| `0002_user_settings.sql` | per-account preferences (piece set) |
+| `0003_sources_and_themes.sql` | puzzle sources/themes, lesson theme blocks, board colours, imported piece sets, Lichess/Chess.com usernames |
+
+## Quick Add
+
+On any lesson, **Quick add** takes a pasted Lichess puzzle / study / game link, a Chess.com game
+link (set your Chess.com username in Settings first), a FEN, or PGN — or browses Lichess puzzles by
+theme. Studies bring their arrows and highlights with them. For games and studies you scrub to the
+moment and the puzzle is cut from there. **Engine check** in the editor asks Lichess's cloud
+analysis for the top line of any position — no account or key needed.
+
 ## Notes
 
 - Data model and RLS policies: `supabase/migrations/0001_init.sql`.

@@ -15,7 +15,7 @@ import { ImportSheet } from '../components/import/ImportSheet'
 import { EngineCheck } from '../components/import/EngineCheck'
 import { draftExplanation } from '../lib/ai'
 import { answerProblem } from '../lib/solution'
-import { Check, ChevronDown, Plus, Sparkle, Warning } from '../components/ui/Icons'
+import { Check, ChevronDown, ChevronRight, Plus, Sparkle, Warning } from '../components/ui/Icons'
 import { Chip, ChipRow } from '../components/ui/Chip'
 import { defaultQuizPrompt, explanationStarters, quizPromptChips } from '../lib/prompts'
 
@@ -38,10 +38,15 @@ export function PuzzleEditorPage() {
   if (!loaded) return <Page back={base}>Position not found.</Page>
 
   const section = lesson?.sections.find((s) => s.id === loaded.section_id)
+  // The sweep after a batch: the next position in lesson order still without an explanation.
+  const ordered = lesson ? lesson.sections.flatMap((s) => lesson.puzzlesBySection[s.id] ?? []) : []
+  const at = ordered.findIndex((p) => p.id === loaded.id)
+  const nextUnexplained = [...ordered.slice(at + 1), ...ordered.slice(0, Math.max(at, 0))].find((p) => !p.summary.trim())
   return (
     <Editor
       key={loaded.id}
       initial={loaded}
+      next={nextUnexplained ? { id: nextUnexplained.id, label: nextUnexplained.label } : undefined}
       eyebrow={[student?.name, lesson ? `Lesson ${lesson.plan.number}` : null, section?.title].filter(Boolean).join(' · ')}
       sectionTitle={section?.title}
       back={`${base}/puzzles/${loaded.id}`}
@@ -58,6 +63,7 @@ function Editor({
   sectionTitle,
   back,
   lessonBase,
+  next,
   save,
   saving,
 }: {
@@ -66,6 +72,7 @@ function Editor({
   sectionTitle?: string
   back: string
   lessonBase: string
+  next?: { id: string; label: string }
   save: (patch: PuzzlePatch) => void
   saving: boolean
 }) {
@@ -166,7 +173,7 @@ function Editor({
     apply({ summary: next })
   }
 
-  function finish(addAnother: boolean) {
+  function finish(where: 'lesson' | 'another' | 'next') {
     // Flush anything still coalescing, then leave.
     if (timer.current) {
       window.clearTimeout(timer.current)
@@ -174,7 +181,9 @@ function Editor({
       save(pending.current)
       pending.current = {}
     }
-    navigate(addAnother ? `${lessonBase}?quickadd=${puzzle.section_id}` : lessonBase)
+    if (where === 'next' && next) navigate(`${lessonBase}/puzzles/${next.id}/edit`)
+    else if (where === 'another') navigate(`${lessonBase}?quickadd=${puzzle.section_id}`)
+    else navigate(lessonBase)
   }
 
   function setComment(i: number, comment: string) {
@@ -452,12 +461,18 @@ function Editor({
           </Card>
 
           <div className="flex gap-2">
-            <Button variant="secondary" size="lg" className="flex-1" icon={<Check size={18} />} onClick={() => finish(false)}>
+            <Button variant="secondary" size="lg" className="flex-1" icon={<Check size={18} />} onClick={() => finish('lesson')}>
               Done
             </Button>
-            <Button variant="primary" size="lg" className="flex-1" icon={<Plus size={18} />} onClick={() => finish(true)}>
-              Done, add another
-            </Button>
+            {next ? (
+              <Button variant="primary" size="lg" className="flex-1" icon={<ChevronRight size={18} />} onClick={() => finish('next')}>
+                Next without explanation{next.label ? `: ${next.label}` : ''}
+              </Button>
+            ) : (
+              <Button variant="primary" size="lg" className="flex-1" icon={<Plus size={18} />} onClick={() => finish('another')}>
+                Done, add another
+              </Button>
+            )}
           </div>
         </div>
       </div>

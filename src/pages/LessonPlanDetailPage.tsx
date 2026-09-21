@@ -282,14 +282,15 @@ export function LessonPlanDetailPage() {
         open={Boolean(quickAddSection)}
         mode="add"
         onClose={closeQuickAdd}
-        onImport={async (position) => {
+        onImport={async (position, { batch }) => {
           if (!quickAddSection) return
           const puzzle = await content.createPuzzle.mutateAsync({
             sectionId: quickAddSection.id,
             initial: patchFromImported(position),
           })
-          // Straight into the editor: the answer is set, the explanation is what's left.
-          navigate(`${base}/puzzles/${puzzle.id}/edit`)
+          // One at a time goes straight into the editor: the answer is set, the
+          // explanation is what's left. A batch stays here to show the tally.
+          if (!batch) navigate(`${base}/puzzles/${puzzle.id}/edit`)
         }}
       />
       <ConfirmDialog
@@ -352,7 +353,11 @@ function PuzzleRow({ puzzle, index, to, onDelete }: { puzzle: Puzzle; index: num
               </span>
             )}
           </p>
-          {excerpt && <p className="truncate text-[13.5px] text-ink-2">{excerpt}</p>}
+          {excerpt ? (
+            <p className="truncate text-[13.5px] text-ink-2">{excerpt}</p>
+          ) : (
+            <p className="text-[13px] text-ink-3 italic">No explanation yet</p>
+          )}
         </div>
         <ChevronRight className="shrink-0 text-ink-3" />
       </Link>

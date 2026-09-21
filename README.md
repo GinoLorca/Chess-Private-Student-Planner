@@ -110,6 +110,7 @@ the key set, the buttons show a clear message and everything else keeps working.
 | FEN / PGN text | Imported directly (PGN comments' `[%cal]` / `[%csl]` arrows come along) |
 | A Lichess theme chip | A random puzzle of that theme, with *Another* |
 | A photo or screenshot | Read into a position by the AI helper (see above) |
+| **Several at once** — links or FENs one per line, a multi-game PGN, or a whole study | One position each, added in one go; study chapters and puzzle-style PGN games bring their answer line. Full games are listed for you to pick the moment. Then *Next without explanation* in the editor sweeps through them. |
 
 Chess.com game links need your Chess.com username in Settings (the public archive is per player).
 **Engine check** in the editor asks Lichess's cloud analysis for the top line of any position — no

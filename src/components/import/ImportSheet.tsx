@@ -15,15 +15,20 @@ import { Board } from '../board/Board'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Spinner } from '../ui/Page'
-import { ChevronLeft, ChevronRight, Camera } from '../ui/Icons'
+import { Check, ChevronLeft, ChevronRight, Camera, Warning } from '../ui/Icons'
 import { readBoardImage, type BoardReading } from '../../lib/ai'
 import { normalizeFen } from '../../lib/fen'
+import { isBatch, resolveBatchItem, splitBatch, type BatchItemResult } from '../../lib/import/batch'
 
 interface ImportSheetProps {
   open: boolean
   onClose: () => void
-  /** Resolves when the position has been saved; the sheet then offers to add another. */
-  onImport: (position: ImportedPosition) => Promise<void>
+  /**
+   * Resolves when the position has been saved; the sheet then offers to add
+   * another. `batch` is true while a paste of many is being added, so the
+   * caller shouldn't navigate away after each one.
+   */
+  onImport: (position: ImportedPosition, opts: { batch: boolean }) => Promise<void>
   mode: 'add' | 'replace'
 }
 
@@ -32,6 +37,7 @@ type Stage =
   | { kind: 'loading'; note: string }
   | { kind: 'position'; position: ImportedPosition; fromTheme?: string; reading?: BoardReading }
   | { kind: 'game'; games: ImportedGame[]; gameIndex: number; ply: number; length: number }
+  | { kind: 'batch'; total: number; results: BatchItemResult[]; added: number; running: boolean }
 
 /**
  * Quick Add: paste anything — a Lichess puzzle/study/game link, a Chess.com
@@ -46,6 +52,7 @@ export function ImportSheet({ open, onClose, onImport, mode }: ImportSheetProps)
   const [saving, setSaving] = useState(false)
   const [added, setAdded] = useState(0)
   const detected = useMemo(() => detectInput(text), [text])
+  const batch = useMemo(() => (mode === 'add' && isBatch(text) ? splitBatch(text) : null), [text, mode])
   const photoRef = useRef<HTMLInputElement>(null)
 
   function reset() {
@@ -108,10 +115,40 @@ export function ImportSheet({ open, onClose, onImport, mode }: ImportSheetProps)
     )
   }
 
+  /**
+   * Many at once: resolve one item at a time (Lichess rate-limits bursts),
+   * saving each ready position as it lands so a slow link never blocks the rest.
+   */
+  async function runBatch() {
+    if (!batch) return
+    setError(null)
+    const total = batch.items.length
+    let results: BatchItemResult[] = []
+    let count = 0
+    setStage({ kind: 'batch', total, results, added: 0, running: true })
+    for (const item of batch.items) {
+      const result = await resolveBatchItem(item, { chesscomUsername: settings?.chesscom_username })
+      const saved: ImportedPosition[] = []
+      for (const position of result.positions) {
+        try {
+          await onImport(position, { batch: true })
+          saved.push(position)
+          count++
+        } catch (e) {
+          result.note = e instanceof Error ? e.message : String(e)
+        }
+      }
+      results = [...results, { ...result, positions: saved }]
+      setStage({ kind: 'batch', total, results, added: count, running: true })
+    }
+    setAdded((n) => n + count)
+    setStage({ kind: 'batch', total, results, added: count, running: false })
+  }
+
   async function commit(position: ImportedPosition) {
     setSaving(true)
     try {
-      await onImport(position)
+      await onImport(position, { batch: false })
       setAdded((n) => n + 1)
       if (mode === 'replace') close()
       else reset()
@@ -146,15 +183,34 @@ export function ImportSheet({ open, onClose, onImport, mode }: ImportSheetProps)
               <span
                 className={clsx(
                   'text-[13px] font-medium',
-                  detected.kind === 'unknown' ? 'text-ink-3' : 'text-accent-strong',
+                  detected.kind === 'unknown' && !batch ? 'text-ink-3' : 'text-accent-strong',
                 )}
               >
-                {text.trim() ? describeDetected(detected) : 'Links, FEN and PGN are recognised automatically'}
+                {batch
+                  ? describeBatch(batch)
+                  : text.trim()
+                    ? describeDetected(detected)
+                    : 'Links, FEN and PGN are recognised automatically — one per line for several'}
               </span>
               <div className="flex-1" />
-              <Button variant="primary" size="sm" disabled={detected.kind === 'unknown'} onClick={preview}>
-                Preview
-              </Button>
+              {batch && batch.items.length > 1 ? (
+                <Button variant="primary" size="sm" onClick={runBatch}>
+                  Add all {batch.items.length}
+                </Button>
+              ) : batch ? (
+                <>
+                  <Button variant="secondary" size="sm" onClick={preview}>
+                    Pick a chapter
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={runBatch}>
+                    Add every chapter
+                  </Button>
+                </>
+              ) : (
+                <Button variant="primary" size="sm" disabled={detected.kind === 'unknown'} onClick={preview}>
+                  Preview
+                </Button>
+              )}
             </div>
           </div>
 
@@ -194,6 +250,48 @@ export function ImportSheet({ open, onClose, onImport, mode }: ImportSheetProps)
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {stage.kind === 'batch' && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            {stage.running && <Spinner />}
+            <p className="text-[15px] font-medium text-ink">
+              {stage.running
+                ? `Adding… ${stage.results.length} of ${stage.total} checked, ${stage.added} added`
+                : `Added ${stage.added} position${stage.added === 1 ? '' : 's'} from ${stage.total} item${stage.total === 1 ? '' : 's'}.`}
+            </p>
+          </div>
+          <ol className="max-h-[50svh] space-y-1 overflow-y-auto">
+            {stage.results.map((r, i) => (
+              <li key={i} className="flex items-start gap-2 rounded-lg bg-surface-2 px-3 py-2 text-[13px]">
+                <span className={clsx('mt-0.5 shrink-0', r.positions.length ? 'text-accent-strong' : 'text-warn')}>
+                  {r.positions.length ? <Check size={15} /> : <Warning size={15} />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="font-medium text-ink">{r.label}</span>
+                  {r.positions.length > 0 && (
+                    <span className="text-ink-2">
+                      {' '}
+                      → {r.positions.map((p) => p.label).filter(Boolean).join(', ') || `${r.positions.length} added`}
+                    </span>
+                  )}
+                  {r.note && <span className="block text-ink-3">{r.note}</span>}
+                </span>
+              </li>
+            ))}
+          </ol>
+          {!stage.running && (
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={reset}>
+                Paste more
+              </Button>
+              <Button variant="primary" onClick={close}>
+                Done
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -465,4 +563,21 @@ function GamePicker({
       </div>
     </div>
   )
+}
+
+function describeBatch(batch: { items: { kind: string }[]; unknown: string[] }): string {
+  if (batch.items.length === 1) return 'A whole Lichess study'
+  const kinds = new Map<string, number>()
+  for (const item of batch.items) kinds.set(item.kind, (kinds.get(item.kind) ?? 0) + 1)
+  const names: Record<string, string> = {
+    lichess_puzzle: 'Lichess puzzle',
+    lichess_study: 'study',
+    lichess_game: 'Lichess game',
+    chesscom_game: 'Chess.com game',
+    fen: 'FEN',
+    pgn: 'PGN game',
+  }
+  const parts = [...kinds.entries()].map(([k, n]) => `${n} ${names[k] ?? k}${n === 1 ? '' : 's'}`)
+  const extra = batch.unknown.length ? `, ${batch.unknown.length} line${batch.unknown.length === 1 ? '' : 's'} not recognised` : ''
+  return `${parts.join(', ')}${extra}`
 }

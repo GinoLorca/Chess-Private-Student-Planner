@@ -13,6 +13,8 @@ import { AnnotateBoard } from '../components/puzzle/AnnotateBoard'
 import { MoveBoard } from '../components/board/MoveBoard'
 import { ImportSheet } from '../components/import/ImportSheet'
 import { EngineCheck } from '../components/import/EngineCheck'
+import { draftExplanation } from '../lib/ai'
+import { Sparkle } from '../components/ui/Icons'
 
 type Tab = 'position' | 'arrows' | 'answer'
 
@@ -63,6 +65,28 @@ function Editor({
   const [importing, setImporting] = useState(false)
   const [typedLine, setTypedLine] = useState('')
   const [lineError, setLineError] = useState<string | null>(null)
+  const [drafting, setDrafting] = useState(false)
+  const [draftError, setDraftError] = useState<string | null>(null)
+  const summaryRef = useRef<HTMLTextAreaElement>(null)
+
+  async function draft() {
+    if (puzzle.solution.length === 0) {
+      setDraftError('Record the answer first — the draft is written from the position and the line.')
+      return
+    }
+    if (summaryRef.current?.value.trim() && !window.confirm('Replace the current explanation with a draft?')) return
+    setDrafting(true)
+    setDraftError(null)
+    try {
+      const text = await draftExplanation(fen, puzzle.solution, puzzle.quiz_prompt)
+      if (summaryRef.current) summaryRef.current.value = text
+      apply({ summary: text })
+    } catch (e) {
+      setDraftError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setDrafting(false)
+    }
+  }
   const fen = useMemo(() => normalizeFen(puzzle.starting_fen, puzzle.side_to_move), [puzzle.starting_fen, puzzle.side_to_move])
   const orientation = puzzle.side_to_move === 'b' ? 'black' : 'white'
 
@@ -282,8 +306,20 @@ function Editor({
               />
             </label>
             <label className="block">
-              <SectionLabel>Explanation</SectionLabel>
+              <div className="flex items-center justify-between">
+                <SectionLabel>Explanation</SectionLabel>
+                <button
+                  type="button"
+                  onClick={draft}
+                  disabled={drafting}
+                  className="mb-2 flex h-8 items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-accent hover:bg-accent-soft disabled:opacity-50"
+                >
+                  <Sparkle size={15} /> {drafting ? 'Drafting…' : 'Draft with AI'}
+                </button>
+              </div>
+              {draftError && <p className="mb-2 text-[13px] text-danger">{draftError}</p>}
               <textarea
+                ref={summaryRef}
                 defaultValue={puzzle.summary}
                 onBlur={(e) => e.target.value !== puzzle.summary && apply({ summary: e.target.value })}
                 rows={6}

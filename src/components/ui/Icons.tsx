@@ -124,6 +124,17 @@ export const Upload = (p: IconProps) => (
     <path d="M12 15V4M7 9l5-5 5 5M4 19h16" />
   </svg>
 )
+export const Camera = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 8h3l2-2.5h6L17 8h3v11H4z" />
+    <circle cx="12" cy="13" r="3.2" />
+  </svg>
+)
+export const Sparkle = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z" />
+  </svg>
+)
 export const Knight = (p: IconProps) => (
   <svg {...base(p)} fill="currentColor" stroke="none">
     <path d="M6.5 20h11v-1.5c0-1.2-.6-1.8-1.5-2.2 1.7-2.2 2.2-5 1.6-7.4C17 6.3 15 4.4 12 4l-.4 1.7-1.6.6c-1.7.7-2.8 2-3.2 3.5-.2.7.2 1.4.9 1.6l1.6.4.4-1.2c.3-.8 1.1-1 1.5-.6.5.5.2 1.5-.5 2.1-1.5 1.1-3.3 2.1-3.7 3.9-.3 1.3-.2 2.6-.5 4Z" />

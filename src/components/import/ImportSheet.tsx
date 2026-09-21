@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import type { ImportedGame, ImportedPosition } from '../../lib/import'
 import {
@@ -15,7 +15,9 @@ import { Board } from '../board/Board'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Spinner } from '../ui/Page'
-import { ChevronLeft, ChevronRight } from '../ui/Icons'
+import { ChevronLeft, ChevronRight, Camera } from '../ui/Icons'
+import { readBoardImage, type BoardReading } from '../../lib/ai'
+import { normalizeFen } from '../../lib/fen'
 
 interface ImportSheetProps {
   open: boolean
@@ -28,7 +30,7 @@ interface ImportSheetProps {
 type Stage =
   | { kind: 'input' }
   | { kind: 'loading'; note: string }
-  | { kind: 'position'; position: ImportedPosition; fromTheme?: string }
+  | { kind: 'position'; position: ImportedPosition; fromTheme?: string; reading?: BoardReading }
   | { kind: 'game'; games: ImportedGame[]; gameIndex: number; ply: number; length: number }
 
 /**
@@ -44,6 +46,7 @@ export function ImportSheet({ open, onClose, onImport, mode }: ImportSheetProps)
   const [saving, setSaving] = useState(false)
   const [added, setAdded] = useState(0)
   const detected = useMemo(() => detectInput(text), [text])
+  const photoRef = useRef<HTMLInputElement>(null)
 
   function reset() {
     setText('')
@@ -74,6 +77,28 @@ export function ImportSheet({ open, onClose, onImport, mode }: ImportSheetProps)
       if (outcome.type === 'position') return { kind: 'position', position: outcome.position }
       return { kind: 'game', games: outcome.games, gameIndex: 0, ply: defaultPly(outcome.games[0]), length: 1 }
     }, `Fetching ${describeDetected(detected).toLowerCase()}…`)
+  }
+
+  function readPhoto(file: File | undefined) {
+    if (!file) return
+    run(async () => {
+      const reading = await readBoardImage(file)
+      const side = reading.side_to_move === 'unknown' ? 'w' : reading.side_to_move
+      const fen = normalizeFen(`${reading.placement} ${side}`)
+      return {
+        kind: 'position',
+        reading,
+        position: {
+          fen,
+          side,
+          solution: [],
+          arrows: [],
+          highlights: [],
+          label: '',
+          source: { kind: 'screenshot' },
+        },
+      }
+    }, 'Reading the board…')
   }
 
   function browseTheme(themeId: string) {
@@ -136,6 +161,26 @@ export function ImportSheet({ open, onClose, onImport, mode }: ImportSheetProps)
           {error && <p className="rounded-xl bg-danger-soft px-3 py-2 text-[13px] text-danger">{error}</p>}
 
           <div>
+            <p className="mb-2 text-[12px] font-semibold tracking-wider text-ink-3 uppercase">Or a photo or screenshot</p>
+            <input
+              ref={photoRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                readPhoto(e.target.files?.[0])
+                e.target.value = ''
+              }}
+            />
+            <Button variant="secondary" block icon={<Camera size={18} />} onClick={() => photoRef.current?.click()}>
+              Read a board from an image
+            </Button>
+            <p className="mt-1.5 text-[12.5px] text-ink-3">
+              Chessable, a book, a phone photo of the board — the position is read for you to check.
+            </p>
+          </div>
+
+          <div>
             <p className="mb-2 text-[12px] font-semibold tracking-wider text-ink-3 uppercase">Or a Lichess puzzle by theme</p>
             <div className="flex flex-wrap gap-1.5">
               {LICHESS_THEMES.map((t) => (
@@ -162,11 +207,18 @@ export function ImportSheet({ open, onClose, onImport, mode }: ImportSheetProps)
       {stage.kind === 'position' && (
         <PositionPreview
           position={stage.position}
+          reading={stage.reading}
           saving={saving}
           error={error}
           actionLabel={mode === 'add' ? 'Add to lesson' : 'Use this position'}
           onBack={reset}
           onAnother={stage.fromTheme ? () => browseTheme(stage.fromTheme!) : undefined}
+          onSideChange={(side) =>
+            setStage({
+              ...stage,
+              position: { ...stage.position, side, fen: normalizeFen(`${stage.position.fen.split(' ')[0]} ${side}`) },
+            })
+          }
           onCommit={() => commit(stage.position)}
         />
       )}
@@ -195,23 +247,42 @@ function defaultPly(game: ImportedGame | undefined): number {
 
 function PositionPreview({
   position,
+  reading,
   saving,
   error,
   actionLabel,
   onBack,
   onAnother,
+  onSideChange,
   onCommit,
 }: {
   position: ImportedPosition
+  reading?: BoardReading
   saving: boolean
   error: string | null
   actionLabel: string
   onBack: () => void
   onAnother?: () => void
+  onSideChange: (side: 'w' | 'b') => void
   onCommit: () => void
 }) {
+  const sideEditable = position.solution.length === 0
   return (
     <div className="space-y-3">
+      {reading && (
+        <div
+          className={clsx(
+            'rounded-xl px-3 py-2 text-[13px]',
+            reading.problem ? 'bg-danger-soft text-danger' : 'bg-accent-soft text-accent-strong',
+          )}
+        >
+          <p className="font-semibold">
+            {reading.problem ? 'Check this reading' : `Read with ${Math.round(reading.confidence * 100)}% confidence`}
+            {reading.side_to_move === 'unknown' && ' · side to move not shown, pick it below'}
+          </p>
+          {(reading.problem || reading.notes) && <p className="mt-0.5 opacity-90">{reading.problem ?? reading.notes}</p>}
+        </div>
+      )}
       <div className="mx-auto w-full max-w-[360px]">
         <Board
           fen={position.fen}
@@ -221,7 +292,24 @@ function PositionPreview({
         />
       </div>
       <div className="flex items-baseline justify-between">
-        <p className="text-[15px] font-semibold text-ink">{position.side === 'w' ? 'White' : 'Black'} to play</p>
+        {sideEditable ? (
+          <div className="flex rounded-xl bg-surface-2 p-1">
+            {(['w', 'b'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => onSideChange(s)}
+                className={clsx(
+                  'h-9 rounded-lg px-3 text-[14px] font-semibold transition',
+                  position.side === s ? 'bg-surface text-ink shadow-card' : 'text-ink-2',
+                )}
+              >
+                {s === 'w' ? 'White' : 'Black'} to play
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[15px] font-semibold text-ink">{position.side === 'w' ? 'White' : 'Black'} to play</p>
+        )}
         {position.solution.length > 0 && (
           <p className="font-mono text-[14px] text-ink-2">{position.solution.map((m) => m.san).join(' ')}</p>
         )}

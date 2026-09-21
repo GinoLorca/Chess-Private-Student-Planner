@@ -85,6 +85,29 @@ theme. Studies bring their arrows and highlights with them. For games and studie
 moment and the puzzle is cut from there. **Engine check** in the editor asks Lichess's cloud
 analysis for the top line of any position — no account or key needed.
 
+## AI helpers (optional)
+
+Two features call Claude through a Supabase Edge Function so the API key stays server-side and
+only your signed-in account can use it:
+
+- **Read a board from an image** (Quick Add → *Read a board from an image*): a screenshot of a
+  Chessable/Chess.com/book position or a phone photo of a real board becomes a position for you to
+  confirm — side to move and orientation are picked up when visible.
+- **Draft with AI** (editor → Explanation): drafts the explanation from the position and your
+  recorded answer, in plain coaching language, for you to edit.
+
+Setup, once, with the [Supabase CLI](https://supabase.com/docs/guides/cli):
+
+```bash
+supabase link --project-ref <your-project-ref>
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-...     # from console.anthropic.com
+supabase functions deploy chess-ai
+```
+
+Cost: the function uses Claude Opus 5 ($5 / $25 per million tokens). A board image is roughly
+1,500–2,500 tokens, so reading a position is about 1–2¢ and a draft explanation under 1¢. Without
+the key set, the buttons show a clear message and everything else keeps working.
+
 ## Notes
 
 - Data model and RLS policies: `supabase/migrations/0001_init.sql`.

@@ -6,7 +6,9 @@ import type { PuzzlePatch } from '../lib/data'
 import { useLesson, usePuzzle, usePuzzleMutations, useStudent } from '../lib/queries'
 import { normalizeFen, placementOf, sideToMoveOf } from '../lib/fen'
 import { patchFromImported, replayLine } from '../lib/import'
-import { Page, Card, LoadingPage, SectionLabel } from '../components/ui/Page'
+import { Page, LoadingPage, SectionLabel } from '../components/ui/Page'
+import { DividerPaper, DividerTabs, FolderBody, FolderTab, PaperCard } from '../components/lesson/Folder'
+import { FOLDER_COLORS } from '../lib/colors'
 import { Button } from '../components/ui/Button'
 import { SetupBoard } from '../components/board/SetupBoard'
 import { AnnotateBoard } from '../components/puzzle/AnnotateBoard'
@@ -47,7 +49,9 @@ export function PuzzleEditorPage() {
       key={loaded.id}
       initial={loaded}
       next={nextUnexplained ? { id: nextUnexplained.id, label: nextUnexplained.label } : undefined}
-      eyebrow={[student?.name, lesson ? `Lesson ${lesson.plan.number}` : null, section?.title].filter(Boolean).join(' · ')}
+      studentName={student?.name ?? 'Student'}
+      color={student?.color ?? FOLDER_COLORS[0]}
+      aside={[lesson ? `Lesson ${lesson.plan.number}` : null, section?.title].filter(Boolean).join(' · ')}
       sectionTitle={section?.title}
       back={`${base}/puzzles/${loaded.id}`}
       lessonBase={base}
@@ -59,7 +63,9 @@ export function PuzzleEditorPage() {
 
 function Editor({
   initial,
-  eyebrow,
+  studentName,
+  color,
+  aside,
   sectionTitle,
   back,
   lessonBase,
@@ -68,7 +74,10 @@ function Editor({
   saving,
 }: {
   initial: Puzzle
-  eyebrow: string
+  studentName: string
+  /** The student's folder colour; the divider tabs take the rest of the palette. */
+  color: string
+  aside: string
   sectionTitle?: string
   back: string
   lessonBase: string
@@ -212,49 +221,41 @@ function Editor({
   const field =
     'w-full rounded-xl border border-line-strong bg-surface-2 px-3.5 text-[16px] outline-none focus:border-accent'
 
+  // Divider tabs: Position, Arrows, Answer, coloured from the palette minus the folder's own.
+  const palette = FOLDER_COLORS.filter((c) => c !== color)
+  const tabs: { id: Tab; title: string; color: string }[] = [
+    { id: 'position', title: 'Position', color: palette[0] },
+    { id: 'arrows', title: 'Arrows', color: palette[1] },
+    { id: 'answer', title: 'Answer', color: palette[2] },
+  ]
+  const tabColor = tabs.find((t) => t.id === tab)?.color ?? palette[0]
+
   return (
     <Page
       back={back}
-      eyebrow={eyebrow}
       width="wide"
-      actions={<span className="pr-2 text-[13px] text-ink-3">{saving ? 'Saving…' : 'Saved'}</span>}
+      className="pt-6"
+      actions={<span className="pr-2 text-[13px] text-on-bg-2">{saving ? 'Saving…' : 'Saved'}</span>}
     >
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <input
-          value={puzzle.label}
-          onChange={(e) => setPuzzle({ ...puzzle, label: e.target.value })}
-          onBlur={(e) => e.target.value !== initial.label && apply({ label: e.target.value })}
-          placeholder="Label, e.g. Kg7"
-          className="min-w-0 flex-1 bg-transparent text-[28px] font-bold tracking-tight text-ink outline-none placeholder:text-ink-3"
-        />
-        <Button variant="soft" onClick={() => setImporting(true)}>
-          Import…
-        </Button>
-      </div>
+      <FolderTab color={color} name={studentName} aside={aside} />
+      <FolderBody color={color} className="pb-5">
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <input
+            value={puzzle.label}
+            onChange={(e) => setPuzzle({ ...puzzle, label: e.target.value })}
+            onBlur={(e) => e.target.value !== initial.label && apply({ label: e.target.value })}
+            placeholder="Label, e.g. Kg7"
+            className="min-w-0 flex-1 bg-transparent font-display text-[34px] leading-none font-bold tracking-tight text-[#1a1a19] outline-none placeholder:text-black/35"
+          />
+          <Button variant="soft" onClick={() => setImporting(true)}>
+            Import…
+          </Button>
+        </div>
 
-      <div className="mb-4 flex rounded-xl bg-surface-2 p-1">
-        {(
-          [
-            ['position', 'Position'],
-            ['arrows', 'Arrows'],
-            ['answer', 'Answer'],
-          ] as [Tab, string][]
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={clsx(
-              'h-11 flex-1 rounded-lg text-[15px] font-semibold transition',
-              tab === key ? 'bg-surface text-ink shadow-card' : 'text-ink-2',
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
+        <DividerTabs tabs={tabs} activeId={tab} onPick={(id) => setTab(id as Tab)} />
+        <DividerPaper color={tabColor}>
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
-        <Card className="p-4">
+        <PaperCard className="p-4">
           {tab === 'position' && (
             <SetupBoard
               fen={fen}
@@ -296,12 +297,12 @@ function Editor({
               </p>
             </div>
           )}
-        </Card>
+        </PaperCard>
 
         <div className="min-w-0 space-y-4">
           {tab === 'answer' && (
             <>
-              <Card className="p-4">
+              <PaperCard className="p-4">
                 <div className="flex items-center justify-between">
                   <SectionLabel className="mb-0">Answer line</SectionLabel>
                   {puzzle.solution.length > 0 && (
@@ -359,12 +360,12 @@ function Editor({
                   </Button>
                 </form>
                 {lineError && <p className="mt-1.5 text-[13px] text-danger">{lineError}</p>}
-              </Card>
+              </PaperCard>
               <EngineCheck fen={fen} solution={puzzle.solution} onUseLine={useLine} />
             </>
           )}
 
-          <Card className="space-y-5 p-4">
+          <PaperCard className="space-y-5 p-4">
             <div>
               <SectionLabel>Quiz prompt</SectionLabel>
               <input
@@ -471,7 +472,7 @@ function Editor({
                 </div>
               )}
             </div>
-          </Card>
+          </PaperCard>
 
           <div className="flex gap-2">
             <Button variant="secondary" size="lg" className="flex-1" icon={<Check size={18} />} onClick={() => finish('lesson')}>
@@ -489,6 +490,8 @@ function Editor({
           </div>
         </div>
       </div>
+        </DividerPaper>
+      </FolderBody>
 
       <ImportSheet
         open={importing}

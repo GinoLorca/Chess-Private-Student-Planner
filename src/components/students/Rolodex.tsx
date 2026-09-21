@@ -178,7 +178,7 @@ export function Rolodex({ students, onOpen, onMenu }: RolodexProps) {
             onClick={() => settle(i)}
             className={clsx(
               'flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-[13px] font-semibold transition',
-              i === current ? 'border-ink bg-ink text-bg' : 'border-line-strong bg-surface text-ink-2',
+              i === current ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink-2',
             )}
           >
             <span className="block h-3 w-3 rounded-sm" style={{ background: s.color }} />

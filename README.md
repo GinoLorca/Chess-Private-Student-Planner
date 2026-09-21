@@ -1,19 +1,24 @@
 # Lesson Planner
 
-A private lesson planner for chess coaching. Students live in manila-folder tabs; each
-student has MISC, Game Review, Invoices, Lesson Plan, and Student Notes folders. Lesson
-plans hold themed sections of puzzles/positions, each with a position editor (set up any
-FEN, draw arrows and highlights, record the solution sequence, write a summary, link a
-reference), a **Present to student** mode (quiz first, reveal on demand), and a
-**Coach's View** cheat-sheet mode for quickly cycling through positions with the answer,
-notes and solution already visible — built for running higher-rated students through
-prepared material fast.
+A private lesson planner for chess coaching, built for the lesson table: an iPad in the coach's
+hand, a student across a real board. Students live in folders; each has lesson plans, notes, game
+reviews and invoices. A lesson plan is themed sections of positions, each with a board, arrows
+and highlights, a quiz prompt, the answer line and the coach's explanation.
+
+- **Quick add** turns a Lichess puzzle / study / game link, a Chess.com game link, a FEN, PGN, a
+  Lichess puzzle theme, or a photo/screenshot of any board into a position in one step.
+- **Editor** — set up the position by tapping, draw arrows, play out the answer, engine-check it.
+- **Coach view** — set-up piece list, quiz prompt, answer stepper with auto-drawn arrows, notes.
+- **Present** — the student's side: quiz first, answer on reveal.
+- **Lesson sheet** — the whole lesson in document form, printable to PDF.
+- Installable PWA, works offline for lessons already opened, light and dark.
 
 ## Stack
 
-- React + TypeScript + Vite, Tailwind CSS, Framer Motion
-- `react-chessboard` + `chess.js` for the interactive board / move validation
-- Supabase (Postgres + Auth) for storage and cross-device sync
+- React 19 + TypeScript + Vite, Tailwind CSS 4, Framer Motion, TanStack Query (with a localStorage
+  persister for offline reads), `vite-plugin-pwa`
+- A custom board component (no chessboard library); `chess.js` for move legality and PGN
+- Supabase (Postgres + Auth + one Edge Function for the AI helpers)
 
 ## 1. Local setup
 
@@ -23,76 +28,56 @@ cp .env.example .env.local   # fill in your Supabase project's URL + anon key
 npm run dev
 ```
 
-Without Supabase credentials the app still runs and shows the login screen with a
-banner explaining what's missing — it won't be usable until Supabase is configured.
-
-## 2. Create your Supabase project
-
-1. Go to [supabase.com](https://supabase.com) and create a new project (the free tier is
-   plenty for a single-user planner).
-2. In the Supabase dashboard, open **SQL Editor** and run the contents of
-   [`supabase/migrations/0001_init.sql`](./supabase/migrations/0001_init.sql). This
-   creates the `students`, `lesson_plans`, `lesson_sections`, `puzzles`, and `notes`
-   tables with row-level security so only your account can ever read or write your data.
-3. In **Project Settings → API**, copy the **Project URL** and **anon public key** into
-   `.env.local`:
-   ```
-   VITE_SUPABASE_URL=https://your-project.supabase.co
-   VITE_SUPABASE_ANON_KEY=your-anon-key
-   ```
-4. In **Authentication → Users**, click **Add user** and create the one account you'll
-   sign in with (email + password). This app has no public sign-up — accounts are only
-   ever created by you from the dashboard.
-
-## 3. Deploy
-
-Any static host works since this is a client-side app that talks directly to Supabase.
-Vercel or Netlify are the simplest:
-
-1. Push this repo to GitHub.
-2. Import it into Vercel/Netlify.
-3. Build command: `npm run build`, output directory: `dist`.
-4. Add the two environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
-   in the host's project settings.
-5. Deploy. Sign in on any device — laptop for building lessons, tablet/phone for
-   presenting — and everything stays in sync through Supabase.
-
-## Try it without a backend
+Or skip the backend entirely to look around:
 
 ```bash
 VITE_DEMO=1 npm run dev
 ```
 
 Demo mode runs the whole app against the imported sample lessons in memory (edits persist in the
-browser's localStorage). It's the quickest way to see a build on an iPad before deploying.
+browser's localStorage). The AI helpers return sample responses in demo mode.
 
-## Migrations
+## 2. Create your Supabase project
 
-Run these in the Supabase SQL editor, in order, once each. All of them are additive — re-running
-is harmless and existing rows are never touched.
+1. Create a project at [supabase.com](https://supabase.com) (the free tier is plenty).
+2. In **SQL Editor**, run each migration once, in order — they're all additive and safe to re-run:
 
-| File | Adds |
-|---|---|
-| `0001_init.sql` | students, lesson plans, sections, puzzles, notes + RLS |
-| `0002_user_settings.sql` | per-account preferences (piece set) |
-| `0003_sources_and_themes.sql` | puzzle sources/themes, lesson theme blocks, board colours, imported piece sets, Lichess/Chess.com usernames |
+   | File | Adds |
+   |---|---|
+   | `supabase/migrations/0001_init.sql` | students, lesson plans, sections, puzzles, notes + RLS |
+   | `supabase/migrations/0002_user_settings.sql` | per-account preferences |
+   | `supabase/migrations/0003_sources_and_themes.sql` | puzzle sources/themes, lesson theme blocks, board colours, imported piece sets, Lichess/Chess.com usernames |
 
-## Quick Add
+3. In **Project Settings → API**, copy the **Project URL** and **anon public key** into
+   `.env.local`:
+   ```
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-anon-key
+   ```
+4. In **Authentication → Users**, **Add user** — the one account you'll sign in with. There is no
+   public sign-up.
 
-On any lesson, **Quick add** takes a pasted Lichess puzzle / study / game link, a Chess.com game
-link (set your Chess.com username in Settings first), a FEN, or PGN — or browses Lichess puzzles by
-theme. Studies bring their arrows and highlights with them. For games and studies you scrub to the
-moment and the puzzle is cut from there. **Engine check** in the editor asks Lichess's cloud
-analysis for the top line of any position — no account or key needed.
+## 3. Deploy
 
-## AI helpers (optional)
+Any static host works (Vercel and Netlify are the simplest):
 
-Two features call Claude through a Supabase Edge Function so the API key stays server-side and
+1. Import the repo; build command `npm run build`, output directory `dist`.
+2. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the host's environment settings.
+3. Deploy, then open the URL on each device and sign in.
+
+**Install on the iPad / iPhone:** open the deployed URL in Safari → Share → **Add to Home Screen**.
+It launches full-screen without browser chrome, keeps the screen awake during a lesson, and opens
+lessons you've already loaded even without Wi-Fi.
+
+## 4. AI helpers (optional)
+
+Two features call Claude through a Supabase Edge Function, so the API key stays server-side and
 only your signed-in account can use it:
 
-- **Read a board from an image** (Quick Add → *Read a board from an image*): a screenshot of a
-  Chessable/Chess.com/book position or a phone photo of a real board becomes a position for you to
-  confirm — side to move and orientation are picked up when visible.
+- **Read a board from an image** (Quick add → *Read a board from an image*): a screenshot of a
+  Chessable / Chess.com / book position, or a phone photo of a real board, becomes a position for
+  you to confirm — side to move and orientation are picked up when visible, and a confidence
+  banner flags anything uncertain.
 - **Draft with AI** (editor → Explanation): drafts the explanation from the position and your
   recorded answer, in plain coaching language, for you to edit.
 
@@ -108,11 +93,31 @@ Cost: the function uses Claude Opus 5 ($5 / $25 per million tokens). A board ima
 1,500–2,500 tokens, so reading a position is about 1–2¢ and a draft explanation under 1¢. Without
 the key set, the buttons show a clear message and everything else keeps working.
 
+## Quick add, in detail
+
+| You paste or pick… | What happens |
+|---|---|
+| Lichess puzzle link or 5-character id | Position, side to move and the full solution line |
+| Lichess study (chapter) link | The chapter's moves, **with the arrows and highlights drawn in the study** |
+| Lichess or Chess.com game link | The game opens in a scrubber; step to the moment, choose the answer length |
+| FEN / PGN text | Imported directly (PGN comments' `[%cal]` / `[%csl]` arrows come along) |
+| A Lichess theme chip | A random puzzle of that theme, with *Another* |
+| A photo or screenshot | Read into a position by the AI helper (see above) |
+
+Chess.com game links need your Chess.com username in Settings (the public archive is per player).
+**Engine check** in the editor asks Lichess's cloud analysis for the top line of any position — no
+account or key needed — and says whether it agrees with your first move.
+
+## Piece sets and board colours
+
+Settings has three built-in piece sets and seven board colour presets plus a custom pair. **Import
+piece set** takes the twelve piece images from any set (Chess Arcade or elsewhere): files named
+like `wK.png` or `black_knight.svg` are matched automatically, the rest you assign with a picker.
+Imported sets are stored with your account and sync across devices.
+
 ## Notes
 
-- Data model and RLS policies: `supabase/migrations/0001_init.sql`.
-- The puzzle editor has three tabs: **Setup position** (paste a FEN or drag pieces from
-  the tray), **Annotate answer** (click a square to start an arrow / click again to
-  finish it, or toggle highlights), **Record solution** (drag pieces to play out the
-  answer — moves are validated with `chess.js` and appear as a numbered list you can
-  annotate).
+- Data model and RLS policies: `supabase/migrations/`.
+- Lesson rows flag an answer that doesn't replay from its position (e.g. an imported castling move
+  on a position saved without castling rights) so it can be re-recorded before the lesson.
+- Reviewed marks and agenda ticks are per device per session; a new lesson day starts clean.

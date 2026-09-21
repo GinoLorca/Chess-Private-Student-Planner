@@ -57,6 +57,23 @@ export function lineSteps(puzzle: Puzzle): LineStep[] {
   return steps
 }
 
+/**
+ * Why a recorded answer can't be played from its position, or null when it
+ * can. Imported lessons carry a few of these (a castling move on a position
+ * saved without castling rights, a move typed for the wrong square); the coach
+ * needs to see them before the lesson, not at the table.
+ */
+export function answerProblem(puzzle: Puzzle): string | null {
+  if (puzzle.solution.length === 0) return null
+  const steps = lineSteps(puzzle)
+  const bad = steps.find((s) => s.index > 0 && !s.from)
+  if (!bad) return null
+  const legalUpTo = bad.index - 1
+  return legalUpTo === 0
+    ? `${bad.san} isn't a legal move from this position — re-record the answer.`
+    : `${bad.san} isn't legal after move ${legalUpTo} — re-record the answer from there.`
+}
+
 /** "1. Rf8" / "1… Rf8" style label for the n-th answer move. */
 export function stepLabel(puzzle: Puzzle, index: number): string {
   const startsBlack = puzzle.side_to_move === 'b'

@@ -14,7 +14,8 @@ import { MoveBoard } from '../components/board/MoveBoard'
 import { ImportSheet } from '../components/import/ImportSheet'
 import { EngineCheck } from '../components/import/EngineCheck'
 import { draftExplanation } from '../lib/ai'
-import { Sparkle } from '../components/ui/Icons'
+import { answerProblem } from '../lib/solution'
+import { Sparkle, Warning } from '../components/ui/Icons'
 
 type Tab = 'position' | 'arrows' | 'answer'
 
@@ -121,6 +122,7 @@ function Editor({
 
   // The answer board sits at the end of the recorded line.
   const answerFen = puzzle.solution.length ? puzzle.solution[puzzle.solution.length - 1].fen : fen
+  const answerWarning = useMemo(() => answerProblem(puzzle), [puzzle])
   const lastMove = useMemo(() => {
     const last = puzzle.solution[puzzle.solution.length - 1]
     if (!last) return null
@@ -251,6 +253,11 @@ function Editor({
                     </div>
                   )}
                 </div>
+                {answerWarning && (
+                  <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-warn-soft px-2.5 py-1.5 text-[13px] text-warn">
+                    <Warning size={15} className="mt-0.5 shrink-0" /> {answerWarning}
+                  </p>
+                )}
                 {puzzle.solution.length === 0 ? (
                   <p className="mt-2 text-[14px] text-ink-3">No moves yet.</p>
                 ) : (

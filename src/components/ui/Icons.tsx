@@ -124,6 +124,12 @@ export const Upload = (p: IconProps) => (
     <path d="M12 15V4M7 9l5-5 5 5M4 19h16" />
   </svg>
 )
+export const Warning = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 4 2.5 20h19L12 4Z" />
+    <path d="M12 10v4.5M12 17.5v.5" />
+  </svg>
+)
 export const Camera = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M4 8h3l2-2.5h6L17 8h3v11H4z" />

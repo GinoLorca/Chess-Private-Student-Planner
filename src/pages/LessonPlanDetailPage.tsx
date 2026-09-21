@@ -13,7 +13,8 @@ import { ActionSheet } from '../components/ui/ActionSheet'
 import { Board } from '../components/board/Board'
 import { ImportSheet } from '../components/import/ImportSheet'
 import { patchFromImported } from '../lib/import'
-import { Check, ChevronRight, Document, Download, Eye, Knight, More, Pencil, Plus, Trash } from '../components/ui/Icons'
+import { Check, ChevronRight, Document, Download, Eye, Knight, More, Pencil, Plus, Trash, Warning } from '../components/ui/Icons'
+import { answerProblem } from '../lib/solution'
 
 export function LessonPlanDetailPage() {
   const { studentId = '', lessonPlanId = '' } = useParams<{ studentId: string; lessonPlanId: string }>()
@@ -228,6 +229,7 @@ function TitleField({
 
 function PuzzleRow({ puzzle, index, to, onDelete }: { puzzle: Puzzle; index: number; to: string; onDelete: () => void }) {
   const excerpt = puzzle.summary.replace(/\s+/g, ' ').trim()
+  const broken = answerProblem(puzzle)
   return (
     <div className={clsx('flex items-center', index > 0 && 'border-t border-line')}>
       <Link to={to} className="flex min-h-18 min-w-0 flex-1 items-center gap-3.5 px-4 py-2.5 transition active:bg-surface-2">
@@ -246,6 +248,14 @@ function PuzzleRow({ puzzle, index, to, onDelete }: { puzzle: Puzzle; index: num
             {puzzle.solution.length > 0 && (
               <span className="ml-2 font-mono text-[13px] font-medium text-ink-3">
                 [{puzzle.solution.map((m) => m.san).join(', ')}]
+              </span>
+            )}
+            {broken && (
+              <span
+                title={broken}
+                className="ml-2 inline-flex items-center gap-1 rounded-full bg-warn-soft px-2 py-0.5 align-middle text-[11px] font-semibold text-warn"
+              >
+                <Warning size={12} /> answer doesn't replay
               </span>
             )}
           </p>

@@ -140,7 +140,7 @@ function FolderCard({ student, index, onMenu }: { student: Student; index: numbe
       <button
         onClick={onMenu}
         aria-label={`Options for ${student.name}`}
-        className="absolute top-7 right-2 grid h-9 w-9 place-items-center rounded-full text-black/50 hover:bg-black/10"
+        className="absolute top-6 right-1 grid h-11 w-11 place-items-center rounded-full text-black/50 hover:bg-black/10"
       >
         <More size={18} />
       </button>

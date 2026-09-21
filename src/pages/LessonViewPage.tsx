@@ -5,7 +5,7 @@ import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight, Puzzle } from '../types/domain'
 import { useLesson, usePuzzleMutations, useStudent } from '../lib/queries'
 import { lineSteps, stepLabel } from '../lib/solution'
-import { pieceList, type Orientation } from '../lib/fen'
+import { pieceList, type Orientation, type SideSetup } from '../lib/fen'
 import { useSessionSet } from '../hooks/useSessionSet'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { DrawableBoard } from '../components/board/DrawableBoard'
@@ -358,11 +358,18 @@ function PuzzleView({
   )
 }
 
-function PieceLine({ label, pieces }: { label: string; pieces: string[] }) {
+/** One side's set-up: the pieces on one line, the pawns on the next, so it reads like a real call-out. */
+function PieceLine({ label, pieces }: { label: string; pieces: SideSetup }) {
   return (
-    <p className="flex items-baseline gap-2 py-0.5 text-[17px] leading-relaxed">
+    <div className="flex items-baseline gap-2 py-1 text-[17px] leading-relaxed">
       <span className="w-12 shrink-0 text-[13px] font-semibold text-ink-3 uppercase">{label}</span>
-      <span className="font-mono font-semibold tracking-wide text-ink">{pieces.length ? pieces.join('  ') : '—'}</span>
-    </p>
+      <div className="min-w-0">
+        <p className="font-mono font-semibold tracking-wide text-ink">{pieces.pieces.length ? pieces.pieces.join('  ') : '—'}</p>
+        <p className="font-mono font-medium tracking-wide text-ink-2">
+          <span className="mr-2 text-[12px] font-semibold text-ink-3 uppercase">Pawns</span>
+          {pieces.pawns.length ? pieces.pawns.join('  ') : 'none'}
+        </p>
+      </div>
+    </div>
   )
 }

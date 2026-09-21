@@ -98,16 +98,34 @@ const PIECE_ORDER = 'KQRBNP'
  * setting up a physical board: "Kd4 Rd7 Rb7 f2". Pawns are written by square
  * alone, the way chess notation does.
  */
-export function pieceList(fen: string): { white: string[]; black: string[] } {
+export interface SideSetup {
+  /** King, queen, rooks, bishops, knights: the way a coach calls them out. */
+  pieces: string[]
+  /** Pawns as bare squares, left to right across the board. */
+  pawns: string[]
+}
+
+/**
+ * The set-up call-out for a physical board: pieces first (king, queen,
+ * rooks, bishops, knights, each group file by file), then the pawns on their
+ * own, file by file. Read it aloud and the board is set.
+ */
+export function pieceList(fen: string): { white: SideSetup; black: SideSetup } {
   const placement = parsePlacement(fen)
   const entries = Object.entries(placement) as [string, PieceCode][]
-  const format = (color: 'w' | 'b') =>
-    entries
-      .filter(([, code]) => code[0] === color)
-      .sort(([sa, ca], [sb, cb]) => {
-        const order = PIECE_ORDER.indexOf(ca[1]) - PIECE_ORDER.indexOf(cb[1])
-        return order !== 0 ? order : sa.localeCompare(sb)
-      })
-      .map(([square, code]) => (code[1] === 'P' ? square : `${code[1]}${square}`))
-  return { white: format('w'), black: format('b') }
+  const byFile = (a: string, b: string) => a.localeCompare(b) || Number(a[1]) - Number(b[1])
+  const side = (color: 'w' | 'b'): SideSetup => {
+    const own = entries.filter(([, code]) => code[0] === color)
+    return {
+      pieces: own
+        .filter(([, code]) => code[1] !== 'P')
+        .sort(([sa, ca], [sb, cb]) => PIECE_ORDER.indexOf(ca[1]) - PIECE_ORDER.indexOf(cb[1]) || byFile(sa, sb))
+        .map(([square, code]) => `${code[1]}${square}`),
+      pawns: own
+        .filter(([, code]) => code[1] === 'P')
+        .map(([square]) => square)
+        .sort(byFile),
+    }
+  }
+  return { white: side('w'), black: side('b') }
 }

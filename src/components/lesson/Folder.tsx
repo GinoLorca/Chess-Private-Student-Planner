@@ -41,19 +41,34 @@ export function FolderBody({ color, children, className }: { color: string; chil
   )
 }
 
-/** Planned / In progress / Taught as a rubber stamp; tap it to move on. */
-export function StatusStamp({ status, onTap }: { status: LessonStatus | undefined; onTap: () => void }) {
+/** Planned / In progress / Taught as a rubber stamp; tap it to move on. Read-only without a handler. */
+export function StatusStamp({
+  status,
+  onTap,
+  size = 'md',
+}: {
+  status: LessonStatus | undefined
+  onTap?: () => void
+  size?: 'sm' | 'md'
+}) {
   const s = status ?? 'planned'
   // Ink per status comes from tokens so a skin can restamp it (see skins.css).
   const ink = s === 'taught' ? 'var(--stamp-taught)' : s === 'in_progress' ? 'var(--stamp-progress)' : 'var(--stamp-planned)'
+  const cls = clsx(
+    'folder-stamp inline-flex -rotate-[4deg] items-center rounded-md border-2 bg-white/35 font-extrabold tracking-[0.14em] uppercase',
+    size === 'sm' ? 'h-[26px] px-2 text-[10px]' : 'h-8 px-3 text-[11px] sm:h-[30px] sm:text-[12px]',
+    onTap && 'transition active:scale-95',
+  )
+  const style = { color: ink, borderColor: ink, fontFamily: 'var(--font-stamp, inherit)' }
+  if (!onTap) {
+    return (
+      <span className={cls} style={style}>
+        {statusLabel(s)}
+      </span>
+    )
+  }
   return (
-    <button
-      type="button"
-      onClick={onTap}
-      title={`Tap to mark ${statusLabel(nextStatus(s))}`}
-      className="folder-stamp inline-flex h-8 -rotate-[4deg] items-center rounded-md border-2 bg-white/35 px-3 text-[11px] font-extrabold tracking-[0.14em] uppercase transition active:scale-95 sm:h-[30px] sm:text-[12px]"
-      style={{ color: ink, borderColor: ink, fontFamily: 'var(--font-stamp, inherit)' }}
-    >
+    <button type="button" onClick={onTap} title={`Tap to mark ${statusLabel(nextStatus(s))}`} className={cls} style={style}>
       {statusLabel(s)}
     </button>
   )
@@ -85,7 +100,7 @@ export interface DividerTabItem {
   id: string
   title: string
   color: string
-  count: number
+  count?: number
   warn?: boolean
 }
 
@@ -99,7 +114,8 @@ export function DividerTabs({
   tabs: DividerTabItem[]
   activeId: string | null
   onPick: (id: string) => void
-  onAdd: () => void
+  /** Omit to leave out the "+ Section" tab. */
+  onAdd?: () => void
 }) {
   return (
     <div className="-mx-3 flex items-end gap-1.5 overflow-x-auto px-3 pt-1 pl-5 [scrollbar-width:none] sm:-mx-5 sm:px-5 sm:pl-7">
@@ -118,20 +134,24 @@ export function DividerTabs({
             style={{ background: t.color }}
           >
             {t.title || 'Untitled section'}
-            <span className="inline-grid h-[22px] min-w-[22px] place-items-center rounded-full bg-black/10 px-1.5 text-[12px] tabular-nums">
-              {t.count}
-            </span>
+            {t.count !== undefined && (
+              <span className="inline-grid h-[22px] min-w-[22px] place-items-center rounded-full bg-black/10 px-1.5 text-[12px] tabular-nums">
+                {t.count}
+              </span>
+            )}
             {t.warn && <span className="block h-2 w-2 rounded-full bg-warn" title="An answer doesn't replay" />}
           </button>
         )
       })}
-      <button
-        type="button"
-        onClick={onAdd}
-        className="divider-tab add h-[34px] shrink-0 rounded-t-xl border-2 border-b-0 border-dashed border-black/25 px-3.5 text-[12px] font-bold tracking-[0.06em] whitespace-nowrap text-black/50 uppercase transition active:bg-black/5 sm:text-[13px]"
-      >
-        + Section
-      </button>
+      {onAdd && (
+        <button
+          type="button"
+          onClick={onAdd}
+          className="divider-tab add h-[34px] shrink-0 rounded-t-xl border-2 border-b-0 border-dashed border-black/25 px-3.5 text-[12px] font-bold tracking-[0.06em] whitespace-nowrap text-black/50 uppercase transition active:bg-black/5 sm:text-[13px]"
+        >
+          + Section
+        </button>
+      )}
     </div>
   )
 }
@@ -221,6 +241,139 @@ export function IndexCard({
           </Link>
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * A hanging file inside the student's folder: one per sub-folder (lesson
+ * plans, invoices, ...). The coloured tab carries the name, the count sits on
+ * the file itself.
+ */
+export function HangingFile({
+  to,
+  color,
+  label,
+  count,
+  icon,
+}: {
+  to: string
+  color: string
+  label: string
+  count?: number
+  icon?: ReactNode
+}) {
+  const body = count === undefined ? '\u00a0' : count === 0 ? 'Empty' : `${count} ${count === 1 ? 'item' : 'items'}`
+  return (
+    <Link to={to} className="hanging-file block transition active:scale-[0.99]">
+      <span
+        className="folder-tab ml-4 flex h-7 w-fit max-w-[70%] items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] text-black/60 uppercase sm:ml-6"
+        style={{ background: color }}
+      >
+        {icon}
+        <span className="truncate">{label}</span>
+      </span>
+      <span
+        className="hanging-body flex h-[52px] items-center justify-between rounded-r-xl rounded-bl-xl px-4 shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)] sm:px-5"
+        style={{ background: color }}
+      >
+        <span className="text-[15px] font-semibold text-black/70">{body}</span>
+        <span className="rounded-full bg-black/10 px-3 py-1 text-[13px] font-bold text-black/60">Open ›</span>
+      </span>
+    </Link>
+  )
+}
+
+/** One lesson as a ruled index card on the lesson-plans divider. */
+export function LessonCard({
+  number,
+  title,
+  theme,
+  status,
+  taughtOn,
+  to,
+  onDelete,
+}: {
+  number: number
+  title?: string
+  theme?: string
+  status: LessonStatus | undefined
+  taughtOn?: string | null
+  to: string
+  onDelete: () => void
+}) {
+  return (
+    <div
+      className="index-card relative rounded-xl border border-line bg-surface shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)] transition active:scale-[0.99]"
+      style={{
+        transform: `rotate(${number % 2 === 0 ? 0.4 : -0.5}deg)`,
+        backgroundImage: 'repeating-linear-gradient(to bottom, transparent 0 27px, var(--paper-rule) 27px 28px)',
+        backgroundPosition: '0 44px',
+      }}
+    >
+      <span className="pointer-events-none absolute inset-x-0 top-10 h-px bg-paper-head-rule" />
+      <Link to={to} className="block p-4 pb-2">
+        <div className="flex items-start gap-3.5">
+          <div className="flex shrink-0 items-baseline gap-1.5">
+            <span className="text-[11px] font-bold tracking-[0.14em] text-ink-3 uppercase">Lesson</span>
+            <span className="folder-number font-display text-[40px] leading-none font-bold tracking-[-0.02em] text-ink">{number}</span>
+          </div>
+          <div className="min-w-0 flex-1 pt-1">
+            <p className="truncate font-display text-[20px] leading-tight font-semibold text-ink">{title || (theme ? '\u00a0' : 'Untitled')}</p>
+            {theme && <p className="mt-0.5 truncate text-[13px] text-ink-2">{theme}</p>}
+          </div>
+          <StatusStamp status={status} size="sm" />
+        </div>
+      </Link>
+      <div className="flex items-center justify-between px-4 pb-2.5">
+        <span className="text-[12px] font-semibold tracking-[0.1em] text-ink-3 uppercase">
+          {taughtOn ? `Taught ${formatShortDate(taughtOn)}` : '\u00a0'}
+        </span>
+        <div className="flex items-center gap-1">
+          <IconButton label="Delete lesson" className="h-9 w-9 text-ink-3" onClick={onDelete}>
+            <Trash size={16} />
+          </IconButton>
+          <Link to={to} className="text-[13px] font-semibold text-accent">
+            Open ›
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function formatShortDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+/**
+ * Index-card stock for panels that aren't a position: the coach view's
+ * call-outs, the editor's fields. `ruled` draws the lines behind reading text;
+ * leave it off behind inputs.
+ */
+export function PaperCard({
+  children,
+  className,
+  ruled,
+  tilt,
+}: {
+  children: ReactNode
+  className?: string
+  ruled?: boolean
+  tilt?: number
+}) {
+  return (
+    <div
+      className={clsx('index-card relative rounded-xl border border-line bg-surface shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)]', className)}
+      style={{
+        transform: tilt ? `rotate(${tilt}deg)` : undefined,
+        backgroundImage: ruled ? 'repeating-linear-gradient(to bottom, transparent 0 27px, var(--paper-rule) 27px 28px)' : undefined,
+        backgroundPosition: ruled ? '0 44px' : undefined,
+      }}
+    >
+      <span className="pointer-events-none absolute inset-x-0 top-10 h-px bg-paper-head-rule" />
+      {children}
     </div>
   )
 }

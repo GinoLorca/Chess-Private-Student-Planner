@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import type { LessonPlan } from '../types/domain'
 import { useLessonPlanMutations, useLessonPlans, useStudent } from '../lib/queries'
-import { Page, Card, EmptyState, LoadingPage } from '../components/ui/Page'
+import { Page, LoadingPage } from '../components/ui/Page'
 import { Button, IconButton } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
-import { ChevronRight, Plus, Trash } from '../components/ui/Icons'
+import { Plus } from '../components/ui/Icons'
 import { NewLessonSheet } from '../components/lesson/NewLessonSheet'
-import { StatusPill } from '../components/lesson/StatusPill'
+import { DividerPaper, FolderBody, FolderTab, LessonCard } from '../components/lesson/Folder'
+import { FOLDER_COLORS } from '../lib/colors'
 
 export function LessonPlanListPage() {
   const { studentId = '' } = useParams<{ studentId: string }>()
@@ -24,62 +25,53 @@ export function LessonPlanListPage() {
 
   if (isLoading && !plans) return <LoadingPage />
 
+  const folderColor = student?.color ?? FOLDER_COLORS[0]
+  const dividerColor = FOLDER_COLORS.filter((c) => c !== folderColor)[0]
+
   return (
     <Page
       back={`/students/${studentId}`}
-      eyebrow={student?.name}
-      title="Lesson plans"
+      width="wide"
+      className="pt-6"
       actions={
         <IconButton label="New lesson plan" onClick={() => setCreating(true)} disabled={create.isPending}>
           <Plus />
         </IconButton>
       }
     >
-      {plans && plans.length === 0 ? (
-        <EmptyState
-          title="No lesson plans yet"
-          body="A plan is one session: themed sections of positions, with the answers and your notes."
-          action={
-            <Button variant="primary" icon={<Plus size={18} />} onClick={() => setCreating(true)}>
-              New lesson plan
-            </Button>
-          }
-        />
-      ) : (
-        <Card className="overflow-hidden">
-          {plans?.map((plan, i) => (
-            <div
-              key={plan.id}
-              className={`flex items-center transition active:bg-surface-2 ${i > 0 ? 'border-t border-line' : ''}`}
-            >
-              <Link
+      <FolderTab color={folderColor} name={student?.name ?? 'Student'} aside="Lesson plans" />
+      <FolderBody color={folderColor} className="pb-5">
+        <DividerPaper color={dividerColor}>
+          <div className="mb-4 flex items-baseline justify-between gap-3">
+            <h1 className="font-display text-[28px] leading-none font-bold text-ink sm:text-[32px]">Lesson plans</h1>
+            <span className="text-[13px] font-semibold text-ink-3 tabular-nums">{plans?.length ?? 0}</span>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {plans?.map((plan) => (
+              <LessonCard
+                key={plan.id}
+                number={plan.number}
+                title={plan.title}
+                theme={plan.theme}
+                status={plan.status}
+                taughtOn={plan.taught_on}
                 to={`/students/${studentId}/lessons/${plan.id}`}
-                className="flex min-h-16 min-w-0 flex-1 items-center gap-3 px-4 py-3"
-              >
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-[15px] font-bold text-accent-strong tabular-nums">
-                  {plan.number}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[16px] font-semibold text-ink">
-                    Lesson {plan.number}
-                    {plan.title && <span className="font-normal text-ink-2"> · {plan.title}</span>}
-                  </span>
-                  {(plan.theme || plan.taught_on) && (
-                    <span className="block truncate text-[13px] text-ink-3">
-                      {[plan.theme, plan.taught_on ? `Taught ${formatDate(plan.taught_on)}` : ''].filter(Boolean).join(' · ')}
-                    </span>
-                  )}
-                </span>
-                <StatusPill status={plan.status} size="sm" />
-                <ChevronRight className="shrink-0 text-ink-3" />
-              </Link>
-              <IconButton label="Delete lesson" className="mr-1 text-ink-3" onClick={() => setDeleting(plan)}>
-                <Trash size={18} />
-              </IconButton>
+                onDelete={() => setDeleting(plan)}
+              />
+            ))}
+            <div className="add-slot flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line-strong p-4 text-center">
+              <Button variant="primary" icon={<Plus size={18} />} onClick={() => setCreating(true)} disabled={create.isPending}>
+                New lesson plan
+              </Button>
+              {plans && plans.length === 0 && (
+                <p className="max-w-xs text-[13px] text-ink-3">
+                  A plan is one session: themed sections of positions, with the answers and your notes.
+                </p>
+              )}
             </div>
-          ))}
-        </Card>
-      )}
+          </div>
+        </DividerPaper>
+      </FolderBody>
 
       <NewLessonSheet
         open={creating}
@@ -100,9 +92,4 @@ export function LessonPlanListPage() {
       />
     </Page>
   )
-}
-
-function formatDate(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }

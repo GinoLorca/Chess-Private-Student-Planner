@@ -12,6 +12,8 @@ import { DrawableBoard } from '../components/board/DrawableBoard'
 import { effectiveQuizPrompt } from '../lib/prompts'
 import { Button, IconButton } from '../components/ui/Button'
 import { LoadingPage, Page, SectionLabel } from '../components/ui/Page'
+import { PaperCard, StickyNote } from '../components/lesson/Folder'
+import { FOLDER_COLORS } from '../lib/colors'
 import { Check, ChevronLeft, ChevronRight, Close, Document, Eye } from '../components/ui/Icons'
 
 type Mode = 'coach' | 'present'
@@ -127,6 +129,7 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
               sectionTitle={current.sectionTitle}
               position={index + 1}
               mode={mode}
+              color={student?.color ?? FOLDER_COLORS[0]}
               onSwipe={(dir) => go(index + dir)}
             />
           </motion.div>
@@ -164,12 +167,15 @@ function PuzzleView({
   sectionTitle,
   position,
   mode,
+  color,
   onSwipe,
 }: {
   puzzle: Puzzle
   sectionTitle: string
   position: number
   mode: Mode
+  /** The student's folder colour: the section tab above the board takes it. */
+  color: string
   onSwipe: (dir: 1 | -1) => void
 }) {
   const { lessonPlanId = '' } = useParams()
@@ -226,11 +232,15 @@ function PuzzleView({
       {/* Square board, so cap its width by the viewport height: on an iPad in
           landscape the whole board plus its caption must fit above the nav. */}
       <div className="mx-auto w-full" style={{ maxWidth: 'min(640px, calc(100svh - 236px))' }}>
-        <div className="mb-2 flex items-baseline justify-between gap-3">
-          <p className="min-w-0 truncate text-[13px] font-semibold tracking-wider text-accent-strong uppercase">
-            {sectionTitle}
+        <div className="flex items-end justify-between gap-3 pl-3">
+          <p
+            className="folder-tab flex h-8 min-w-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] text-black/60 uppercase"
+            style={{ background: color }}
+          >
+            <span className="block h-2 w-2 shrink-0 rounded-[2px] bg-black/35" />
+            <span className="truncate">{sectionTitle}</span>
           </p>
-          <button onClick={() => setFlipped((f) => !f)} className="shrink-0 text-[13px] font-medium text-ink-3 hover:text-ink">
+          <button onClick={() => setFlipped((f) => !f)} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg">
             Flip board
           </button>
         </div>
@@ -257,33 +267,34 @@ function PuzzleView({
           />
         </motion.div>
         <div className="mt-2 flex items-center justify-between">
-          <p className="text-[15px] font-semibold text-ink">
-            <span className="text-ink-3">#{position}</span> {revealed ? puzzle.label : ''}
+          <p className="text-[15px] font-semibold text-on-bg">
+            <span className="text-on-bg-2">#{position}</span>{' '}
+            <span className="font-display text-[19px]">{revealed ? puzzle.label : ''}</span>
           </p>
-          <p className="text-[15px] font-semibold text-ink-2">{toMove} to play</p>
+          <p className="text-[12px] font-semibold tracking-[0.1em] text-on-bg-2 uppercase">{toMove} to play</p>
         </div>
       </div>
 
       <div className="space-y-3">
         {mode === 'coach' && (
-          <section className="rounded-2xl border border-line bg-surface p-4 shadow-card">
-            <SectionLabel>Set up the board</SectionLabel>
+          <StickyNote className="mt-5 lg:mt-6">
+            <p className="mb-1 text-[12px] font-bold tracking-[0.12em] uppercase opacity-70">Set up the board</p>
             <PieceLine label="White" pieces={list.white} />
             <PieceLine label="Black" pieces={list.black} />
-          </section>
+          </StickyNote>
         )}
 
-        <section className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+        <PaperCard className="p-4" tilt={-0.3}>
           <SectionLabel>Ask</SectionLabel>
-          <p className="text-[18px] leading-snug font-medium text-ink">{effectiveQuizPrompt(puzzle, sectionTitle)}</p>
-        </section>
+          <p className="font-display text-[22px] leading-snug font-medium text-ink">{effectiveQuizPrompt(puzzle, sectionTitle)}</p>
+        </PaperCard>
 
         {!revealed ? (
           <Button variant="primary" size="lg" block icon={<Eye size={20} />} onClick={() => setRevealed(true)}>
             Reveal answer
           </Button>
         ) : (
-          <section className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+          <PaperCard className="p-4" tilt={0.4}>
             <div className="flex items-center justify-between">
               <SectionLabel className="mb-0">Answer</SectionLabel>
               {step > 0 && (
@@ -333,14 +344,14 @@ function PuzzleView({
                 </div>
               </>
             )}
-          </section>
+          </PaperCard>
         )}
 
         {revealed && puzzle.summary && (
-          <section className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+          <PaperCard className="p-4" ruled tilt={-0.4}>
             <SectionLabel>{mode === 'coach' ? 'Your notes' : 'Explanation'}</SectionLabel>
-            <p className="text-[16px] leading-relaxed whitespace-pre-wrap text-ink">{puzzle.summary}</p>
-          </section>
+            <p className="text-[16px] leading-[28px] whitespace-pre-wrap text-ink">{puzzle.summary}</p>
+          </PaperCard>
         )}
 
         {mode === 'coach' && puzzle.reference_url && (
@@ -362,11 +373,11 @@ function PuzzleView({
 function PieceLine({ label, pieces }: { label: string; pieces: SideSetup }) {
   return (
     <div className="flex items-baseline gap-2 py-1 text-[17px] leading-relaxed">
-      <span className="w-12 shrink-0 text-[13px] font-semibold text-ink-3 uppercase">{label}</span>
+      <span className="w-12 shrink-0 text-[13px] font-semibold uppercase opacity-60">{label}</span>
       <div className="min-w-0">
-        <p className="font-mono font-semibold tracking-wide text-ink">{pieces.pieces.length ? pieces.pieces.join('  ') : '—'}</p>
-        <p className="font-mono font-medium tracking-wide text-ink-2">
-          <span className="mr-2 text-[12px] font-semibold text-ink-3 uppercase">Pawns</span>
+        <p className="font-mono font-semibold tracking-wide">{pieces.pieces.length ? pieces.pieces.join('  ') : '—'}</p>
+        <p className="font-mono font-medium tracking-wide opacity-80">
+          <span className="mr-2 text-[12px] font-semibold uppercase opacity-70">Pawns</span>
           {pieces.pawns.length ? pieces.pawns.join('  ') : 'none'}
         </p>
       </div>

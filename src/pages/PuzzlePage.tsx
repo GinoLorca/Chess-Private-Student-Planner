@@ -49,8 +49,8 @@ export function PuzzlePage() {
       }
     >
       {/* Desktop (a mouse or trackpad, wide window) gets a board about a third larger; iPad and iPhone keep their layout. */}
-      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start pointer-fine:min-[1280px]:max-w-[1300px] pointer-fine:min-[1280px]:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <div className="mx-auto w-full max-w-[560px] pointer-fine:min-[1280px]:max-w-[605px]">
+      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start pointer-fine:min-[1280px]:max-w-[1300px] pointer-fine:min-[1280px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div className="mx-auto w-full max-w-[560px] pointer-fine:min-[1280px]:max-w-[665px]">
           <div className="mb-2 flex items-baseline justify-between">
             <h1 className="text-[26px] font-bold tracking-tight text-ink">{puzzle.label || 'Untitled position'}</h1>
             <span className="text-[14px] font-semibold text-ink-2">{toMove} to play</span>

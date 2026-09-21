@@ -24,7 +24,11 @@ export function LessonSheetPage() {
   if (isLoading && !lesson) return <LoadingPage />
   if (!lesson) return <Page back={base}>Lesson not found.</Page>
 
-  let counter = 0
+  // Positions are numbered straight through the lesson, across sections.
+  const numbers = new Map<string, number>()
+  lesson.sections.forEach((section) =>
+    (lesson.puzzlesBySection[section.id] ?? []).forEach((p) => numbers.set(p.id, numbers.size + 1)),
+  )
 
   return (
     <Page
@@ -57,10 +61,9 @@ export function LessonSheetPage() {
               {section.title || 'Untitled section'}
             </h2>
             <div className="space-y-8">
-              {puzzles.map((puzzle) => {
-                counter += 1
-                return <SheetPuzzle key={puzzle.id} puzzle={puzzle} number={counter} sectionTitle={section.title} />
-              })}
+              {puzzles.map((puzzle) => (
+                <SheetPuzzle key={puzzle.id} puzzle={puzzle} number={numbers.get(puzzle.id) ?? 0} sectionTitle={section.title} />
+              ))}
             </div>
           </section>
         )

@@ -6,7 +6,6 @@
 --   2. If your project has more than one login account, replace
 --      'YOUR_EMAIL_HERE' below with the email you log in with. With a
 --      single account nothing needs editing.
---      this is how the script finds your account to own the new rows).
 --   3. Run the whole script once. It is not safe to re-run — running it
 --      twice will create a second "Parker Downing" folder.
 --

@@ -5,6 +5,9 @@ hand, a student across a real board. Students live in folders; each has lesson p
 reviews and invoices. A lesson plan is themed sections of positions, each with a board, arrows
 and highlights, a quiz prompt, the answer line and the coach's explanation.
 
+- **New lesson** is one tap: the same shape as last time, a saved template, a copy of an earlier
+  lesson with its positions, or blank. Sections, theme blocks and agenda items are chips from
+  your own history, so a recurring format is never re-typed.
 - **Quick add** turns a Lichess puzzle / study / game link, a Chess.com game link, a FEN, PGN, a
   Lichess puzzle theme, or a photo/screenshot of any board into a position in one step.
 - **Editor** — set up the position by tapping, draw arrows, play out the answer, engine-check it.
@@ -47,6 +50,7 @@ browser's localStorage). The AI helpers return sample responses in demo mode.
    | `supabase/migrations/0001_init.sql` | students, lesson plans, sections, puzzles, notes + RLS |
    | `supabase/migrations/0002_user_settings.sql` | per-account preferences |
    | `supabase/migrations/0003_sources_and_themes.sql` | puzzle sources/themes, lesson theme blocks, board colours, imported piece sets, Lichess/Chess.com usernames |
+   | `supabase/migrations/0004_lesson_flow.sql` | lesson status + taught date, saved lesson templates |
 
 3. In **Project Settings → API**, copy the **Project URL** and **anon public key** into
    `.env.local`:

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as api from './data'
-import type { FolderKind, LessonPlan, LessonSection, Note, Puzzle, Student } from '../types/domain'
+import type { FolderKind, LessonSection, LessonTemplate, NewLessonInit, Note, Puzzle, Student } from '../types/domain'
 
 export const keys = {
   students: ['students'] as const,
@@ -10,6 +10,8 @@ export const keys = {
   puzzle: (puzzleId: string) => ['puzzle', puzzleId] as const,
   notes: (studentId: string, kind: Note['folder_kind']) => ['notes', studentId, kind] as const,
   settings: ['settings'] as const,
+  lessonHistory: ['lessonHistory'] as const,
+  lessonTemplates: ['lessonTemplates'] as const,
   pieceSets: ['pieceSets'] as const,
 }
 
@@ -83,14 +85,18 @@ export function useLessonPlanMutations(studentId: string) {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: keys.lessonPlans(studentId) })
     qc.invalidateQueries({ queryKey: keys.folderCounts(studentId) })
+    qc.invalidateQueries({ queryKey: keys.lessonHistory })
   }
   const create = useMutation({
-    mutationFn: (title: string) => api.createLessonPlan(studentId, title),
+    mutationFn: (init: NewLessonInit = {}) => api.createLessonPlan(studentId, init),
+    onSuccess: invalidate,
+  })
+  const duplicate = useMutation({
+    mutationFn: (planId: string) => api.duplicateLessonPlan(planId),
     onSuccess: invalidate,
   })
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<LessonPlan, 'title' | 'agenda' | 'theme'>> }) =>
-      api.updateLessonPlan(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: api.LessonPlanPatch }) => api.updateLessonPlan(id, patch),
     onMutate: async ({ id, patch }) => {
       await qc.cancelQueries({ queryKey: keys.lesson(id) })
       const prev = qc.getQueryData<api.LessonBundle>(keys.lesson(id))
@@ -104,7 +110,28 @@ export function useLessonPlanMutations(studentId: string) {
     },
   })
   const remove = useMutation({ mutationFn: (id: string) => api.deleteLessonPlan(id), onSuccess: invalidate })
-  return { create, update, remove }
+  return { create, duplicate, update, remove }
+}
+
+/** The coach's recurring section titles, theme blocks and agenda items, most-used first. */
+export function useLessonHistory() {
+  return useQuery({ queryKey: keys.lessonHistory, queryFn: api.getLessonHistory })
+}
+
+export function useLessonTemplates() {
+  return useQuery({ queryKey: keys.lessonTemplates, queryFn: api.listLessonTemplates })
+}
+
+export function useLessonTemplateMutations() {
+  const qc = useQueryClient()
+  const invalidate = () => qc.invalidateQueries({ queryKey: keys.lessonTemplates })
+  const create = useMutation({
+    mutationFn: (template: Pick<LessonTemplate, 'name' | 'theme' | 'sections' | 'agenda'>) =>
+      api.createLessonTemplate(template),
+    onSuccess: invalidate,
+  })
+  const remove = useMutation({ mutationFn: (id: string) => api.deleteLessonTemplate(id), onSuccess: invalidate })
+  return { create, remove }
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +140,10 @@ export function useLessonPlanMutations(studentId: string) {
 
 export function useLessonContentMutations(planId: string) {
   const qc = useQueryClient()
-  const invalidate = () => qc.invalidateQueries({ queryKey: keys.lesson(planId) })
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: keys.lesson(planId) })
+    qc.invalidateQueries({ queryKey: keys.lessonHistory })
+  }
 
   const createSection = useMutation({
     mutationFn: (title: string) => api.createSection(planId, title),

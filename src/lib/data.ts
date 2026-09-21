@@ -15,6 +15,11 @@ export const listLessonPlans = impl.listLessonPlans
 export const getLessonPlan = impl.getLessonPlan
 export const createLessonPlan = impl.createLessonPlan
 export const updateLessonPlan = impl.updateLessonPlan
+export const duplicateLessonPlan = impl.duplicateLessonPlan
+export const getLessonHistory = impl.getLessonHistory
+export const listLessonTemplates = impl.listLessonTemplates
+export const createLessonTemplate = impl.createLessonTemplate
+export const deleteLessonTemplate = impl.deleteLessonTemplate
 export const deleteLessonPlan = impl.deleteLessonPlan
 export const listSections = impl.listSections
 export const createSection = impl.createSection
@@ -37,4 +42,4 @@ export const listCustomPieceSets = impl.listCustomPieceSets
 export const createCustomPieceSet = impl.createCustomPieceSet
 export const deleteCustomPieceSet = impl.deleteCustomPieceSet
 
-export type { LessonBundle, PuzzlePatch, SettingsPatch } from './api'
+export type { LessonBundle, LessonPlanPatch, PuzzlePatch, SettingsPatch } from './api'

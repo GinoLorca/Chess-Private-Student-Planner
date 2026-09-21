@@ -96,4 +96,17 @@ nothing else depends on it.
 
 ---
 
+## When the app gets an update
+
+Vercel redeploys on every push, so the app itself updates by itself. When an update adds a
+database change there is a new file in `supabase/migrations/`, numbered after the ones you've
+run. Paste it into **SQL Editor → New query** and **Run**, once. Every migration is safe to
+re-run, so if you're not sure which you've done, run `supabase/setup_all.sql` again instead.
+
+| Migration | Adds |
+|---|---|
+| `0004_lesson_flow.sql` | lesson status (planned / in progress / taught) and saved lesson templates |
+
+---
+
 **Stuck anywhere?** Tell Claude which step and paste what the screen says.

@@ -17,6 +17,14 @@ export interface Student {
   created_at: string
 }
 
+export type LessonStatus = 'planned' | 'in_progress' | 'taught'
+
+export const LESSON_STATUS: { value: LessonStatus; label: string }[] = [
+  { value: 'planned', label: 'Planned' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'taught', label: 'Taught' },
+]
+
 export interface LessonPlan {
   id: string
   student_id: string
@@ -25,8 +33,37 @@ export interface LessonPlan {
   agenda: string[]
   /** Multi-week theme block this lesson belongs to, e.g. "Endgames — October". */
   theme?: string
+  status?: LessonStatus
+  /** ISO date (yyyy-mm-dd) the lesson was marked taught. */
+  taught_on?: string | null
   created_at: string
   updated_at: string
+}
+
+/** A saved lesson shape: what a new lesson starts from. */
+export interface LessonTemplate {
+  id: string
+  user_id: string
+  name: string
+  theme: string
+  sections: string[]
+  agenda: string[]
+  created_at: string
+}
+
+/** What a new lesson is created with — copied from last time, a template, or nothing. */
+export interface NewLessonInit {
+  title?: string
+  theme?: string
+  agenda?: string[]
+  sections?: string[]
+}
+
+/** The coach's own recurring choices, most-used first, for tap-to-pick chips. */
+export interface LessonHistory {
+  sections: string[]
+  themes: string[]
+  agenda: string[]
 }
 
 export interface LessonSection {

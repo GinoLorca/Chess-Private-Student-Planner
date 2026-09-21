@@ -6,17 +6,19 @@ import { Page, Card, EmptyState, LoadingPage } from '../components/ui/Page'
 import { Button, IconButton } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { ChevronRight, Plus, Trash } from '../components/ui/Icons'
+import { NewLessonSheet } from '../components/lesson/NewLessonSheet'
+import { StatusPill } from '../components/lesson/StatusPill'
 
 export function LessonPlanListPage() {
   const { studentId = '' } = useParams<{ studentId: string }>()
   const navigate = useNavigate()
   const { data: student } = useStudent(studentId)
   const { data: plans, isLoading } = useLessonPlans(studentId)
-  const { create, remove } = useLessonPlanMutations(studentId)
+  const { create, duplicate, remove } = useLessonPlanMutations(studentId)
   const [deleting, setDeleting] = useState<LessonPlan | null>(null)
+  const [creating, setCreating] = useState(false)
 
-  async function addPlan() {
-    const plan = await create.mutateAsync('')
+  function open(plan: LessonPlan) {
     navigate(`/students/${studentId}/lessons/${plan.id}`)
   }
 
@@ -28,7 +30,7 @@ export function LessonPlanListPage() {
       eyebrow={student?.name}
       title="Lesson plans"
       actions={
-        <IconButton label="New lesson plan" onClick={addPlan} disabled={create.isPending}>
+        <IconButton label="New lesson plan" onClick={() => setCreating(true)} disabled={create.isPending}>
           <Plus />
         </IconButton>
       }
@@ -38,7 +40,7 @@ export function LessonPlanListPage() {
           title="No lesson plans yet"
           body="A plan is one session: themed sections of positions, with the answers and your notes."
           action={
-            <Button variant="primary" icon={<Plus size={18} />} onClick={addPlan}>
+            <Button variant="primary" icon={<Plus size={18} />} onClick={() => setCreating(true)}>
               New lesson plan
             </Button>
           }
@@ -58,9 +60,17 @@ export function LessonPlanListPage() {
                   {plan.number}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[16px] font-semibold text-ink">Lesson {plan.number}</span>
-                  {plan.title && <span className="block truncate text-[14px] text-ink-2">{plan.title}</span>}
+                  <span className="block text-[16px] font-semibold text-ink">
+                    Lesson {plan.number}
+                    {plan.title && <span className="font-normal text-ink-2"> · {plan.title}</span>}
+                  </span>
+                  {(plan.theme || plan.taught_on) && (
+                    <span className="block truncate text-[13px] text-ink-3">
+                      {[plan.theme, plan.taught_on ? `Taught ${formatDate(plan.taught_on)}` : ''].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
                 </span>
+                <StatusPill status={plan.status} size="sm" />
                 <ChevronRight className="shrink-0 text-ink-3" />
               </Link>
               <IconButton label="Delete lesson" className="mr-1 text-ink-3" onClick={() => setDeleting(plan)}>
@@ -71,6 +81,13 @@ export function LessonPlanListPage() {
         </Card>
       )}
 
+      <NewLessonSheet
+        open={creating}
+        plans={plans ?? []}
+        onClose={() => setCreating(false)}
+        onCreate={async (init) => open(await create.mutateAsync(init))}
+        onDuplicate={async (planId) => open(await duplicate.mutateAsync(planId))}
+      />
       <ConfirmDialog
         open={Boolean(deleting)}
         title={`Delete Lesson ${deleting?.number ?? ''}?`}
@@ -83,4 +100,9 @@ export function LessonPlanListPage() {
       />
     </Page>
   )
+}
+
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }

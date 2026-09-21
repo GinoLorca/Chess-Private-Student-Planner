@@ -2,7 +2,18 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import clsx from 'clsx'
 import type { LessonSection, Puzzle } from '../types/domain'
-import { useLesson, useLessonContentMutations, useLessonPlanMutations, useStudent } from '../lib/queries'
+import {
+  useLesson,
+  useLessonContentMutations,
+  useLessonHistory,
+  useLessonPlanMutations,
+  useLessonTemplateMutations,
+  useStudent,
+} from '../lib/queries'
+import { agendaOptions, sectionOptions, themeOptions } from '../lib/lessonDefaults'
+import { PickSheet } from '../components/lesson/PickSheet'
+import { StatusPill } from '../components/lesson/StatusPill'
+import { nextStatus } from '../lib/lessonStatus'
 import { normalizeFen } from '../lib/fen'
 import { useSessionSet } from '../hooks/useSessionSet'
 import { Page, Card, EmptyState, LoadingPage, SectionLabel } from '../components/ui/Page'
@@ -13,7 +24,7 @@ import { ActionSheet } from '../components/ui/ActionSheet'
 import { Board } from '../components/board/Board'
 import { ImportSheet } from '../components/import/ImportSheet'
 import { patchFromImported } from '../lib/import'
-import { Check, ChevronRight, Document, Download, Eye, Knight, More, Pencil, Plus, Trash, Warning } from '../components/ui/Icons'
+import { Check, ChevronDown, ChevronRight, Document, Download, Eye, Knight, More, Pencil, Plus, Trash, Warning } from '../components/ui/Icons'
 import { answerProblem } from '../lib/solution'
 
 export function LessonPlanDetailPage() {
@@ -23,7 +34,12 @@ export function LessonPlanDetailPage() {
   const { data: lesson, isLoading } = useLesson(lessonPlanId)
   const planMutations = useLessonPlanMutations(studentId)
   const content = useLessonContentMutations(lessonPlanId)
+  const templates = useLessonTemplateMutations()
+  const { data: history } = useLessonHistory()
   const [addingSection, setAddingSection] = useState(false)
+  const [pickingTheme, setPickingTheme] = useState(false)
+  const [planMenu, setPlanMenu] = useState(false)
+  const [savingTemplate, setSavingTemplate] = useState(false)
   const [sectionMenu, setSectionMenu] = useState<LessonSection | null>(null)
   const [renamingSection, setRenamingSection] = useState<LessonSection | null>(null)
   const [deletingSection, setDeletingSection] = useState<LessonSection | null>(null)
@@ -42,24 +58,48 @@ export function LessonPlanDetailPage() {
     navigate(`${base}/puzzles/${puzzle.id}/edit`)
   }
 
+  function cycleStatus() {
+    const status = nextStatus(plan.status)
+    planMutations.update.mutate({
+      id: plan.id,
+      patch: { status, taught_on: status === 'taught' ? today() : null },
+    })
+  }
+
   return (
-    <Page back={`/students/${studentId}/lessons`} eyebrow={student?.name} width="wide">
+    <Page
+      back={`/students/${studentId}/lessons`}
+      eyebrow={student?.name}
+      width="wide"
+      actions={
+        <IconButton label="Lesson options" onClick={() => setPlanMenu(true)}>
+          <More />
+        </IconButton>
+      }
+    >
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
-          <h1 className="text-[28px] leading-tight font-bold tracking-tight text-ink">Lesson {plan.number}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-[28px] leading-tight font-bold tracking-tight text-ink">Lesson {plan.number}</h1>
+            <StatusPill status={plan.status} onTap={cycleStatus} />
+          </div>
           <TitleField
             key={plan.title}
             value={plan.title}
             placeholder="Add a title…"
             onCommit={(title) => title !== plan.title && planMutations.update.mutate({ id: plan.id, patch: { title } })}
           />
-          <TitleField
-            key={`theme-${plan.theme ?? ''}`}
-            value={plan.theme ?? ''}
-            placeholder="Theme block, e.g. Endgames — October"
-            small
-            onCommit={(theme) => theme !== (plan.theme ?? '') && planMutations.update.mutate({ id: plan.id, patch: { theme } })}
-          />
+          <button
+            type="button"
+            onClick={() => setPickingTheme(true)}
+            className={clsx(
+              'mt-1 inline-flex h-8 max-w-full items-center gap-1 rounded-lg pr-2 text-[14px] transition active:bg-surface-2',
+              plan.theme ? 'text-ink-2' : 'text-ink-3',
+            )}
+          >
+            <span className="truncate">{plan.theme || 'Theme block'}</span>
+            <ChevronDown size={14} className="shrink-0 text-ink-3" />
+          </button>
         </div>
         <div className="grid grid-cols-3 gap-2 sm:flex">
           <Link to={`${base}/sheet`} className="contents">
@@ -83,6 +123,7 @@ export function LessonPlanDetailPage() {
       <Agenda
         planId={plan.id}
         items={plan.agenda}
+        options={agendaOptions(history)}
         onChange={(agenda) => planMutations.update.mutate({ id: plan.id, patch: { agenda } })}
       />
 
@@ -140,14 +181,63 @@ export function LessonPlanDetailPage() {
         </Button>
       </div>
 
-      <InputModal
+      <PickSheet
         open={addingSection}
-        title="New section"
-        label="Theme"
-        placeholder="e.g. Detect the weakness"
-        submitLabel="Add"
+        title="Add sections"
+        multi
+        options={sectionOptions(history)}
+        current={sections.map((s) => s.title)}
+        placeholder="Or type a new theme…"
         onClose={() => setAddingSection(false)}
-        onSubmit={(title) => content.createSection.mutateAsync(title).then(() => undefined)}
+        onPick={async (titles) => {
+          for (const title of titles) await content.createSection.mutateAsync(title)
+        }}
+      />
+      <PickSheet
+        open={pickingTheme}
+        title="Theme block"
+        options={themeOptions(history)}
+        current={plan.theme ? [plan.theme] : []}
+        placeholder="e.g. Endgames — October"
+        emptyHint="A theme block is the multi-week topic this lesson belongs to. Type the first one; after that it's a tap."
+        onClose={() => setPickingTheme(false)}
+        onPick={([theme]) => planMutations.update.mutate({ id: plan.id, patch: { theme } })}
+      />
+      <ActionSheet
+        open={planMenu}
+        onClose={() => setPlanMenu(false)}
+        title={`Lesson ${plan.number}`}
+        items={[
+          {
+            label: 'Duplicate as next lesson',
+            icon: <Plus />,
+            onSelect: async () => {
+              const copy = await planMutations.duplicate.mutateAsync(plan.id)
+              navigate(`/students/${studentId}/lessons/${copy.id}`)
+            },
+          },
+          { label: 'Save shape as template', icon: <Document />, onSelect: () => setSavingTemplate(true) },
+          ...(plan.theme
+            ? [{ label: 'Clear theme block', icon: <Trash />, onSelect: () => planMutations.update.mutate({ id: plan.id, patch: { theme: '' } }) }]
+            : []),
+        ]}
+      />
+      <InputModal
+        open={savingTemplate}
+        title="Save as template"
+        label="Template name"
+        placeholder="e.g. Tactics night"
+        initialValue={plan.theme || plan.title}
+        submitLabel="Save"
+        onClose={() => setSavingTemplate(false)}
+        onSubmit={async (name) => {
+          await templates.create.mutateAsync({
+            name,
+            theme: plan.theme ?? '',
+            sections: sections.map((s) => s.title),
+            agenda: plan.agenda,
+          })
+        }}
       />
       <ActionSheet
         open={Boolean(sectionMenu)}
@@ -201,17 +291,7 @@ export function LessonPlanDetailPage() {
 }
 
 // Keyed on the saved value by its parent, so a fresh server value resets the draft.
-function TitleField({
-  value,
-  placeholder,
-  small,
-  onCommit,
-}: {
-  value: string
-  placeholder: string
-  small?: boolean
-  onCommit: (v: string) => void
-}) {
+function TitleField({ value, placeholder, onCommit }: { value: string; placeholder: string; onCommit: (v: string) => void }) {
   const [draft, setDraft] = useState(value)
   return (
     <input
@@ -219,10 +299,8 @@ function TitleField({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => onCommit(draft.trim())}
       placeholder={placeholder}
-      className={clsx(
-        'mt-0.5 block w-full max-w-md bg-transparent outline-none placeholder:text-ink-3',
-        small ? 'text-[14px] text-ink-3' : 'text-[17px] text-ink-2',
-      )}
+      className="mt-0.5 block w-full max-w-md bg-transparent text-[17px] text-ink-2 outline-none placeholder:text-ink-3"
+
     />
   )
 }
@@ -274,7 +352,17 @@ function PuzzleRow({ puzzle, index, to, onDelete }: { puzzle: Puzzle; index: num
  * The agenda is the coach's in-session checklist. Items live on the plan;
  * which ones are ticked is per device per session — a fresh lesson starts unticked.
  */
-function Agenda({ planId, items, onChange }: { planId: string; items: string[]; onChange: (items: string[]) => void }) {
+function Agenda({
+  planId,
+  items,
+  options,
+  onChange,
+}: {
+  planId: string
+  items: string[]
+  options: string[]
+  onChange: (items: string[]) => void
+}) {
   const { set: done, toggle } = useSessionSet(`agenda-${planId}`)
   const [adding, setAdding] = useState(false)
 
@@ -323,14 +411,21 @@ function Agenda({ planId, items, onChange }: { planId: string; items: string[]; 
           })}
         </ul>
       )}
-      <InputModal
+      <PickSheet
         open={adding}
-        title="Agenda item"
-        placeholder="e.g. Review last week's game"
-        submitLabel="Add"
+        title="Add to agenda"
+        multi
+        options={options}
+        current={items}
+        placeholder="Or type a new item…"
         onClose={() => setAdding(false)}
-        onSubmit={(text) => onChange([...items, text])}
+        onPick={(picked) => onChange([...items, ...picked.filter((p) => !items.includes(p))])}
       />
     </Card>
   )
+}
+
+function today(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }

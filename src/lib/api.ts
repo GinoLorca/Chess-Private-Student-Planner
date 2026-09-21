@@ -13,7 +13,11 @@ import type {
   SolutionMove,
   Student,
   UserSettings,
+  LessonHistory,
+  LessonTemplate,
+  NewLessonInit,
 } from '../types/domain'
+import { rankByUse } from './rank'
 
 // ---------------------------------------------------------------------------
 // students
@@ -109,25 +113,111 @@ export async function getLessonPlan(id: string): Promise<LessonPlan> {
   return data as LessonPlan
 }
 
-export async function createLessonPlan(studentId: string, title: string): Promise<LessonPlan> {
+async function nextLessonNumber(studentId: string): Promise<number> {
   const { data: existing } = await supabase
     .from('lesson_plans')
     .select('number')
     .eq('student_id', studentId)
     .order('number', { ascending: false })
     .limit(1)
-  const nextNumber = existing && existing.length > 0 ? existing[0].number + 1 : 1
+  return existing && existing.length > 0 ? existing[0].number + 1 : 1
+}
+
+/** A new lesson, numbered next, with its sections already in place. */
+export async function createLessonPlan(studentId: string, init: NewLessonInit = {}): Promise<LessonPlan> {
+  const nextNumber = await nextLessonNumber(studentId)
   const { data, error } = await supabase
     .from('lesson_plans')
-    .insert({ student_id: studentId, number: nextNumber, title, agenda: [] })
+    .insert({
+      student_id: studentId,
+      number: nextNumber,
+      title: init.title ?? '',
+      theme: init.theme ?? '',
+      agenda: init.agenda ?? [],
+    })
     .select()
     .single()
   if (error) throw error
-  return data as LessonPlan
+  const plan = data as LessonPlan
+  const sections = (init.sections ?? []).map((title, i) => ({ lesson_plan_id: plan.id, title, sort_order: i }))
+  if (sections.length > 0) {
+    const { error: sectionError } = await supabase.from('lesson_sections').insert(sections)
+    if (sectionError) throw sectionError
+  }
+  return plan
 }
 
-export async function updateLessonPlan(id: string, patch: Partial<Pick<LessonPlan, 'title' | 'agenda' | 'theme'>>) {
+/**
+ * A deep copy of a lesson as the student's next lesson: sections and every
+ * position come along; status starts over at planned.
+ */
+export async function duplicateLessonPlan(planId: string): Promise<LessonPlan> {
+  const source = await getLessonBundle(planId)
+  const plan = await createLessonPlan(source.plan.student_id, {
+    title: source.plan.title,
+    theme: source.plan.theme,
+    agenda: source.plan.agenda,
+  })
+  for (const section of source.sections) {
+    const { data: created, error } = await supabase
+      .from('lesson_sections')
+      .insert({ lesson_plan_id: plan.id, title: section.title, sort_order: section.sort_order })
+      .select()
+      .single()
+    if (error) throw error
+    const puzzles = (source.puzzlesBySection[section.id] ?? []).map((p) => {
+      const { id: _id, section_id: _s, ...rest } = p
+      return { ...rest, section_id: (created as LessonSection).id }
+    })
+    if (puzzles.length > 0) {
+      const { error: puzzleError } = await supabase.from('puzzles').insert(puzzles)
+      if (puzzleError) throw puzzleError
+    }
+  }
+  return plan
+}
+
+export type LessonPlanPatch = Partial<Pick<LessonPlan, 'title' | 'agenda' | 'theme' | 'status' | 'taught_on'>>
+
+export async function updateLessonPlan(id: string, patch: LessonPlanPatch) {
   const { error } = await supabase.from('lesson_plans').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+// ---------------------------------------------------------------------------
+// lesson history + templates (what a new lesson starts from)
+// ---------------------------------------------------------------------------
+
+export async function getLessonHistory(): Promise<LessonHistory> {
+  const [sections, plans] = await Promise.all([
+    supabase.from('lesson_sections').select('title'),
+    supabase.from('lesson_plans').select('theme, agenda'),
+  ])
+  if (sections.error) throw sections.error
+  if (plans.error) throw plans.error
+  return {
+    sections: rankByUse((sections.data ?? []).map((r) => r.title as string)),
+    themes: rankByUse((plans.data ?? []).map((r) => (r.theme as string) ?? '')),
+    agenda: rankByUse((plans.data ?? []).flatMap((r) => (r.agenda as string[]) ?? [])),
+  }
+}
+
+export async function listLessonTemplates(): Promise<LessonTemplate[]> {
+  const { data, error } = await supabase.from('lesson_templates').select('*').order('created_at', { ascending: true })
+  if (error) throw error
+  return data as LessonTemplate[]
+}
+
+export async function createLessonTemplate(
+  template: Pick<LessonTemplate, 'name' | 'theme' | 'sections' | 'agenda'>,
+): Promise<LessonTemplate> {
+  const { data, error } = await supabase.from('lesson_templates').insert(template).select().single()
+  if (error) throw error
+  return data as LessonTemplate
+}
+
+export async function deleteLessonTemplate(id: string) {
+  const { error } = await supabase.from('lesson_templates').delete().eq('id', id)
   if (error) throw error
 }
 

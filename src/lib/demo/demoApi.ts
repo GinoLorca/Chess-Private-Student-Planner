@@ -1,10 +1,14 @@
 import fixtures from './fixtures.json'
-import type { LessonBundle, PuzzlePatch, SettingsPatch } from '../api'
+import type { LessonBundle, LessonPlanPatch, PuzzlePatch, SettingsPatch } from '../api'
+import { rankByUse } from '../rank'
 import type {
   CustomPieceSet,
   FolderKind,
+  LessonHistory,
   LessonPlan,
   LessonSection,
+  LessonTemplate,
+  NewLessonInit,
   Note,
   PieceImages,
   Puzzle,
@@ -26,6 +30,7 @@ interface Store {
   notes: Note[]
   settings: UserSettings | null
   pieceSets?: CustomPieceSet[]
+  templates?: LessonTemplate[]
 }
 
 const KEY = 'lesson-planner-demo-store-v1'
@@ -36,7 +41,7 @@ function seed(): Store {
   const created = now()
   return {
     students: fixtures.students.map((s, i) => ({ ...s, user_id: 'demo', sort_order: i, created_at: created })),
-    plans: fixtures.plans.map((p) => ({ ...p, created_at: created, updated_at: created })),
+    plans: fixtures.plans.map((p) => ({ ...p, status: 'taught' as const, created_at: created, updated_at: created })),
     sections: fixtures.sections,
     puzzles: fixtures.puzzles.map((p) => ({ ...p, side_to_move: p.side_to_move as 'w' | 'b' })),
     notes: [
@@ -152,24 +157,74 @@ export async function getLessonPlan(id: string): Promise<LessonPlan> {
   return plan
 }
 
-export async function createLessonPlan(studentId: string, title: string): Promise<LessonPlan> {
+export async function createLessonPlan(studentId: string, init: NewLessonInit = {}): Promise<LessonPlan> {
   const numbers = db().plans.filter((p) => p.student_id === studentId).map((p) => p.number)
   const plan: LessonPlan = {
     id: uid('lp'),
     student_id: studentId,
     number: numbers.length ? Math.max(...numbers) + 1 : 1,
-    title,
-    agenda: [],
+    title: init.title ?? '',
+    theme: init.theme ?? '',
+    agenda: init.agenda ?? [],
+    status: 'planned',
+    taught_on: null,
     created_at: now(),
     updated_at: now(),
   }
   db().plans.push(plan)
+  ;(init.sections ?? []).forEach((title, i) =>
+    db().sections.push({ id: uid('sec'), lesson_plan_id: plan.id, title, sort_order: i }),
+  )
   save()
   return plan
 }
 
-export async function updateLessonPlan(id: string, patch: Partial<Pick<LessonPlan, 'title' | 'agenda' | 'theme'>>) {
+export async function duplicateLessonPlan(planId: string): Promise<LessonPlan> {
+  const source = await getLessonBundle(planId)
+  const plan = await createLessonPlan(source.plan.student_id, {
+    title: source.plan.title,
+    theme: source.plan.theme,
+    agenda: source.plan.agenda,
+  })
+  for (const section of source.sections) {
+    const copy: LessonSection = { id: uid('sec'), lesson_plan_id: plan.id, title: section.title, sort_order: section.sort_order }
+    db().sections.push(copy)
+    for (const puzzle of source.puzzlesBySection[section.id] ?? []) {
+      db().puzzles.push({ ...puzzle, id: uid('pz'), section_id: copy.id })
+    }
+  }
+  save()
+  return plan
+}
+
+export async function updateLessonPlan(id: string, patch: LessonPlanPatch) {
   db().plans = db().plans.map((p) => (p.id === id ? { ...p, ...patch, updated_at: now() } : p))
+  save()
+}
+
+export async function getLessonHistory(): Promise<LessonHistory> {
+  return {
+    sections: rankByUse(db().sections.map((s) => s.title)),
+    themes: rankByUse(db().plans.map((p) => p.theme ?? '')),
+    agenda: rankByUse(db().plans.flatMap((p) => p.agenda)),
+  }
+}
+
+export async function listLessonTemplates(): Promise<LessonTemplate[]> {
+  return [...(db().templates ?? [])]
+}
+
+export async function createLessonTemplate(
+  template: Pick<LessonTemplate, 'name' | 'theme' | 'sections' | 'agenda'>,
+): Promise<LessonTemplate> {
+  const created: LessonTemplate = { id: uid('tpl'), user_id: 'demo', created_at: now(), ...template }
+  db().templates = [...(db().templates ?? []), created]
+  save()
+  return created
+}
+
+export async function deleteLessonTemplate(id: string) {
+  db().templates = (db().templates ?? []).filter((t) => t.id !== id)
   save()
 }
 

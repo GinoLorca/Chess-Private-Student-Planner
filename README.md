@@ -118,7 +118,7 @@ account or key needed — and says whether it agrees with your first move.
 
 ## Piece sets and board colours
 
-Settings has three built-in piece sets and seven board colour presets plus a custom pair. **Import
+Settings has three built-in piece sets (Classic, Bauhaus Set, Wavy) and seven board colour presets plus a custom pair. **Import
 piece set** takes the twelve piece images from any set (Chess Arcade or elsewhere): files named
 like `wK.png` or `black_knight.svg` are matched automatically, the rest you assign with a picker.
 Imported sets are stored with your account and sync across devices.

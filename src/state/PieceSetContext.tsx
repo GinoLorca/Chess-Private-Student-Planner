@@ -3,7 +3,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider'
 import * as api from '../lib/data'
 import { keys } from '../lib/queries'
-import { DEFAULT_PIECE_SET, PIECE_SETS, isPieceSetId, renderersFromImages, type PieceRenderers } from '../lib/pieceSets'
+import {
+  DEFAULT_PIECE_SET,
+  PIECE_SETS,
+  isPieceSetId,
+  normalizePieceSetId,
+  renderersFromImages,
+  type PieceRenderers,
+} from '../lib/pieceSets'
 import { DEFAULT_BOARD_THEME, applyBoardColors, resolveBoard } from '../lib/boardThemes'
 import type { CustomBoard, CustomPieceSet, UserSettings } from '../types/domain'
 
@@ -65,7 +72,7 @@ export function PieceSetProvider({ children }: { children: ReactNode }) {
 
   const settings = settingsQuery.data ?? null
   const customSets = setsQuery.data ?? NO_SETS
-  const pieceSetId = settings?.piece_set ?? DEFAULT_PIECE_SET
+  const pieceSetId = normalizePieceSetId(settings?.piece_set ?? DEFAULT_PIECE_SET)
   const boardTheme = settings?.board_theme ?? DEFAULT_BOARD_THEME
   const customBoard = settings?.custom_board ?? null
 

@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useLesson, usePuzzle, useStudent } from '../lib/queries'
 import { normalizeFen } from '../lib/fen'
 import { Page, Card, LoadingPage, SectionLabel } from '../components/ui/Page'
+import { effectiveQuizPrompt } from '../lib/prompts'
 import { Button } from '../components/ui/Button'
 import { Board } from '../components/board/Board'
 import { Pencil, Play } from '../components/ui/Icons'
@@ -55,12 +56,10 @@ export function PuzzlePage() {
         </div>
 
         <div className="space-y-4">
-          {puzzle.quiz_prompt && (
-            <Card className="p-4">
-              <SectionLabel>Quiz prompt</SectionLabel>
-              <p className="text-[17px] leading-snug font-medium text-ink">{puzzle.quiz_prompt}</p>
-            </Card>
-          )}
+          <Card className="p-4">
+            <SectionLabel>Quiz prompt</SectionLabel>
+            <p className="text-[17px] leading-snug font-medium text-ink">{effectiveQuizPrompt(puzzle, section?.title)}</p>
+          </Card>
 
           <Card className="p-4">
             <SectionLabel>Answer</SectionLabel>

@@ -27,6 +27,17 @@ export function Chip({ selected, icon, className, children, ...rest }: ChipProps
   )
 }
 
-export function ChipRow({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={clsx('flex flex-wrap gap-2', className)}>{children}</div>
+/** Wraps by default; `scroll` keeps one line that pans sideways, for long option lists under a field. */
+export function ChipRow({ children, className, scroll }: { children: ReactNode; className?: string; scroll?: boolean }) {
+  return (
+    <div
+      className={clsx(
+        'flex gap-2',
+        scroll ? '-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] *:shrink-0' : 'flex-wrap',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  )
 }

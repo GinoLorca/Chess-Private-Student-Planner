@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import clsx from 'clsx'
 import type { LessonSection, Puzzle } from '../types/domain'
 import {
@@ -45,6 +45,16 @@ export function LessonPlanDetailPage() {
   const [deletingSection, setDeletingSection] = useState<LessonSection | null>(null)
   const [deletingPuzzle, setDeletingPuzzle] = useState<Puzzle | null>(null)
   const [quickAddFor, setQuickAddFor] = useState<LessonSection | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // "Done, add another" in the editor comes back here with ?quickadd=<section>,
+  // which opens the sheet straight away; closing it clears the param.
+  const quickAddParam = searchParams.get('quickadd')
+  const quickAddSection = quickAddFor ?? lesson?.sections.find((s) => s.id === quickAddParam) ?? null
+  function closeQuickAdd() {
+    setQuickAddFor(null)
+    if (quickAddParam) setSearchParams({}, { replace: true })
+  }
 
   if (isLoading && !lesson) return <LoadingPage />
   if (!lesson) return <Page back={`/students/${studentId}/lessons`}>Lesson not found.</Page>
@@ -269,12 +279,17 @@ export function LessonPlanDetailPage() {
         }}
       />
       <ImportSheet
-        open={Boolean(quickAddFor)}
+        open={Boolean(quickAddSection)}
         mode="add"
-        onClose={() => setQuickAddFor(null)}
+        onClose={closeQuickAdd}
         onImport={async (position) => {
-          if (!quickAddFor) return
-          await content.createPuzzle.mutateAsync({ sectionId: quickAddFor.id, initial: patchFromImported(position) })
+          if (!quickAddSection) return
+          const puzzle = await content.createPuzzle.mutateAsync({
+            sectionId: quickAddSection.id,
+            initial: patchFromImported(position),
+          })
+          // Straight into the editor: the answer is set, the explanation is what's left.
+          navigate(`${base}/puzzles/${puzzle.id}/edit`)
         }}
       />
       <ConfirmDialog

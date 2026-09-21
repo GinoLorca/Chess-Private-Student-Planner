@@ -11,6 +11,9 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
 - **Quick add** turns a Lichess puzzle / study / game link, a Chess.com game link, a FEN, PGN, a
   Lichess puzzle theme, or a photo/screenshot of any board into a position in one step.
 - **Editor** — set up the position by tapping, draw arrows, play out the answer, engine-check it.
+  The label follows the first answer move, the quiz prompt has a smart default from the section
+  theme (or a tap-to-pick alternative), explanation starters are one tap, and *Done, add another*
+  chains straight into the next Quick add.
 - **Coach view** — set-up piece list, quiz prompt, answer stepper with auto-drawn arrows, notes.
 - **Present** — the student's side: quiz first, answer on reveal.
 - **Lesson sheet** — the whole lesson in document form, printable to PDF.

@@ -4,6 +4,7 @@ import type { Puzzle } from '../types/domain'
 import { useLesson, useStudent } from '../lib/queries'
 import { normalizeFen } from '../lib/fen'
 import { Board } from '../components/board/Board'
+import { effectiveQuizPrompt } from '../lib/prompts'
 import { Button } from '../components/ui/Button'
 import { LoadingPage, Page } from '../components/ui/Page'
 import { Document } from '../components/ui/Icons'
@@ -102,11 +103,7 @@ function SheetPuzzle({ puzzle, number, sectionTitle }: { puzzle: Puzzle; number:
             <p className="text-[13px] font-semibold text-ink">{sectionTitle}</p>
           </div>
           <div className="flex-1 px-4 py-3">
-            {puzzle.quiz_prompt ? (
-              <p className="text-[15px] leading-snug text-ink">{puzzle.quiz_prompt}</p>
-            ) : (
-              <p className="text-[15px] text-ink-3">What's the best move?</p>
-            )}
+            <p className="text-[15px] leading-snug text-ink">{effectiveQuizPrompt(puzzle, sectionTitle)}</p>
           </div>
           <div className="border-t border-line px-4 py-3">
             <p className="text-[13px] font-semibold text-ink-2">Quiz</p>

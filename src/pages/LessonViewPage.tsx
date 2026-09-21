@@ -9,6 +9,7 @@ import { pieceList, type Orientation } from '../lib/fen'
 import { useSessionSet } from '../hooks/useSessionSet'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { Board } from '../components/board/Board'
+import { effectiveQuizPrompt } from '../lib/prompts'
 import { Button, IconButton } from '../components/ui/Button'
 import { LoadingPage, Page, SectionLabel } from '../components/ui/Page'
 import { Check, ChevronLeft, ChevronRight, Close, Document, Eye } from '../components/ui/Icons'
@@ -258,12 +259,10 @@ function PuzzleView({
           </section>
         )}
 
-        {puzzle.quiz_prompt && (
-          <section className="rounded-2xl border border-line bg-surface p-4 shadow-card">
-            <SectionLabel>Ask</SectionLabel>
-            <p className="text-[18px] leading-snug font-medium text-ink">{puzzle.quiz_prompt}</p>
-          </section>
-        )}
+        <section className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+          <SectionLabel>Ask</SectionLabel>
+          <p className="text-[18px] leading-snug font-medium text-ink">{effectiveQuizPrompt(puzzle, sectionTitle)}</p>
+        </section>
 
         {!revealed ? (
           <Button variant="primary" size="lg" block icon={<Eye size={20} />} onClick={() => setRevealed(true)}>

@@ -33,10 +33,21 @@
   --board-select: rgba(20, 85, 30, 0.5);
   /* Square outlines and the board frame, as on a printed diagram. */
   --board-line: #1b1b19;
+  /* The open-folder lesson page: divider paper, its ruling, the agenda sticky. */
+  --paper: #fbfaf6;
+  --paper-rule: #e7eef7;
+  --paper-head-rule: #e8b2ad;
+  --sticky: #fff4b3;
+  --sticky-ink: #2a2610;
 }
 
 :root[data-theme='dark'] {
   --bg: #111312;
+  --paper: #22231f;
+  --paper-rule: #2e3236;
+  --paper-head-rule: #6b3d3a;
+  --sticky: #6e6229;
+  --sticky-ink: #fff6c8;
   --surface: #191c1a;
   --surface-2: #222624;
   --surface-3: #2c312e;
@@ -61,6 +72,12 @@
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  /* Display face for the stationery look: lesson numbers, card titles. Never body text. */
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --color-paper: var(--paper);
+  --color-paper-rule: var(--paper-rule);
+  --color-sticky: var(--sticky);
+  --color-sticky-ink: var(--sticky-ink);
 
   --color-bg: var(--bg);
   --color-surface: var(--surface);

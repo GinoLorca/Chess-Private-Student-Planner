@@ -606,3 +606,101 @@ filter:sepia(.3) saturate(1.5) hue-rotate(-6deg) contrast(1.1) brightness(1.03)
 /* Previews are small cards: no fixed attachment there either. */
 .skin-surface[data-skin] { background-attachment: scroll; }
 
+
+/* ---------------------------------------------------------------------------
+   The Folder design under each skin. The layout is the same everywhere; what
+   changes is the material: paper, rules, shadows, the stamp, the sticky note.
+   --------------------------------------------------------------------------- */
+
+/* Tournament Felt: cream card stock, brass stamp, a brass clip. */
+:root[data-skin="felt"] {
+  --stamp-taught: #8a6a16;
+  --stamp-progress: #b6392f;
+  --clip: #8a6a16;
+}
+:root[data-skin="felt"] .index-card { border-color: #d9c99b; }
+
+/* Hustler: stone paper, a taxi-yellow stamp, hard-edged cards. */
+:root[data-skin="hustler"] {
+  --stamp-taught: #3f8a76;
+  --stamp-progress: #b7651a;
+  --sticky: #f2d24b;
+  --sticky-ink: #1c1e20;
+  --clip: #585d61;
+}
+:root[data-skin="hustler"] .index-card { border-color: #a5a196; }
+:root[data-skin="hustler"] .divider-paper { border-left-width: 6px; }
+
+/* Bauhaus: flat primaries, 2px black rules, offset shadows, no corners at all.
+   Links and buttons take the cobalt; the yellow stays for the note and the
+   stamp keeps the red, so all three primaries are on the page. */
+:root[data-skin="bauhaus"] {
+  --accent: #1a4fa0;
+  --accent-strong: #143c7a;
+  --accent-ink: #ffffff;
+  --accent-soft: #c6d9f2;
+  --accent-on-bg: #1a4fa0;
+  --stamp-taught: #1a4fa0;
+  --stamp-progress: #d8232a;
+  --stamp-planned: #141414;
+  --sticky: #f2c200;
+  --sticky-ink: #141414;
+  --clip: #141414;
+  --paper-head-rule: #d8232a;
+}
+:root[data-skin="bauhaus"] .folder-body,
+:root[data-skin="bauhaus"] .folder-tab,
+:root[data-skin="bauhaus"] .divider-tab,
+:root[data-skin="bauhaus"] .sticky-paper,
+:root[data-skin="bauhaus"] .index-card {
+  border: 2px solid #141414;
+  box-shadow: none;
+}
+:root[data-skin="bauhaus"] .folder-tab { border-bottom: 0; }
+:root[data-skin="bauhaus"] .divider-tab { border-bottom: 0; filter: none; }
+:root[data-skin="bauhaus"] .divider-tab.add { border-style: dashed; }
+:root[data-skin="bauhaus"] .divider-paper { border-left: 10px solid; box-shadow: inset 0 2px 0 #141414; }
+:root[data-skin="bauhaus"] .index-card,
+:root[data-skin="bauhaus"] .sticky-paper,
+:root[data-skin="bauhaus"] .folder-stamp { box-shadow: 3px 3px 0 #141414; }
+:root[data-skin="bauhaus"] .index-card { transform: none !important; }
+:root[data-skin="bauhaus"] .folder-stamp { background: #faf7f0; border-width: 2px; --font-stamp: var(--font-display); letter-spacing: 0.1em; }
+:root[data-skin="bauhaus"] .add-slot { border: 2px dashed #141414; }
+
+/* Game Boy: LCD paper, pixel-font stamp in magenta, dot-matrix ruling. */
+:root[data-skin="gameboy"] {
+  --stamp-taught: #b8236b;
+  --stamp-progress: #c2701a;
+  --stamp-planned: #1c1d14;
+  --sticky: #9bbc0f;
+  --sticky-ink: #0f380f;
+  --clip: #5f6350;
+  --paper-rule: rgba(15, 56, 15, 0.14);
+  --paper-head-rule: rgba(15, 56, 15, 0.35);
+  --font-stamp: var(--font-display);
+}
+:root[data-skin="gameboy"] .folder-stamp { font-size: 8px; letter-spacing: 0.06em; height: 30px; }
+:root[data-skin="gameboy"] .folder-number { font-size: 40px; line-height: 1.1; }
+@media (min-width: 640px) { :root[data-skin="gameboy"] .folder-number { font-size: 48px; } }
+:root[data-skin="gameboy"] .index-card .font-display { font-size: 15px; line-height: 1.3; }
+:root[data-skin="gameboy"] .index-card { background-image: radial-gradient(circle at 50% 50%, rgba(15,56,15,.08) 0 1px, transparent 1.2px) !important; background-size: 4px 4px !important; }
+
+/* Outer Space: dark paper, a phosphor stamp, the note as a HUD card. */
+:root[data-skin="outerspace"] {
+  --stamp-taught: #4fd6c4;
+  --stamp-progress: #ffb347;
+  --stamp-planned: rgba(0, 0, 0, 0.6);
+  --sticky: #262d3d;
+  --sticky-ink: #ffb347;
+  --clip: #4fd6c4;
+  --paper-head-rule: rgba(255, 90, 54, 0.6);
+  --font-stamp: var(--font-display);
+}
+:root[data-skin="outerspace"] .folder-stamp { font-size: 14px; letter-spacing: 0.12em; }
+:root[data-skin="outerspace"] .sticky-paper { border: 1px solid rgba(79, 214, 196, 0.35); box-shadow: 0 0 0 1px rgba(0,0,0,.4), 0 0 18px -6px rgba(79,214,196,.5); }
+:root[data-skin="outerspace"] .index-card { border-color: #323a4d; box-shadow: 0 0 22px -12px rgba(255,90,54,.5); }
+:root[data-skin="outerspace"] .folder-number { font-size: 84px; letter-spacing: 0; }
+
+/* Felt and Hustler: the display face is condensed and tall, so the number can sit larger. */
+:root[data-skin="felt"] .folder-number,
+:root[data-skin="hustler"] .folder-number { font-size: 84px; letter-spacing: 0; }

@@ -27,7 +27,7 @@ export function Page({ title, eyebrow, back, actions, width = 'reading', childre
 
   return (
     <div className="min-h-svh">
-      <header className="pt-safe sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
+      <header className="page-header pt-safe sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
         <div className={clsx('mx-auto flex h-12 items-center gap-1 px-2', container)}>
           {back !== undefined ? (
             back === -1 ? (

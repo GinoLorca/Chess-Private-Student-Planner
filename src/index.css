@@ -44,6 +44,10 @@
   --on-bg: var(--ink);
   --on-bg-2: var(--ink-3);
   --accent-on-bg: var(--accent);
+  /* The rubber stamp on the folder. */
+  --stamp-taught: #2e7d5b;
+  --stamp-progress: #b26a00;
+  --stamp-planned: rgba(0, 0, 0, 0.6);
 }
 
 :root[data-theme='dark'] {
@@ -237,4 +241,14 @@ body {
 }
 .board-sq.dark {
   background-color: var(--board-dark);
+}
+
+/* Header controls sit straight on the page background: on a dark table (Felt)
+   they'd vanish, so they take the on-background inks. Unlayered on purpose so
+   it wins over the buttons' own utility colours. */
+.page-header :is(.text-ink-2, .text-ink-3) {
+  color: var(--on-bg);
+}
+.page-header .text-accent {
+  color: var(--accent-on-bg);
 }

@@ -132,7 +132,7 @@ export function LessonPlanDetailPage() {
             <div className="flex items-start gap-4">
               <div className="flex items-baseline gap-2.5">
                 <span className="text-[12px] font-bold tracking-[0.14em] text-black/50 uppercase sm:text-[14px]">Lesson</span>
-                <span className="font-display text-[60px] leading-[0.9] font-bold tracking-[-0.02em] text-[#1a1a19] sm:text-[76px]">{plan.number}</span>
+                <span className="folder-number font-display text-[60px] leading-[0.9] font-bold tracking-[-0.02em] text-[#1a1a19] sm:text-[76px]">{plan.number}</span>
               </div>
               <div className="ml-1 flex min-w-0 flex-col gap-2 pt-1">
                 <div className="flex items-center gap-3">
@@ -203,7 +203,7 @@ export function LessonPlanDetailPage() {
                       onDelete={() => setDeletingPuzzle(puzzle)}
                     />
                   ))}
-                  <div className="flex min-h-[120px] flex-wrap items-center justify-center gap-2.5 rounded-[10px] border-2 border-dashed border-line-strong p-4">
+                  <div className="add-slot flex min-h-[120px] flex-wrap items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-line-strong p-4">
                     <Button variant="primary" icon={<Download size={18} />} onClick={() => setQuickAddFor(active)}>
                       Quick add
                     </Button>
@@ -382,7 +382,7 @@ function Agenda({
     <div>
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-extrabold tracking-[0.16em] text-sticky-ink/60 uppercase">Agenda</span>
-        <button onClick={() => setAdding(true)} className="h-7 text-[13px] font-semibold text-accent">
+        <button onClick={() => setAdding(true)} className="h-7 text-[13px] font-bold text-sticky-ink/80 underline decoration-sticky-ink/40 underline-offset-2">
           + Add item
         </button>
       </div>

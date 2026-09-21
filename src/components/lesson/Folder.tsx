@@ -19,7 +19,7 @@ export function FolderTab({ color, name, aside }: { color: string; name: string;
   return (
     <div className="flex items-end gap-3 pl-4 sm:pl-6">
       <div
-        className="flex h-8 items-center gap-2.5 rounded-t-xl px-4 shadow-[inset_0_-2px_0_rgba(0,0,0,0.06)] sm:h-9"
+        className="folder-tab flex h-8 items-center gap-2.5 rounded-t-xl px-4 shadow-[inset_0_-2px_0_rgba(0,0,0,0.06)] sm:h-9"
         style={{ background: color }}
       >
         <span className="block h-2.5 w-2.5 rounded-[3px] bg-black/35" />
@@ -33,7 +33,7 @@ export function FolderTab({ color, name, aside }: { color: string; name: string;
 export function FolderBody({ color, children, className }: { color: string; children: ReactNode; className?: string }) {
   return (
     <div
-      className={clsx('relative rounded-r-2xl rounded-bl-2xl px-3 pt-4 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.45)] sm:px-5 sm:pt-5', className)}
+      className={clsx('folder-body relative rounded-r-2xl rounded-bl-2xl px-3 pt-4 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.45)] sm:px-5 sm:pt-5', className)}
       style={{ background: color }}
     >
       {children}
@@ -44,21 +44,15 @@ export function FolderBody({ color, children, className }: { color: string; chil
 /** Planned / In progress / Taught as a rubber stamp; tap it to move on. */
 export function StatusStamp({ status, onTap }: { status: LessonStatus | undefined; onTap: () => void }) {
   const s = status ?? 'planned'
-  const tone =
-    s === 'taught'
-      ? 'border-[#2e7d5b] text-[#2e7d5b]'
-      : s === 'in_progress'
-        ? 'border-[#b26a00] text-[#b26a00]'
-        : 'border-black/55 text-black/60'
+  // Ink per status comes from tokens so a skin can restamp it (see skins.css).
+  const ink = s === 'taught' ? 'var(--stamp-taught)' : s === 'in_progress' ? 'var(--stamp-progress)' : 'var(--stamp-planned)'
   return (
     <button
       type="button"
       onClick={onTap}
       title={`Tap to mark ${statusLabel(nextStatus(s))}`}
-      className={clsx(
-        'inline-flex h-8 -rotate-[4deg] items-center rounded-md border-2 bg-white/35 px-3 text-[11px] font-extrabold tracking-[0.14em] uppercase transition active:scale-95 sm:h-[30px] sm:text-[12px]',
-        tone,
-      )}
+      className="folder-stamp inline-flex h-8 -rotate-[4deg] items-center rounded-md border-2 bg-white/35 px-3 text-[11px] font-extrabold tracking-[0.14em] uppercase transition active:scale-95 sm:h-[30px] sm:text-[12px]"
+      style={{ color: ink, borderColor: ink, fontFamily: 'var(--font-stamp, inherit)' }}
     >
       {statusLabel(s)}
     </button>
@@ -68,13 +62,13 @@ export function StatusStamp({ status, onTap }: { status: LessonStatus | undefine
 /** A yellow note with a paper clip; whatever goes inside is the agenda. */
 export function StickyNote({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={clsx('relative rotate-[1.2deg]', className)}>
+    <div className={clsx('folder-sticky relative rotate-[1.2deg]', className)}>
       <svg
         width="26"
         height="60"
         viewBox="0 0 26 60"
         fill="none"
-        stroke="#7a7a72"
+        stroke="var(--clip, #7a7a72)"
         strokeWidth="2.4"
         strokeLinecap="round"
         aria-hidden
@@ -82,7 +76,7 @@ export function StickyNote({ children, className }: { children: ReactNode; class
       >
         <path d="M8 52V12a6 6 0 0 1 12 0v36a4 4 0 0 1-8 0V16" />
       </svg>
-      <div className="rounded-[3px] bg-sticky px-4 pt-4 pb-3 pl-12 text-sticky-ink shadow-[0_10px_22px_-14px_rgba(0,0,0,0.5)]">{children}</div>
+      <div className="sticky-paper rounded-xs bg-sticky px-4 pt-4 pb-3 pl-12 text-sticky-ink shadow-[0_10px_22px_-14px_rgba(0,0,0,0.5)]">{children}</div>
     </div>
   )
 }
@@ -118,8 +112,8 @@ export function DividerTabs({
             onClick={() => onPick(t.id)}
             aria-pressed={active}
             className={clsx(
-              'flex shrink-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.06em] whitespace-nowrap uppercase transition sm:px-4 sm:text-[13px]',
-              active ? 'h-10 text-black/70 shadow-[0_-6px_14px_-10px_rgba(0,0,0,0.35)]' : 'h-[34px] text-black/55 brightness-[0.96]',
+              'divider-tab flex shrink-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.06em] whitespace-nowrap uppercase transition sm:px-4 sm:text-[13px]',
+              active ? 'active h-10 text-black/70 shadow-[0_-6px_14px_-10px_rgba(0,0,0,0.35)]' : 'h-[34px] text-black/55 brightness-[0.96]',
             )}
             style={{ background: t.color }}
           >
@@ -134,7 +128,7 @@ export function DividerTabs({
       <button
         type="button"
         onClick={onAdd}
-        className="h-[34px] shrink-0 rounded-t-xl border-2 border-b-0 border-dashed border-black/25 px-3.5 text-[12px] font-bold tracking-[0.06em] whitespace-nowrap text-black/50 uppercase transition active:bg-black/5 sm:text-[13px]"
+        className="divider-tab add h-[34px] shrink-0 rounded-t-xl border-2 border-b-0 border-dashed border-black/25 px-3.5 text-[12px] font-bold tracking-[0.06em] whitespace-nowrap text-black/50 uppercase transition active:bg-black/5 sm:text-[13px]"
       >
         + Section
       </button>
@@ -146,7 +140,7 @@ export function DividerTabs({
 export function DividerPaper({ color, children }: { color: string; children: ReactNode }) {
   return (
     <div
-      className="-mx-3 -mt-[18px] rounded-t-[14px] bg-paper px-3 pt-5 pb-6 shadow-[0_-8px_24px_-18px_rgba(0,0,0,0.4)] sm:-mx-5 sm:px-5"
+      className="divider-paper -mx-3 -mt-[18px] rounded-t-2xl bg-paper px-3 pt-5 pb-6 shadow-[0_-8px_24px_-18px_rgba(0,0,0,0.4)] sm:-mx-5 sm:px-5"
       style={{ borderLeft: `10px solid ${color}` }}
     >
       {children}
@@ -171,7 +165,7 @@ export function IndexCard({
   const toMove = puzzle.side_to_move === 'w' ? 'White' : 'Black'
   return (
     <div
-      className="relative rounded-[10px] border border-line bg-surface shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)] transition active:scale-[0.99]"
+      className="index-card relative rounded-xl border border-line bg-surface shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)] transition active:scale-[0.99]"
       style={{
         transform: `rotate(${index % 2 === 0 ? -0.4 : 0.5}deg)`,
         backgroundImage: 'repeating-linear-gradient(to bottom, transparent 0 27px, var(--paper-rule) 27px 28px)',

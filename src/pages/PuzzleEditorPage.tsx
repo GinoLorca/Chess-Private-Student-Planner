@@ -255,7 +255,17 @@ function Editor({
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
         <Card className="p-4">
-          {tab === 'position' && <SetupBoard fen={fen} side={puzzle.side_to_move} onChange={setPosition} />}
+          {tab === 'position' && (
+            <SetupBoard
+              fen={fen}
+              side={puzzle.side_to_move}
+              onChange={setPosition}
+              arrows={puzzle.arrows}
+              highlights={puzzle.highlights}
+              onArrowsChange={(arrows) => apply({ arrows })}
+              onHighlightsChange={(highlights) => apply({ highlights })}
+            />
+          )}
           {tab === 'arrows' && (
             <AnnotateBoard
               fen={fen}
@@ -276,6 +286,9 @@ function Editor({
                   highlights={puzzle.solution.length === 0 ? puzzle.highlights : undefined}
                   lastMove={lastMove}
                   onMove={addMove}
+                  // Right-drag annotates while the board still shows the starting position.
+                  onArrowsChange={puzzle.solution.length === 0 ? (arrows) => apply({ arrows }) : undefined}
+                  onHighlightsChange={puzzle.solution.length === 0 ? (highlights) => apply({ highlights }) : undefined}
                 />
               </div>
               <p className="text-[13px] text-ink-3">

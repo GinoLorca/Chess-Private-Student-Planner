@@ -192,9 +192,25 @@ export function usePuzzleMutations(puzzleId: string, planId?: string) {
       await qc.cancelQueries({ queryKey: keys.puzzle(puzzleId) })
       const prev = qc.getQueryData<Puzzle>(keys.puzzle(puzzleId))
       if (prev) qc.setQueryData<Puzzle>(keys.puzzle(puzzleId), { ...prev, ...patch })
-      return { prev }
+      // The lesson views read from the bundle, so patch the copy there as well.
+      const prevBundle = planId ? qc.getQueryData<api.LessonBundle>(keys.lesson(planId)) : undefined
+      if (planId && prevBundle) {
+        qc.setQueryData<api.LessonBundle>(keys.lesson(planId), {
+          ...prevBundle,
+          puzzlesBySection: Object.fromEntries(
+            Object.entries(prevBundle.puzzlesBySection).map(([sid, list]) => [
+              sid,
+              list.map((p) => (p.id === puzzleId ? { ...p, ...patch } : p)),
+            ]),
+          ),
+        })
+      }
+      return { prev, prevBundle }
     },
-    onError: (_e, _v, ctx) => ctx?.prev && qc.setQueryData(keys.puzzle(puzzleId), ctx.prev),
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(keys.puzzle(puzzleId), ctx.prev)
+      if (planId && ctx?.prevBundle) qc.setQueryData(keys.lesson(planId), ctx.prevBundle)
+    },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: keys.puzzle(puzzleId) })
       if (planId) qc.invalidateQueries({ queryKey: keys.lesson(planId) })

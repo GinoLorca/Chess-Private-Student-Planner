@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import clsx from 'clsx'
-import type { Puzzle } from '../types/domain'
-import { useLesson, useStudent } from '../lib/queries'
+import type { BoardArrow, BoardHighlight, Puzzle } from '../types/domain'
+import { useLesson, usePuzzleMutations, useStudent } from '../lib/queries'
 import { lineSteps, stepLabel } from '../lib/solution'
 import { pieceList, type Orientation } from '../lib/fen'
 import { useSessionSet } from '../hooks/useSessionSet'
 import { useWakeLock } from '../hooks/useWakeLock'
-import { Board } from '../components/board/Board'
+import { DrawableBoard } from '../components/board/DrawableBoard'
 import { effectiveQuizPrompt } from '../lib/prompts'
 import { Button, IconButton } from '../components/ui/Button'
 import { LoadingPage, Page, SectionLabel } from '../components/ui/Page'
@@ -172,8 +172,13 @@ function PuzzleView({
   mode: Mode
   onSwipe: (dir: 1 | -1) => void
 }) {
+  const { lessonPlanId = '' } = useParams()
+  const { update } = usePuzzleMutations(puzzle.id, lessonPlanId)
   const steps = useMemo(() => lineSteps(puzzle), [puzzle])
   const [step, setStep] = useState(0)
+  // Right-drag drawings: on the starting position they're saved with the
+  // puzzle; mid-line they're a sketch for this step only.
+  const [sketch, setSketch] = useState<{ step: number; arrows: BoardArrow[]; highlights: BoardHighlight[] } | null>(null)
   const [revealed, setRevealed] = useState(mode === 'coach')
   const [flipped, setFlipped] = useState(false)
   const sideOrientation: Orientation = puzzle.side_to_move === 'b' ? 'black' : 'white'
@@ -185,8 +190,15 @@ function PuzzleView({
 
   // Answer annotations are hints; the student only sees them once revealed.
   const showAnnotations = revealed && atStart
-  const boardArrows = showAnnotations ? puzzle.arrows : current.arrow && revealed ? [current.arrow] : []
-  const boardHighlights = showAnnotations ? puzzle.highlights : []
+  const sketchHere = sketch && sketch.step === step ? sketch : null
+  const boardArrows = showAnnotations
+    ? puzzle.arrows
+    : [...(current.arrow && revealed ? [current.arrow] : []), ...(sketchHere?.arrows ?? [])]
+  const boardHighlights = showAnnotations ? puzzle.highlights : (sketchHere?.highlights ?? [])
+  const setArrows = (arrows: BoardArrow[]) =>
+    atStart ? update.mutate({ arrows }) : setSketch({ step, arrows, highlights: sketchHere?.highlights ?? [] })
+  const setHighlights = (highlights: BoardHighlight[]) =>
+    atStart ? update.mutate({ highlights }) : setSketch({ step, highlights, arrows: sketchHere?.arrows ?? [] })
   const lastMove = !atStart && current.from && current.to ? { from: current.from, to: current.to } : null
 
   const next = useCallback(() => setStep((s) => Math.min(steps.length - 1, s + 1)), [steps.length])
@@ -232,12 +244,14 @@ function PuzzleView({
           }}
           className="touch-pan-y"
         >
-          <Board
+          <DrawableBoard
             fen={current.fen}
             orientation={orientation}
             arrows={boardArrows}
             highlights={boardHighlights}
             lastMove={lastMove}
+            onArrowsChange={setArrows}
+            onHighlightsChange={setHighlights}
             onClick={() => (revealed ? next() : undefined)}
             className="shadow-float"
           />

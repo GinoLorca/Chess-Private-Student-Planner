@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import clsx from 'clsx'
 import { Board } from './Board'
 import { squareAtPoint, DRAG_THRESHOLD } from './pointer'
+import { useRightClickDraw } from './useRightClickDraw'
+import type { BoardArrow, BoardHighlight } from '../../types/domain'
 import { usePieceSet } from '../../state/PieceSetContext'
 import { PIECE_CODES } from '../../lib/pieceSets'
 import {
@@ -21,6 +23,11 @@ interface SetupBoardProps {
   fen: string
   side: 'w' | 'b'
   onChange: (fen: string, side: 'w' | 'b') => void
+  /** Right-drag arrows / right-click highlights on the set-up board, saved through these. */
+  arrows?: BoardArrow[]
+  highlights?: BoardHighlight[]
+  onArrowsChange?: (arrows: BoardArrow[]) => void
+  onHighlightsChange?: (highlights: BoardHighlight[]) => void
 }
 
 type Held = { code: PieceCode; from: 'tray' | string }
@@ -30,7 +37,7 @@ type Held = { code: PieceCode; from: 'tray' | string }
  * squares to stamp it; tap a piece on the board to lift it and tap where it
  * goes; drag works too. A lifted piece dropped off the board is removed.
  */
-export function SetupBoard({ fen, side, onChange }: SetupBoardProps) {
+export function SetupBoard({ fen, side, onChange, arrows, highlights, onArrowsChange, onHighlightsChange }: SetupBoardProps) {
   const { pieces } = usePieceSet()
   const [orientation, setOrientation] = useState<Orientation>('white')
   const [held, setHeld] = useState<Held | null>(null)
@@ -38,6 +45,14 @@ export function SetupBoard({ fen, side, onChange }: SetupBoardProps) {
   const [fenDraft, setFenDraft] = useState('')
   const boardRef = useRef<HTMLDivElement>(null)
   const placement = parsePlacement(fen)
+  const draw = useRightClickDraw({
+    boardRef,
+    arrows: arrows ?? [],
+    highlights: highlights ?? [],
+    onArrowsChange: onArrowsChange ?? (() => {}),
+    onHighlightsChange: onHighlightsChange ?? (() => {}),
+    enabled: Boolean(onArrowsChange),
+  })
 
   function commit(next: Placement, nextSide = side) {
     onChange(`${serializePlacement(next)} ${nextSide} - - 0 1`, nextSide)
@@ -109,6 +124,7 @@ export function SetupBoard({ fen, side, onChange }: SetupBoardProps) {
   }
 
   function onBoardPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (draw.onPointerDown(e)) return
     const square = squareAtPoint(e.clientX, e.clientY, boardRef.current)
     if (!square) return
     const code = placement[square]
@@ -165,11 +181,13 @@ export function SetupBoard({ fen, side, onChange }: SetupBoardProps) {
           ref={boardRef}
           fen={fen}
           orientation={orientation}
-          selected={held && held.from !== 'tray' ? held.from : null}
+          arrows={onArrowsChange ? draw.arrows : undefined}
+          highlights={onArrowsChange ? draw.highlights : undefined}
+          selected={draw.from ?? (held && held.from !== 'tray' ? held.from : null)}
           hiddenSquares={drag && held?.from && held.from !== 'tray' ? [held.from] : undefined}
           interactive
           onPointerDown={onBoardPointerDown}
-          onContextMenu={(e) => e.preventDefault()}
+          onContextMenu={draw.onContextMenu}
         />
       </div>
 

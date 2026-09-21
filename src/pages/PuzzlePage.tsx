@@ -1,10 +1,10 @@
 import { Link, useParams } from 'react-router-dom'
-import { useLesson, usePuzzle, useStudent } from '../lib/queries'
+import { useLesson, usePuzzle, usePuzzleMutations, useStudent } from '../lib/queries'
 import { normalizeFen } from '../lib/fen'
 import { Page, Card, LoadingPage, SectionLabel } from '../components/ui/Page'
 import { effectiveQuizPrompt } from '../lib/prompts'
 import { Button } from '../components/ui/Button'
-import { Board } from '../components/board/Board'
+import { DrawableBoard } from '../components/board/DrawableBoard'
 import { Pencil, Play } from '../components/ui/Icons'
 
 /**
@@ -17,6 +17,7 @@ export function PuzzlePage() {
   const { data: student } = useStudent(studentId)
   const { data: lesson } = useLesson(lessonPlanId)
   const { data: puzzle, isLoading } = usePuzzle(puzzleId)
+  const { update } = usePuzzleMutations(puzzleId, lessonPlanId)
 
   if (isLoading && !puzzle) return <LoadingPage />
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
@@ -30,7 +31,7 @@ export function PuzzlePage() {
     <Page
       back={base}
       eyebrow={[student?.name, lesson ? `Lesson ${lesson.plan.number}` : null, section?.title].filter(Boolean).join(' · ')}
-      width="wide"
+      width="full"
       actions={
         <>
           <Link to={`${base}/coach?p=${puzzle.id}`}>
@@ -46,13 +47,22 @@ export function PuzzlePage() {
         </>
       }
     >
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start">
-        <div className="mx-auto w-full max-w-[560px]">
+      {/* Desktop (a mouse or trackpad, wide window) gets a board about a third larger; iPad and iPhone keep their layout. */}
+      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start pointer-fine:min-[1280px]:max-w-[1400px] pointer-fine:min-[1280px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div className="mx-auto w-full max-w-[560px] pointer-fine:min-[1280px]:max-w-[756px]">
           <div className="mb-2 flex items-baseline justify-between">
             <h1 className="text-[26px] font-bold tracking-tight text-ink">{puzzle.label || 'Untitled position'}</h1>
             <span className="text-[14px] font-semibold text-ink-2">{toMove} to play</span>
           </div>
-          <Board fen={fen} arrows={puzzle.arrows} highlights={puzzle.highlights} orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'} />
+          <DrawableBoard
+            fen={fen}
+            arrows={puzzle.arrows}
+            highlights={puzzle.highlights}
+            orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'}
+            onArrowsChange={(arrows) => update.mutate({ arrows })}
+            onHighlightsChange={(highlights) => update.mutate({ highlights })}
+          />
+          <p className="mt-2 text-[12.5px] text-ink-3">Right-drag to draw an arrow, right-click a square to highlight it. Same again removes it.</p>
         </div>
 
         <div className="space-y-4">

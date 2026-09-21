@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Chess, type Square } from 'chess.js'
 import { Board } from './Board'
 import { squareAtPoint, DRAG_THRESHOLD } from './pointer'
+import { useRightClickDraw } from './useRightClickDraw'
 import { usePieceSet } from '../../state/PieceSetContext'
 import { normalizeFen, type Orientation } from '../../lib/fen'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
@@ -16,6 +17,9 @@ interface MoveBoardProps {
   /** Called with the SAN and resulting FEN of a legal move. */
   onMove: (san: string, fen: string) => void
   disabled?: boolean
+  /** When set, right-drag draws arrows and right-click highlights, saved through these. */
+  onArrowsChange?: (arrows: BoardArrow[]) => void
+  onHighlightsChange?: (highlights: BoardHighlight[]) => void
 }
 
 /**
@@ -23,12 +27,30 @@ interface MoveBoardProps {
  * target (or drag). Illegal positions (a missing king, say) just show the
  * board and let the caller explain why moves can't be recorded.
  */
-export function MoveBoard({ fen, orientation = 'white', arrows, highlights, lastMove, onMove, disabled }: MoveBoardProps) {
+export function MoveBoard({
+  fen,
+  orientation = 'white',
+  arrows,
+  highlights,
+  lastMove,
+  onMove,
+  disabled,
+  onArrowsChange,
+  onHighlightsChange,
+}: MoveBoardProps) {
   const { pieces } = usePieceSet()
   const boardRef = useRef<HTMLDivElement>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [drag, setDrag] = useState<{ code: string; x: number; y: number; from: string } | null>(null)
   const [promotion, setPromotion] = useState<{ from: string; to: string } | null>(null)
+  const draw = useRightClickDraw({
+    boardRef,
+    arrows: arrows ?? [],
+    highlights: highlights ?? [],
+    onArrowsChange: onArrowsChange ?? (() => {}),
+    onHighlightsChange: onHighlightsChange ?? (() => {}),
+    enabled: Boolean(onArrowsChange),
+  })
 
   const chess = useMemo(() => {
     try {
@@ -59,6 +81,7 @@ export function MoveBoard({ fen, orientation = 'white', arrows, highlights, last
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (draw.onPointerDown(e)) return
     if (disabled || !chess) return
     if (e.pointerType === 'mouse' && e.button !== 0) return
     const square = squareAtPoint(e.clientX, e.clientY, boardRef.current)
@@ -111,14 +134,14 @@ export function MoveBoard({ fen, orientation = 'white', arrows, highlights, last
         ref={boardRef}
         fen={fen}
         orientation={orientation}
-        arrows={arrows}
+        arrows={onArrowsChange ? draw.arrows : arrows}
         highlights={highlights}
         lastMove={lastMove}
-        selected={selected}
+        selected={draw.from ?? selected}
         hiddenSquares={drag ? [drag.from] : undefined}
         interactive
         onPointerDown={onPointerDown}
-        onContextMenu={(e) => e.preventDefault()}
+        onContextMenu={draw.onContextMenu}
         overlay={
           targets.size > 0 && (
             <div className="pointer-events-none absolute inset-0 grid grid-cols-8 grid-rows-8">

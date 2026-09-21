@@ -32,9 +32,9 @@ export function PuzzlePage() {
       width="wide"
       actions={
         <>
-          <Link to={`${base}/puzzles/${puzzle.id}/study`}>
+          <Link to={`${base}/coach?p=${puzzle.id}`}>
             <Button variant="ghost" size="sm" icon={<Play size={16} />}>
-              Study
+              Coach view
             </Button>
           </Link>
           <Link to={`${base}/puzzles/${puzzle.id}/edit`}>

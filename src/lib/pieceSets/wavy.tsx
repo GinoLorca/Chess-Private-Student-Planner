@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { PieceRenderObject } from 'react-chessboard'
+import type { PieceRenderObject } from './types'
 
 // Ported from the uploaded "Wavy Chess Coach" piece set (a single hand-authored
 // SVG sprite sheet with a <defs> per piece, reused here as standalone React

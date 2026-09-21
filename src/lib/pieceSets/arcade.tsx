@@ -1,4 +1,4 @@
-import type { PieceRenderObject } from 'react-chessboard'
+import type { PieceRenderObject } from './types'
 import wK from '../../assets/pieces/arcade/wK.png'
 import wQ from '../../assets/pieces/arcade/wQ.png'
 import wR from '../../assets/pieces/arcade/wR.png'

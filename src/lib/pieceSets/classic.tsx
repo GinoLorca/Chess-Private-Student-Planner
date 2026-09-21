@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { PieceRenderObject } from 'react-chessboard'
+import type { PieceRenderObject } from './types'
 
 const STROKE = '#111111'
 const WHITE_FILL = '#F7F1E4'

@@ -13,7 +13,7 @@ import { ActionSheet } from '../components/ui/ActionSheet'
 import { Board } from '../components/board/Board'
 import { ImportSheet } from '../components/import/ImportSheet'
 import { patchFromImported } from '../lib/import'
-import { Check, ChevronRight, Download, Eye, Knight, More, Pencil, Plus, Trash } from '../components/ui/Icons'
+import { Check, ChevronRight, Document, Download, Eye, Knight, More, Pencil, Plus, Trash } from '../components/ui/Icons'
 
 export function LessonPlanDetailPage() {
   const { studentId = '', lessonPlanId = '' } = useParams<{ studentId: string; lessonPlanId: string }>()
@@ -60,7 +60,12 @@ export function LessonPlanDetailPage() {
             onCommit={(theme) => theme !== (plan.theme ?? '') && planMutations.update.mutate({ id: plan.id, patch: { theme } })}
           />
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex">
+        <div className="grid grid-cols-3 gap-2 sm:flex">
+          <Link to={`${base}/sheet`} className="contents">
+            <Button variant="ghost" icon={<Document size={18} />} disabled={puzzleCount === 0}>
+              Sheet
+            </Button>
+          </Link>
           <Link to={`${base}/coach`} className="contents">
             <Button variant="secondary" icon={<Eye size={18} />} disabled={puzzleCount === 0}>
               Coach view

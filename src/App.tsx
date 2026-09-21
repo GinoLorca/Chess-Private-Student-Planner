@@ -19,8 +19,8 @@ const LessonPlanDetailPage = lazy(() =>
 )
 const PuzzlePage = lazy(() => import('./pages/PuzzlePage').then((m) => ({ default: m.PuzzlePage })))
 const PuzzleEditorPage = lazy(() => import('./pages/PuzzleEditorPage').then((m) => ({ default: m.PuzzleEditorPage })))
-const PuzzleStudyPage = lazy(() => import('./pages/PuzzleStudyPage').then((m) => ({ default: m.PuzzleStudyPage })))
-const ViewerPage = lazy(() => import('./pages/ViewerPage').then((m) => ({ default: m.ViewerPage })))
+const LessonViewPage = lazy(() => import('./pages/LessonViewPage').then((m) => ({ default: m.LessonViewPage })))
+const LessonSheetPage = lazy(() => import('./pages/LessonSheetPage').then((m) => ({ default: m.LessonSheetPage })))
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 
 const lesson = '/students/:studentId/lessons/:lessonPlanId'
@@ -43,9 +43,9 @@ function App() {
                     <Route path={lesson} element={<LessonPlanDetailPage />} />
                     <Route path={`${lesson}/puzzles/:puzzleId`} element={<PuzzlePage />} />
                     <Route path={`${lesson}/puzzles/:puzzleId/edit`} element={<PuzzleEditorPage />} />
-                    <Route path={`${lesson}/puzzles/:puzzleId/study`} element={<PuzzleStudyPage />} />
-                    <Route path={`${lesson}/present`} element={<ViewerPage mode="present" />} />
-                    <Route path={`${lesson}/coach`} element={<ViewerPage mode="coach" />} />
+                    <Route path={`${lesson}/present`} element={<LessonViewPage mode="present" />} />
+                    <Route path={`${lesson}/coach`} element={<LessonViewPage mode="coach" />} />
+                    <Route path={`${lesson}/sheet`} element={<LessonSheetPage />} />
                   </Routes>
                 </Suspense>
               </HashRouter>

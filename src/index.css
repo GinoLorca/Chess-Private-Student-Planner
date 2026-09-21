@@ -158,6 +158,39 @@ select {
   text-wrap: balance;
 }
 
+/* The lesson sheet prints as the PDF the coach used to assemble by hand. */
+@media print {
+  :root {
+    --bg: #ffffff;
+    --surface: #ffffff;
+  }
+  html,
+  body {
+    background: #ffffff !important;
+  }
+  header,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    box-shadow: none !important;
+  }
+  .break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  @page {
+    margin: 16mm;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -30,6 +30,12 @@ export function resolveBoard(themeId: string | undefined, custom: CustomBoard | 
 }
 
 /** Push the chosen colours into the CSS variables every Board reads. */
+/** A skin brings its own squares: drop the inline overrides so its stylesheet wins. */
+export function clearBoardColors() {
+  const root = document.documentElement.style
+  for (const v of ['--board-light', '--board-dark', '--board-coord-on-light', '--board-coord-on-dark']) root.removeProperty(v)
+}
+
 export function applyBoardColors(colors: CustomBoard) {
   const root = document.documentElement.style
   root.setProperty('--board-light', colors.light)

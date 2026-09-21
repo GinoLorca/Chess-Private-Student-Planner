@@ -11,7 +11,8 @@ import {
   renderersFromImages,
   type PieceRenderers,
 } from '../lib/pieceSets'
-import { DEFAULT_BOARD_THEME, applyBoardColors, resolveBoard } from '../lib/boardThemes'
+import { DEFAULT_BOARD_THEME, applyBoardColors, clearBoardColors, resolveBoard } from '../lib/boardThemes'
+import { FOLDER_SKIN, applySkin, isSkinId } from '../lib/skins'
 import type { CustomBoard, CustomPieceSet, UserSettings } from '../types/domain'
 
 interface VisualsContextValue {
@@ -22,6 +23,8 @@ interface VisualsContextValue {
   boardTheme: string
   customBoard: CustomBoard | null
   setBoardTheme: (id: string, custom?: CustomBoard) => void
+  skin: string
+  setSkin: (id: string) => void
   settings: UserSettings | null
   updateSettings: (patch: api.SettingsPatch) => void
 }
@@ -75,6 +78,7 @@ export function PieceSetProvider({ children }: { children: ReactNode }) {
   const pieceSetId = normalizePieceSetId(settings?.piece_set ?? DEFAULT_PIECE_SET)
   const boardTheme = settings?.board_theme ?? DEFAULT_BOARD_THEME
   const customBoard = settings?.custom_board ?? null
+  const skin = settings?.skin && isSkinId(settings.skin) ? settings.skin : FOLDER_SKIN
 
   const pieces = useMemo<PieceRenderers>(() => {
     if (isPieceSetId(pieceSetId)) return PIECE_SETS[pieceSetId]
@@ -83,8 +87,14 @@ export function PieceSetProvider({ children }: { children: ReactNode }) {
   }, [pieceSetId, customSets])
 
   useEffect(() => {
-    applyBoardColors(resolveBoard(boardTheme, customBoard))
-  }, [boardTheme, customBoard])
+    // Board colour presets belong to the Folder look; a skin's squares are its own.
+    if (skin === FOLDER_SKIN) applyBoardColors(resolveBoard(boardTheme, customBoard))
+    else clearBoardColors()
+  }, [boardTheme, customBoard, skin])
+
+  useEffect(() => {
+    if (settings) applySkin(skin)
+  }, [skin, settings])
 
   const value = useMemo<VisualsContextValue>(
     () => ({
@@ -95,11 +105,13 @@ export function PieceSetProvider({ children }: { children: ReactNode }) {
       boardTheme,
       customBoard,
       setBoardTheme: (id, custom) => update.mutate(custom ? { board_theme: id, custom_board: custom } : { board_theme: id }),
+      skin,
+      setSkin: (id) => update.mutate({ skin: id }),
       settings,
       updateSettings: (patch) => update.mutate(patch),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pieceSetId, pieces, customSets, boardTheme, customBoard, settings],
+    [pieceSetId, pieces, customSets, boardTheme, customBoard, skin, settings],
   )
 
   return <VisualsContext.Provider value={value}>{children}</VisualsContext.Provider>

@@ -187,7 +187,7 @@ export function Rolodex({ students, onOpen, onMenu }: RolodexProps) {
           </button>
         ))}
       </div>
-      <p className="mt-2 text-center text-[12.5px] text-ink-3">Flick to turn · tap the front folder to open</p>
+      <p className="mt-2 text-center text-[12.5px] text-on-bg-2">Flick to turn · tap the front folder to open</p>
     </div>
   )
 }

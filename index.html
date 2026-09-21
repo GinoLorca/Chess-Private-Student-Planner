@@ -12,7 +12,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Big+Shoulders+Display:wght@600;700;800&family=Jost:wght@400;500;600;700&family=Press+Start+2P&family=Bebas+Neue&display=swap" rel="stylesheet" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>Lesson Planner</title>
     <script>
@@ -22,6 +22,8 @@
           var pref = localStorage.getItem('appearance') || 'system';
           var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
           if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+          var skin = localStorage.getItem('skin');
+          if (skin && skin !== 'folder') document.documentElement.setAttribute('data-skin', skin);
         } catch (e) {}
       })();
     </script>

@@ -64,12 +64,9 @@ export const Board = memo(function Board({
         <div
           key={square}
           data-square={square}
-          className="relative"
-          style={{
-            background: light ? 'var(--board-light)' : 'var(--board-dark)',
-            // Each square draws half the line; neighbours meet to make one stroke.
-            boxShadow: 'inset 0 0 0 0.14cqw var(--board-line)',
-          }}
+          className={clsx('board-sq relative', light ? 'light' : 'dark')}
+          // Each square draws half the line; neighbours meet to make one stroke.
+          style={{ boxShadow: 'inset 0 0 0 0.14cqw var(--board-line)' }}
         >
           {isLast && <div className="absolute inset-0" style={{ background: 'var(--board-last-move)' }} />}
           {highlight && <div className="absolute inset-0" style={{ background: highlight }} />}
@@ -77,7 +74,7 @@ export const Board = memo(function Board({
             <div className="absolute inset-0" style={{ boxShadow: 'inset 0 0 0 0.35em var(--board-select)' }} />
           )}
           {Piece && !hidden.has(square) && (
-            <div className="absolute inset-[6%]">
+            <div className="board-piece absolute inset-[6%]">
               <Piece />
             </div>
           )}

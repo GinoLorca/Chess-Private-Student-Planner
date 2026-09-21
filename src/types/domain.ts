@@ -141,6 +141,8 @@ export interface UserSettings {
   chesscom_username?: string
   board_theme?: string
   custom_board?: CustomBoard | null
+  /** 'folder' or a Chess Arcade skin id. */
+  skin?: string
   updated_at: string
 }
 

@@ -33,7 +33,7 @@ export function Page({ title, eyebrow, back, actions, width = 'reading', childre
             back === -1 ? (
               <button
                 onClick={() => navigate(-1)}
-                className="flex h-11 items-center gap-0.5 rounded-xl pr-3 pl-1 text-[15px] font-medium text-accent active:opacity-60"
+                className="flex h-11 items-center gap-0.5 rounded-xl pr-3 pl-1 text-[15px] font-medium text-accent-on-bg active:opacity-60"
               >
                 <ChevronLeft size={22} />
                 Back
@@ -41,7 +41,7 @@ export function Page({ title, eyebrow, back, actions, width = 'reading', childre
             ) : (
               <Link
                 to={back}
-                className="flex h-11 items-center gap-0.5 rounded-xl pr-3 pl-1 text-[15px] font-medium text-accent active:opacity-60"
+                className="flex h-11 items-center gap-0.5 rounded-xl pr-3 pl-1 text-[15px] font-medium text-accent-on-bg active:opacity-60"
               >
                 <ChevronLeft size={22} />
                 Back
@@ -55,7 +55,7 @@ export function Page({ title, eyebrow, back, actions, width = 'reading', childre
               to="/"
               aria-label="Students"
               title="Students"
-              className="grid h-11 w-11 place-items-center rounded-xl text-accent active:opacity-60"
+              className="grid h-11 w-11 place-items-center rounded-xl text-accent-on-bg active:opacity-60"
             >
               <Home size={21} />
             </Link>
@@ -68,8 +68,8 @@ export function Page({ title, eyebrow, back, actions, width = 'reading', childre
       <main className={clsx('mx-auto px-4 pt-4 pb-24', container, className)}>
         {(eyebrow || title) && (
           <div className="mb-5">
-            {eyebrow && <p className="mb-1 text-[13px] font-semibold tracking-wide text-ink-3 uppercase">{eyebrow}</p>}
-            {title && <h1 className="text-balance text-[28px] leading-tight font-bold tracking-tight text-ink">{title}</h1>}
+            {eyebrow && <p className="mb-1 text-[13px] font-semibold tracking-wide text-on-bg-2 uppercase">{eyebrow}</p>}
+            {title && <h1 className="text-balance text-[28px] leading-tight font-bold tracking-tight text-on-bg">{title}</h1>}
           </div>
         )}
         {children}

@@ -25,7 +25,7 @@ export function FolderTab({ color, name, aside }: { color: string; name: string;
         <span className="block h-2.5 w-2.5 rounded-[3px] bg-black/35" />
         <span className="text-[12px] font-bold tracking-[0.08em] text-black/60 uppercase sm:text-[13px]">{name}</span>
       </div>
-      {aside && <span className="pb-2 text-[13px] text-ink-3">{aside}</span>}
+      {aside && <span className="pb-2 text-[13px] text-on-bg-2">{aside}</span>}
     </div>
   )
 }

@@ -428,7 +428,7 @@ export async function getUserSettings(): Promise<UserSettings | null> {
 }
 
 export type SettingsPatch = Partial<
-  Pick<UserSettings, 'piece_set' | 'lichess_username' | 'chesscom_username' | 'board_theme' | 'custom_board'>
+  Pick<UserSettings, 'piece_set' | 'lichess_username' | 'chesscom_username' | 'board_theme' | 'custom_board' | 'skin'>
 >
 
 export async function updateUserSettings(patch: SettingsPatch) {

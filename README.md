@@ -54,6 +54,7 @@ browser's localStorage). The AI helpers return sample responses in demo mode.
    | `supabase/migrations/0002_user_settings.sql` | per-account preferences |
    | `supabase/migrations/0003_sources_and_themes.sql` | puzzle sources/themes, lesson theme blocks, board colours, imported piece sets, Lichess/Chess.com usernames |
    | `supabase/migrations/0004_lesson_flow.sql` | lesson status + taught date, saved lesson templates |
+   | `supabase/migrations/0005_skins.sql` | the chosen skin |
 
 3. In **Project Settings → API**, copy the **Project URL** and **anon public key** into
    `.env.local`:
@@ -115,6 +116,13 @@ the key set, the buttons show a clear message and everything else keeps working.
 Chess.com game links need your Chess.com username in Settings (the public archive is per player).
 **Engine check** in the editor asks Lichess's cloud analysis for the top line of any position — no
 account or key needed — and says whether it agrees with your first move.
+
+## Skins
+
+Settings → Skin switches the whole app between the planner's own **Folder** look and the five
+Chess Arcade skins (Tournament Felt, Hustler, Bauhaus, Game Boy, Outer Space), ported token for
+token: colours, page background, board squares and textures, piece treatment, display font and
+corner radii. Light and dark work inside each skin. The layout never changes with the skin.
 
 ## Piece sets and board colours
 

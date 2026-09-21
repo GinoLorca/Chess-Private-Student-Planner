@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './skins.css';
 
 /* ---------------------------------------------------------------------------
    Design tokens. Light and dark are both first-class: the lesson table can be a
@@ -39,6 +40,10 @@
   --paper-head-rule: #e8b2ad;
   --sticky: #fff4b3;
   --sticky-ink: #2a2610;
+  /* Text straight on the page background; skins with a dark table set these light. */
+  --on-bg: var(--ink);
+  --on-bg-2: var(--ink-3);
+  --accent-on-bg: var(--accent);
 }
 
 :root[data-theme='dark'] {
@@ -78,6 +83,9 @@
   --color-paper-rule: var(--paper-rule);
   --color-sticky: var(--sticky);
   --color-sticky-ink: var(--sticky-ink);
+  --color-on-bg: var(--on-bg);
+  --color-on-bg-2: var(--on-bg-2);
+  --color-accent-on-bg: var(--accent-on-bg);
 
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -151,12 +159,15 @@ body {
   box-sizing: border-box;
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
-  color: inherit;
+/* In the base layer so any utility class on a control still wins. */
+@layer base {
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
 }
 
 ::selection {
@@ -217,4 +228,13 @@ select {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Board squares take their colour from classes (not inline styles) so a skin
+   can lay a texture over them. */
+.board-sq.light {
+  background-color: var(--board-light);
+}
+.board-sq.dark {
+  background-color: var(--board-dark);
 }

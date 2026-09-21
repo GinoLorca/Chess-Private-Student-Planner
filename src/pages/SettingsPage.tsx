@@ -5,6 +5,7 @@ import { useAppearance, type Appearance } from '../app/providers'
 import { PIECE_CODES, PIECE_SETS, PIECE_SET_OPTIONS, renderersFromImages } from '../lib/pieceSets'
 import { PieceSetOverrideContext, usePieceSet } from '../state/PieceSetContext'
 import { BOARD_THEMES, resolveBoard } from '../lib/boardThemes'
+import { FOLDER_SKIN, SKINS } from '../lib/skins'
 import { START_FEN } from '../lib/fen'
 import { useCustomPieceSetMutations } from '../lib/queries'
 import { imagesFromFiles, readPieceFiles, type ImportedPieceFile } from '../lib/pieceImport'
@@ -27,7 +28,7 @@ const PREVIEW_FEN = START_FEN
 export function SettingsPage() {
   const { signOut, session } = useAuth()
   const { appearance, setAppearance, resolved } = useAppearance()
-  const { pieceSetId, setPieceSetId, customSets, boardTheme, customBoard, setBoardTheme, settings, updateSettings } =
+  const { pieceSetId, setPieceSetId, customSets, boardTheme, customBoard, setBoardTheme, skin, setSkin, settings, updateSettings } =
     usePieceSet()
   const { remove } = useCustomPieceSetMutations()
   const [importing, setImporting] = useState(false)
@@ -57,7 +58,49 @@ export function SettingsPage() {
         ))}
       </Card>
 
+      <SectionLabel>Skin</SectionLabel>
+      <p className="mb-3 text-[14px] text-ink-2">
+        The whole app in a different material. Folder is the planner's own look; the rest are Chess Arcade's skins,
+        colours, board and piece treatment included.
+      </p>
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {SKINS.map((sk) => {
+          const selected = skin === sk.id
+          return (
+            <button
+              key={sk.id}
+              onClick={() => setSkin(sk.id)}
+              aria-pressed={selected}
+              className={clsx(
+                'skin-surface relative overflow-hidden rounded-2xl border-2 p-3 text-left transition',
+                selected ? 'border-accent' : 'border-line hover:border-line-strong',
+              )}
+              data-skin={sk.id === FOLDER_SKIN ? undefined : sk.id}
+              style={{ background: 'var(--surface)', color: 'var(--ink)', fontFamily: 'var(--font-sans)' }}
+            >
+              <div className="mx-auto w-[92px]">
+                <Board fen={PREVIEW_FEN} coordinates={false} className="shadow-none" />
+              </div>
+              <span className="mt-2.5 block truncate text-[15px] leading-tight font-bold" style={{ fontFamily: 'var(--font-display)' }}>
+                {sk.label}
+              </span>
+              <span className="mt-0.5 block text-[12px] leading-snug" style={{ color: 'var(--ink-2)' }}>
+                {sk.description}
+              </span>
+              {selected && (
+                <span className="absolute top-2 right-2 grid h-6 w-6 place-items-center rounded-full bg-accent text-accent-ink">
+                  <Check size={14} />
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
       <SectionLabel>Board colours</SectionLabel>
+      {skin !== FOLDER_SKIN && (
+        <p className="mb-3 text-[13px] text-ink-3">The {SKINS.find((sk) => sk.id === skin)?.label} skin brings its own board. These presets apply to the Folder skin.</p>
+      )}
       <div className="mb-3 grid grid-cols-4 gap-2 sm:grid-cols-8">
         {BOARD_THEMES.map((t) => (
           <button

@@ -191,6 +191,31 @@ export async function listAllPuzzleIds(lessonPlanId: string): Promise<string[]> 
   return perSection.flat()
 }
 
+export interface LessonBundle {
+  plan: LessonPlan
+  sections: LessonSection[]
+  puzzlesBySection: Record<string, Puzzle[]>
+}
+
+/** Everything a lesson screen needs in two round trips instead of one per section. */
+export async function getLessonBundle(lessonPlanId: string): Promise<LessonBundle> {
+  const [plan, sections] = await Promise.all([getLessonPlan(lessonPlanId), listSections(lessonPlanId)])
+  const puzzlesBySection: Record<string, Puzzle[]> = Object.fromEntries(sections.map((s) => [s.id, []]))
+  if (sections.length > 0) {
+    const { data, error } = await supabase
+      .from('puzzles')
+      .select('*')
+      .in(
+        'section_id',
+        sections.map((s) => s.id),
+      )
+      .order('sort_order', { ascending: true })
+    if (error) throw error
+    for (const puzzle of data as Puzzle[]) puzzlesBySection[puzzle.section_id]?.push(puzzle)
+  }
+  return { plan, sections, puzzlesBySection }
+}
+
 export async function listPuzzles(sectionId: string): Promise<Puzzle[]> {
   const { data, error } = await supabase
     .from('puzzles')

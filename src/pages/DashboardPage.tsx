@@ -1,117 +1,172 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { createStudent, deleteStudent, listStudents, updateStudent } from '../lib/api'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import type { Student } from '../types/domain'
-import { FolderTab } from '../components/folders/FolderTab'
-import { AddFolderTab } from '../components/folders/AddFolderTab'
+import { useStudentMutations, useStudents } from '../lib/queries'
+import { Page, EmptyState, LoadingPage } from '../components/ui/Page'
+import { Button, IconButton } from '../components/ui/Button'
 import { InputModal } from '../components/ui/InputModal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
-import { useAuth } from '../auth/AuthProvider'
-
-const PALETTE = ['#e9c98e', '#d9a5a0', '#a7c4b5', '#a9bfd9', '#c9b3d9', '#e0c3a0']
+import { ActionSheet } from '../components/ui/ActionSheet'
+import { More, Pencil, Plus, Settings, Trash } from '../components/ui/Icons'
+import { FOLDER_COLORS } from '../lib/colors'
 
 export function DashboardPage() {
-  const navigate = useNavigate()
-  const { signOut } = useAuth()
-  const [students, setStudents] = useState<Student[] | null>(null)
-  const [addOpen, setAddOpen] = useState(false)
-  const [renameTarget, setRenameTarget] = useState<Student | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<Student | null>(null)
+  const { data: students, isLoading } = useStudents()
+  const { create, update, remove } = useStudentMutations()
+  const [adding, setAdding] = useState(false)
+  const [menuFor, setMenuFor] = useState<Student | null>(null)
+  const [renaming, setRenaming] = useState<Student | null>(null)
+  const [recoloring, setRecoloring] = useState<Student | null>(null)
+  const [deleting, setDeleting] = useState<Student | null>(null)
 
-  useEffect(() => {
-    listStudents().then(setStudents)
-  }, [])
-
-  async function handleAdd(name: string) {
-    const color = PALETTE[(students?.length ?? 0) % PALETTE.length]
-    const student = await createStudent(name, color)
-    setStudents((prev) => [...(prev ?? []), student])
-    setAddOpen(false)
-  }
-
-  async function handleRename(name: string) {
-    if (!renameTarget) return
-    await updateStudent(renameTarget.id, { name })
-    setStudents((prev) => prev?.map((s) => (s.id === renameTarget.id ? { ...s, name } : s)) ?? null)
-    setRenameTarget(null)
-  }
-
-  async function handleDelete() {
-    if (!deleteTarget) return
-    await deleteStudent(deleteTarget.id)
-    setStudents((prev) => prev?.filter((s) => s.id !== deleteTarget.id) ?? null)
-  }
+  if (isLoading && !students) return <LoadingPage />
 
   return (
-    <div className="mx-auto min-h-svh max-w-5xl px-6 py-10">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="font-marker text-3xl text-gold-500">Lesson Planner</h1>
-          <p className="mt-1 text-sm text-ink-300">Tap a folder to open a student.</p>
+    <Page
+      title="Students"
+      actions={
+        <>
+          <Link to="/settings">
+            <IconButton label="Settings">
+              <Settings />
+            </IconButton>
+          </Link>
+          <IconButton label="Add student" onClick={() => setAdding(true)}>
+            <Plus />
+          </IconButton>
+        </>
+      }
+    >
+      {students && students.length === 0 ? (
+        <EmptyState
+          title="No students yet"
+          body="Each student gets a folder with lesson plans, notes, game reviews and invoices."
+          action={
+            <Button variant="primary" icon={<Plus size={18} />} onClick={() => setAdding(true)}>
+              Add a student
+            </Button>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4">
+          {students?.map((s, i) => (
+            <FolderCard key={s.id} student={s} index={i} onMenu={() => setMenuFor(s)} />
+          ))}
         </div>
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/settings')} className="text-xs text-ink-400 hover:text-ink-100">
-            Settings
-          </button>
-          <button onClick={() => signOut()} className="text-xs text-ink-400 hover:text-ink-100">
-            Sign out
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 md:grid-cols-4">
-        {students?.map((student) => (
-          <div key={student.id} className="group/tile relative">
-            <FolderTab
-              name={student.name}
-              color={student.color}
-              onOpen={() => navigate(`/students/${student.id}`)}
-              onLongPress={() => setRenameTarget(student)}
-            />
-            <div className="pointer-events-none absolute right-1 top-0 flex gap-1 opacity-0 transition group-hover/tile:pointer-events-auto group-hover/tile:opacity-100">
-              <button
-                onClick={() => setRenameTarget(student)}
-                className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] text-ink-300 hover:text-gold-500"
-              >
-                rename
-              </button>
-              <button
-                onClick={() => setDeleteTarget(student)}
-                className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] text-ink-300 hover:text-red-400"
-              >
-                delete
-              </button>
-            </div>
-          </div>
-        ))}
-        <AddFolderTab onClick={() => setAddOpen(true)} />
-      </div>
+      )}
 
       <InputModal
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        onSubmit={handleAdd}
+        open={adding}
         title="New student"
-        label="Student name"
-        placeholder="e.g. Joseph &quot;Jojo&quot; Liu"
-        submitLabel="Create folder"
+        label="Name"
+        placeholder='e.g. Joseph "Jojo" Liu'
+        submitLabel="Add"
+        onClose={() => setAdding(false)}
+        onSubmit={async (name) => {
+          const color = FOLDER_COLORS[(students?.length ?? 0) % FOLDER_COLORS.length]
+          await create.mutateAsync({ name, color })
+        }}
       />
+
+      <ActionSheet
+        open={Boolean(menuFor)}
+        onClose={() => setMenuFor(null)}
+        title={menuFor?.name}
+        items={[
+          { label: 'Rename', icon: <Pencil />, onSelect: () => setRenaming(menuFor) },
+          { label: 'Change folder colour', icon: <More />, onSelect: () => setRecoloring(menuFor) },
+          { label: 'Delete student', icon: <Trash />, danger: true, onSelect: () => setDeleting(menuFor) },
+        ]}
+      />
+
       <InputModal
-        open={!!renameTarget}
-        onClose={() => setRenameTarget(null)}
-        onSubmit={handleRename}
+        open={Boolean(renaming)}
         title="Rename student"
-        label="Student name"
-        initialValue={renameTarget?.name ?? ''}
-        submitLabel="Save"
+        label="Name"
+        initialValue={renaming?.name ?? ''}
+        onClose={() => setRenaming(null)}
+        onSubmit={async (name) => {
+          if (renaming) await update.mutateAsync({ id: renaming.id, patch: { name } })
+        }}
       />
+
       <ConfirmDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        title="Delete student"
-        message={`This deletes ${deleteTarget?.name}'s folder and everything in it. This can't be undone.`}
+        open={Boolean(deleting)}
+        title={`Delete ${deleting?.name ?? ''}?`}
+        body="This removes every lesson plan, puzzle and note in their folder. There's no undo."
+        confirmLabel="Delete"
+        onClose={() => setDeleting(null)}
+        onConfirm={async () => {
+          if (deleting) await remove.mutateAsync(deleting.id)
+        }}
       />
-    </div>
+
+      <ColorPicker
+        student={recoloring}
+        onClose={() => setRecoloring(null)}
+        onPick={(color) => {
+          if (recoloring) update.mutate({ id: recoloring.id, patch: { color } })
+          setRecoloring(null)
+        }}
+      />
+    </Page>
+  )
+}
+
+function FolderCard({ student, index, onMenu }: { student: Student; index: number; onMenu: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index * 0.04, 0.3), duration: 0.25 }}
+      className="relative"
+    >
+      <Link to={`/students/${student.id}`} className="group block">
+        <div className="relative pt-5">
+          <span
+            className="absolute top-0 left-4 h-6 w-[46%] rounded-t-lg"
+            style={{ background: student.color, filter: 'brightness(0.92)' }}
+          />
+          <div
+            className="relative flex h-32 items-end overflow-hidden rounded-xl p-3.5 shadow-card transition duration-200 group-hover:-translate-y-1 group-active:scale-[0.98]"
+            style={{ background: `linear-gradient(160deg, ${student.color} 0%, ${student.color} 55%, rgba(0,0,0,0.06) 100%)` }}
+          >
+            <span className="absolute inset-x-0 top-0 h-1/3 bg-white/25" />
+            <span className="relative text-[17px] leading-tight font-bold text-black/75">{student.name}</span>
+          </div>
+        </div>
+      </Link>
+      <button
+        onClick={onMenu}
+        aria-label={`Options for ${student.name}`}
+        className="absolute top-7 right-2 grid h-9 w-9 place-items-center rounded-full text-black/50 hover:bg-black/10"
+      >
+        <More size={18} />
+      </button>
+    </motion.div>
+  )
+}
+
+function ColorPicker({
+  student,
+  onClose,
+  onPick,
+}: {
+  student: Student | null
+  onClose: () => void
+  onPick: (color: string) => void
+}) {
+  return (
+    <ActionSheet
+      open={Boolean(student)}
+      onClose={onClose}
+      title="Folder colour"
+      items={FOLDER_COLORS.map((c) => ({
+        label: c === student?.color ? 'Current colour' : 'Use this colour',
+        icon: <span className="block h-6 w-6 rounded-md" style={{ background: c }} />,
+        onSelect: () => onPick(c),
+      }))}
+    />
   )
 }

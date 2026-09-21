@@ -1,114 +1,160 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { createNote, deleteNote, listNotes, updateNote } from '../lib/api'
-import type { FolderKind, Note } from '../types/domain'
+import { useState } from 'react'
+import { useParams } from 'react-router-dom'
+import type { Note } from '../types/domain'
 import { FOLDER_KINDS } from '../types/domain'
+import { useNoteMutations, useNotes, useStudent } from '../lib/queries'
+import { Page, Card, EmptyState, LoadingPage } from '../components/ui/Page'
+import { Button, IconButton } from '../components/ui/Button'
+import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { ChevronRight, Plus, Trash } from '../components/ui/Icons'
+
+type Kind = Note['folder_kind']
 
 export function NotesPage() {
-  const { studentId, folderKind } = useParams<{ studentId: string; folderKind: string }>()
-  const navigate = useNavigate()
-  const [notes, setNotes] = useState<Note[] | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<Note | null>(null)
-  const [savingId, setSavingId] = useState<string | null>(null)
+  const { studentId = '', folderKind = 'misc' } = useParams<{ studentId: string; folderKind: Kind }>()
+  const kind = folderKind as Kind
+  const { data: student } = useStudent(studentId)
+  const { data: notes, isLoading } = useNotes(studentId, kind)
+  const { create, update, remove } = useNoteMutations(studentId, kind)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<Note | null>(null)
+  const label = FOLDER_KINDS.find((f) => f.kind === kind)?.label ?? 'Notes'
+  const openNote = notes?.find((n) => n.id === openId) ?? null
 
-  const kind = folderKind as Note['folder_kind']
-  const label = FOLDER_KINDS.find((f) => f.kind === (kind as FolderKind))?.label ?? kind
-  const showAmount = kind === 'invoices'
-
-  useEffect(() => {
-    if (!studentId || !kind) return
-    listNotes(studentId, kind).then(setNotes)
-  }, [studentId, kind])
-
-  async function handleAdd() {
-    if (!studentId || !kind) return
-    const note = await createNote(studentId, kind)
-    setNotes((prev) => [note, ...(prev ?? [])])
+  async function addNote() {
+    const note = await create.mutateAsync()
+    setOpenId(note.id)
   }
 
-  function patchLocal(id: string, patch: Partial<Note>) {
-    setNotes((prev) => prev?.map((n) => (n.id === id ? { ...n, ...patch } : n)) ?? null)
-  }
-
-  async function persist(id: string, patch: Partial<Pick<Note, 'title' | 'body' | 'amount'>>) {
-    setSavingId(id)
-    await updateNote(id, patch)
-    setSavingId(null)
-  }
-
-  async function handleDelete() {
-    if (!deleteTarget) return
-    await deleteNote(deleteTarget.id)
-    setNotes((prev) => prev?.filter((n) => n.id !== deleteTarget.id) ?? null)
-  }
+  if (isLoading && !notes) return <LoadingPage />
 
   return (
-    <div className="mx-auto min-h-svh max-w-2xl px-6 py-10">
-      <button onClick={() => navigate(`/students/${studentId}`)} className="mb-6 text-xs text-ink-400 hover:text-ink-100">
-        ← Back
-      </button>
-
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-marker text-3xl text-gold-500">{label}</h1>
-        <button
-          onClick={handleAdd}
-          className="rounded-lg bg-gold-500 px-3 py-1.5 text-sm font-semibold text-ink-950 hover:bg-gold-400"
-        >
-          + Add
-        </button>
-      </div>
-
-      <div className="space-y-3">
-        {notes?.length === 0 && <p className="text-sm text-ink-400">Nothing here yet.</p>}
-        {notes?.map((note) => (
-          <div key={note.id} className="rounded-xl border border-ink-800 bg-ink-900/60 p-4">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <input
-                value={note.title}
-                onChange={(e) => patchLocal(note.id, { title: e.target.value })}
-                onBlur={(e) => persist(note.id, { title: e.target.value })}
-                className="w-full bg-transparent text-sm font-semibold text-ink-100 outline-none"
-                placeholder="Title"
-              />
+    <Page
+      back={`/students/${studentId}`}
+      eyebrow={student?.name}
+      title={label}
+      actions={
+        <IconButton label="New note" onClick={addNote} disabled={create.isPending}>
+          <Plus />
+        </IconButton>
+      }
+    >
+      {notes && notes.length === 0 ? (
+        <EmptyState
+          title={`Nothing filed under ${label} yet`}
+          action={
+            <Button variant="primary" icon={<Plus size={18} />} onClick={addNote}>
+              New note
+            </Button>
+          }
+        />
+      ) : (
+        <Card className="overflow-hidden">
+          {notes?.map((note, i) => (
+            <div key={note.id} className={`flex items-center ${i > 0 ? 'border-t border-line' : ''}`}>
               <button
-                onClick={() => setDeleteTarget(note)}
-                className="shrink-0 text-xs text-ink-500 hover:text-red-400"
+                onClick={() => setOpenId(note.id)}
+                className="flex min-h-16 min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition active:bg-surface-2"
               >
-                delete
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[16px] font-semibold text-ink">{note.title || 'Untitled'}</span>
+                  <span className="block truncate text-[13px] text-ink-3">
+                    {kind === 'invoices' && note.amount != null ? `$${note.amount} · ` : ''}
+                    {new Date(note.updated_at).toLocaleDateString()}
+                    {note.body ? ` · ${note.body.slice(0, 80)}` : ''}
+                  </span>
+                </span>
+                <ChevronRight className="shrink-0 text-ink-3" />
               </button>
+              <IconButton label="Delete note" className="mr-1 text-ink-3" onClick={() => setDeleting(note)}>
+                <Trash size={18} />
+              </IconButton>
             </div>
-            {showAmount && (
-              <input
-                type="number"
-                step="0.01"
-                value={note.amount ?? ''}
-                onChange={(e) => patchLocal(note.id, { amount: e.target.value === '' ? null : Number(e.target.value) })}
-                onBlur={(e) => persist(note.id, { amount: e.target.value === '' ? null : Number(e.target.value) })}
-                placeholder="Amount"
-                className="mb-2 w-32 rounded-md border border-ink-700 bg-ink-800 px-2 py-1 text-xs text-ink-100 outline-none focus:border-gold-500"
-              />
-            )}
-            <textarea
-              value={note.body}
-              onChange={(e) => patchLocal(note.id, { body: e.target.value })}
-              onBlur={(e) => persist(note.id, { body: e.target.value })}
-              rows={3}
-              placeholder="Notes…"
-              className="w-full resize-y rounded-md border border-ink-700 bg-ink-800 px-2 py-1.5 text-sm text-ink-200 outline-none focus:border-gold-500"
-            />
-            {savingId === note.id && <p className="mt-1 text-[10px] text-ink-500">saving…</p>}
-          </div>
-        ))}
-      </div>
+          ))}
+        </Card>
+      )}
+
+      <Modal open={Boolean(openNote)} onClose={() => setOpenId(null)} title="Note">
+        {openNote && (
+          <NoteEditor
+            key={openNote.id}
+            note={openNote}
+            showAmount={kind === 'invoices'}
+            onClose={() => setOpenId(null)}
+            onSave={(patch) => update.mutate({ id: openNote.id, patch })}
+          />
+        )}
+      </Modal>
 
       <ConfirmDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        title="Delete entry"
-        message="This can't be undone."
+        open={Boolean(deleting)}
+        title={`Delete "${deleting?.title || 'Untitled'}"?`}
+        confirmLabel="Delete"
+        onClose={() => setDeleting(null)}
+        onConfirm={async () => {
+          if (deleting) await remove.mutateAsync(deleting.id)
+        }}
       />
+    </Page>
+  )
+}
+
+// Keyed on the note id by its parent, so opening a different note starts fresh.
+function NoteEditor({
+  note,
+  showAmount,
+  onClose,
+  onSave,
+}: {
+  note: Note
+  showAmount: boolean
+  onClose: () => void
+  onSave: (patch: Partial<Pick<Note, 'title' | 'body' | 'amount'>>) => void
+}) {
+  const [title, setTitle] = useState(note.title)
+  const [body, setBody] = useState(note.body)
+  const [amount, setAmount] = useState(note.amount == null ? '' : String(note.amount))
+
+  function commit() {
+    const patch: Partial<Pick<Note, 'title' | 'body' | 'amount'>> = {}
+    if (title !== note.title) patch.title = title
+    if (body !== note.body) patch.body = body
+    if (showAmount) {
+      const parsed = amount.trim() === '' ? null : Number(amount)
+      if (parsed !== note.amount && !(parsed !== null && Number.isNaN(parsed))) patch.amount = parsed
+    }
+    if (Object.keys(patch).length) onSave(patch)
+    onClose()
+  }
+
+  const field =
+    'w-full rounded-xl border border-line-strong bg-surface-2 px-3.5 text-[16px] outline-none focus:border-accent'
+
+  return (
+    <div className="space-y-3">
+      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className={`${field} h-12`} />
+      {showAmount && (
+        <input
+          inputMode="decimal"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="Amount ($)"
+          className={`${field} h-12`}
+        />
+      )}
+      <textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="Write anything…"
+        rows={8}
+        className={`${field} resize-y py-3 leading-relaxed`}
+      />
+      <div className="flex justify-end">
+        <Button variant="primary" onClick={commit}>
+          Done
+        </Button>
+      </div>
     </div>
   )
 }

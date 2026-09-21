@@ -1,42 +1,127 @@
 @import 'tailwindcss';
 
-@theme {
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-marker: 'Permanent Marker', cursive;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+/* ---------------------------------------------------------------------------
+   Design tokens. Light and dark are both first-class: the lesson table can be a
+   bright classroom or a dim living room, and the coach picks in Settings.
+   --------------------------------------------------------------------------- */
+:root {
+  --bg: #f4f3ef;
+  --surface: #ffffff;
+  --surface-2: #ebe9e3;
+  --surface-3: #dedbd3;
+  --line: #e1dfd8;
+  --line-strong: #c9c6bd;
+  --ink: #1a1a19;
+  --ink-2: #57554f;
+  --ink-3: #8b8880;
+  --accent: #2e7d5b;
+  --accent-strong: #256a4c;
+  --accent-ink: #ffffff;
+  --accent-soft: #e1efe7;
+  --danger: #bf3f38;
+  --danger-soft: #f7e3e1;
+  --warn: #b8741c;
+  --warn-soft: #f8ecd8;
+  --shadow: 0 1px 2px rgba(20, 20, 18, 0.06), 0 8px 24px -12px rgba(20, 20, 18, 0.18);
+  --shadow-lg: 0 2px 4px rgba(20, 20, 18, 0.06), 0 24px 48px -16px rgba(20, 20, 18, 0.28);
 
-  --color-ink-950: #101114;
-  --color-ink-900: #17181c;
-  --color-ink-800: #1e2025;
-  --color-ink-700: #262830;
-  --color-ink-600: #34363f;
-  --color-ink-500: #4a4d59;
-  --color-ink-300: #8b8d99;
-  --color-ink-100: #d7d7dc;
+  --board-light: #f0d9b5;
+  --board-dark: #b58863;
+  --board-coord-on-light: #b58863;
+  --board-coord-on-dark: #f0d9b5;
+  --board-last-move: rgba(155, 199, 0, 0.41);
+  --board-select: rgba(20, 85, 30, 0.5);
+}
 
+:root[data-theme='dark'] {
+  --bg: #111312;
+  --surface: #191c1a;
+  --surface-2: #222624;
+  --surface-3: #2c312e;
+  --line: #2b302d;
+  --line-strong: #3d433f;
+  --ink: #ebece9;
+  --ink-2: #b0b3ae;
+  --ink-3: #777b77;
+  --accent: #5fb88c;
+  --accent-strong: #79c9a0;
+  --accent-ink: #0c1a12;
+  --accent-soft: #1c2f25;
+  --danger: #e2675e;
+  --danger-soft: #3a1f1d;
+  --warn: #dba64a;
+  --warn-soft: #3a2d16;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.4), 0 24px 48px -16px rgba(0, 0, 0, 0.7);
+}
+
+@theme inline {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+
+  --color-board-light: var(--board-light);
+  --color-board-dark: var(--board-dark);
+
+  --shadow-card: var(--shadow);
+  --shadow-float: var(--shadow-lg);
+
+  /* Legacy aliases — only the not-yet-rebuilt editor/viewer pages use these.
+     They disappear with those pages. */
+  --font-marker: var(--font-sans);
+  --color-ink-950: var(--bg);
+  --color-ink-900: var(--surface);
+  --color-ink-800: var(--surface-2);
+  --color-ink-700: var(--surface-3);
+  --color-ink-600: var(--line-strong);
+  --color-ink-500: var(--ink-3);
+  --color-ink-400: var(--ink-3);
+  --color-ink-300: var(--ink-2);
+  --color-ink-200: var(--ink-2);
+  --color-ink-100: var(--ink);
+  --color-gold-400: var(--accent-strong);
+  --color-gold-500: var(--accent);
+  --color-gold-600: var(--accent-strong);
   --color-parchment: #e9c98e;
   --color-parchment-dark: #c9a869;
-
-  --color-gold-400: #f6c453;
-  --color-gold-500: #f0b429;
-  --color-gold-600: #d69a1a;
-
-  --color-board-light: #ece4d3;
-  --color-board-dark: #33569e;
-  --color-board-line: #111111;
-  --color-board-coord: #2c4a86;
+  --color-board-line: transparent;
+  --color-board-coord: var(--board-coord-on-light);
 }
 
 html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+html[data-theme='dark'] {
   color-scheme: dark;
 }
 
 body {
   margin: 0;
-  background: var(--color-ink-950);
-  color: var(--color-ink-100);
+  background: var(--bg);
+  color: var(--ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
 }
 
 #root {
@@ -47,22 +132,37 @@ body {
   box-sizing: border-box;
 }
 
-::selection {
-  background: var(--color-gold-500);
-  color: var(--color-ink-950);
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
 }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+
+/* Safe-area helpers for the notch / home indicator in standalone mode. */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
 }
-::-webkit-scrollbar-thumb {
-  background: var(--color-ink-600);
-  border-radius: 999px;
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-ink-500);
+
+/* Cards and text are the whole UI; keep type crisp at iPad viewing distance. */
+.text-balance {
+  text-wrap: balance;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

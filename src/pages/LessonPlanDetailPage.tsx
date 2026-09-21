@@ -1,141 +1,280 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { createSection, getLessonPlan, listAllPuzzleIds, listSections, updateLessonPlan } from '../lib/api'
-import type { LessonPlan, LessonSection } from '../types/domain'
-import { AgendaEditor } from '../components/lessons/AgendaEditor'
-import { SectionBlock } from '../components/lessons/SectionBlock'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import clsx from 'clsx'
+import type { LessonSection, Puzzle } from '../types/domain'
+import { useLesson, useLessonContentMutations, useLessonPlanMutations, useStudent } from '../lib/queries'
+import { normalizeFen } from '../lib/fen'
 import { useSessionSet } from '../hooks/useSessionSet'
+import { Page, Card, EmptyState, LoadingPage, SectionLabel } from '../components/ui/Page'
+import { Button, IconButton } from '../components/ui/Button'
+import { InputModal } from '../components/ui/InputModal'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { ActionSheet } from '../components/ui/ActionSheet'
+import { Board } from '../components/board/Board'
+import { Check, ChevronRight, Eye, Knight, More, Pencil, Plus, Trash } from '../components/ui/Icons'
 
 export function LessonPlanDetailPage() {
-  const { studentId, lessonPlanId } = useParams<{ studentId: string; lessonPlanId: string }>()
+  const { studentId = '', lessonPlanId = '' } = useParams<{ studentId: string; lessonPlanId: string }>()
   const navigate = useNavigate()
-  const [plan, setPlan] = useState<LessonPlan | null>(null)
-  const [sections, setSections] = useState<LessonSection[] | null>(null)
-  const [totalPuzzles, setTotalPuzzles] = useState<number | null>(null)
-  const { set: reviewedIds, add: markReviewed } = useSessionSet(`reviewed:${lessonPlanId}`)
+  const { data: student } = useStudent(studentId)
+  const { data: lesson, isLoading } = useLesson(lessonPlanId)
+  const planMutations = useLessonPlanMutations(studentId)
+  const content = useLessonContentMutations(lessonPlanId)
+  const [addingSection, setAddingSection] = useState(false)
+  const [sectionMenu, setSectionMenu] = useState<LessonSection | null>(null)
+  const [renamingSection, setRenamingSection] = useState<LessonSection | null>(null)
+  const [deletingSection, setDeletingSection] = useState<LessonSection | null>(null)
+  const [deletingPuzzle, setDeletingPuzzle] = useState<Puzzle | null>(null)
 
-  useEffect(() => {
-    if (!lessonPlanId) return
-    getLessonPlan(lessonPlanId).then(setPlan)
-    listSections(lessonPlanId).then(setSections)
-    refreshPuzzleCount()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lessonPlanId])
+  if (isLoading && !lesson) return <LoadingPage />
+  if (!lesson) return <Page back={`/students/${studentId}/lessons`}>Lesson not found.</Page>
 
-  function refreshPuzzleCount() {
-    if (!lessonPlanId) return
-    listAllPuzzleIds(lessonPlanId).then((ids) => setTotalPuzzles(ids.length))
+  const { plan, sections, puzzlesBySection } = lesson
+  const base = `/students/${studentId}/lessons/${plan.id}`
+  const puzzleCount = Object.values(puzzlesBySection).reduce((n, list) => n + list.length, 0)
+
+  async function addPuzzle(sectionId: string) {
+    const puzzle = await content.createPuzzle.mutateAsync(sectionId)
+    navigate(`${base}/puzzles/${puzzle.id}/edit`)
   }
-
-  async function saveTitle(title: string) {
-    if (!plan) return
-    setPlan({ ...plan, title })
-    await updateLessonPlan(plan.id, { title })
-  }
-
-  async function saveAgenda(agenda: string[]) {
-    if (!plan) return
-    setPlan({ ...plan, agenda })
-    await updateLessonPlan(plan.id, { agenda })
-  }
-
-  async function handleAddSection() {
-    if (!lessonPlanId) return
-    const section = await createSection(lessonPlanId, '')
-    setSections((prev) => [...(prev ?? []), section])
-  }
-
-  function refreshSections() {
-    if (!lessonPlanId) return
-    listSections(lessonPlanId).then(setSections)
-    refreshPuzzleCount()
-  }
-
-  function openPuzzle(puzzleId: string) {
-    markReviewed(puzzleId)
-    navigate(`/students/${studentId}/lessons/${lessonPlanId}/puzzles/${puzzleId}`)
-  }
-
-  if (!plan) return null
-
-  const reviewedCount = totalPuzzles === null ? 0 : [...reviewedIds].length
-  const progressPct = totalPuzzles ? Math.round((Math.min(reviewedCount, totalPuzzles) / totalPuzzles) * 100) : 0
 
   return (
-    <div className="mx-auto min-h-svh max-w-3xl px-6 py-10">
-      <button
-        onClick={() => navigate(`/students/${studentId}/lessons`)}
-        className="mb-6 text-xs text-ink-400 hover:text-ink-100"
-      >
-        ← Back to plans
-      </button>
-
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <input
-          value={plan.title}
-          onChange={(e) => setPlan({ ...plan, title: e.target.value })}
-          onBlur={(e) => saveTitle(e.target.value)}
-          placeholder={`Lesson Plan ${plan.number}`}
-          className="font-marker w-full max-w-md bg-transparent text-3xl text-gold-500 outline-none sm:w-auto"
-        />
-        <div className="flex gap-2">
-          <button
-            onClick={() => navigate(`/students/${studentId}/lessons/${plan.id}/coach`)}
-            className="rounded-lg border border-ink-600 px-3 py-2 text-sm font-medium text-ink-100 hover:border-gold-500 hover:text-gold-400"
-          >
-            Coach's View
-          </button>
-          <button
-            onClick={() => navigate(`/students/${studentId}/lessons/${plan.id}/present`)}
-            className="rounded-lg bg-gold-500 px-3 py-2 text-sm font-semibold text-ink-950 hover:bg-gold-400"
-          >
-            Present to student
-          </button>
+    <Page back={`/students/${studentId}/lessons`} eyebrow={student?.name} width="wide">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[28px] leading-tight font-bold tracking-tight text-ink">Lesson {plan.number}</h1>
+          <TitleField
+            key={plan.title}
+            value={plan.title}
+            onCommit={(title) => title !== plan.title && planMutations.update.mutate({ id: plan.id, patch: { title } })}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Link to={`${base}/coach`} className="contents">
+            <Button variant="secondary" icon={<Eye size={18} />} disabled={puzzleCount === 0}>
+              Coach view
+            </Button>
+          </Link>
+          <Link to={`${base}/present`} className="contents">
+            <Button variant="primary" icon={<Knight size={18} />} disabled={puzzleCount === 0}>
+              Present
+            </Button>
+          </Link>
         </div>
       </div>
 
-      {!!totalPuzzles && (
-        <div className="mb-6 flex items-center gap-3">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-800">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-gold-600 to-gold-400 transition-all duration-300"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-          <span className="shrink-0 text-xs font-semibold text-ink-400">
-            {Math.min(reviewedCount, totalPuzzles)} / {totalPuzzles} positions reviewed
-          </span>
-        </div>
-      )}
-
-      <div className="mb-8 rounded-xl border border-ink-800 bg-ink-900/50 p-4">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-400">Agenda</h2>
-          <span className="text-[10.5px] text-ink-500">tap to check off</span>
-        </div>
-        <AgendaEditor items={plan.agenda} onChange={saveAgenda} storageKey={plan.id} />
-      </div>
+      <Agenda
+        planId={plan.id}
+        items={plan.agenda}
+        onChange={(agenda) => planMutations.update.mutate({ id: plan.id, patch: { agenda } })}
+      />
 
       <div className="space-y-4">
-        {sections?.map((section) => (
-          <SectionBlock
-            key={section.id}
-            section={section}
-            studentId={studentId!}
-            lessonPlanId={plan.id}
-            onOpenPuzzle={openPuzzle}
-            onDeleted={refreshSections}
-            onPuzzlesChanged={refreshPuzzleCount}
-            reviewedIds={reviewedIds}
-          />
+        {sections.map((section) => (
+          <Card key={section.id} className="overflow-hidden">
+            <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+              <h2 className="flex-1 text-[13px] font-bold tracking-wider text-accent-strong uppercase">
+                {section.title || 'Untitled section'}
+              </h2>
+              <span className="text-[12px] font-semibold text-ink-3 tabular-nums">
+                {puzzlesBySection[section.id]?.length ?? 0}
+              </span>
+              <IconButton label="Section options" className="-mr-2 h-9 w-9" onClick={() => setSectionMenu(section)}>
+                <More size={18} />
+              </IconButton>
+            </div>
+            <div>
+              {(puzzlesBySection[section.id] ?? []).map((puzzle, i) => (
+                <PuzzleRow
+                  key={puzzle.id}
+                  puzzle={puzzle}
+                  index={i}
+                  to={`${base}/puzzles/${puzzle.id}`}
+                  onDelete={() => setDeletingPuzzle(puzzle)}
+                />
+              ))}
+            </div>
+            <button
+              onClick={() => addPuzzle(section.id)}
+              className="flex h-12 w-full items-center gap-2 border-t border-line px-4 text-[15px] font-semibold text-accent transition active:bg-surface-2"
+            >
+              <Plus size={18} /> Add position
+            </button>
+          </Card>
         ))}
-        <button
-          onClick={handleAddSection}
-          className="w-full rounded-xl border-2 border-dashed border-ink-700 py-3 text-sm text-ink-400 hover:border-gold-600/60 hover:text-gold-400"
-        >
-          + Add section
+
+        {sections.length === 0 && (
+          <EmptyState
+            title="Start with a section"
+            body='Sections are the themes of the session — "Back rank", "Can I take it?", "Endgame technique".'
+          />
+        )}
+
+        <Button variant="soft" block size="lg" icon={<Plus size={18} />} onClick={() => setAddingSection(true)}>
+          Add section
+        </Button>
+      </div>
+
+      <InputModal
+        open={addingSection}
+        title="New section"
+        label="Theme"
+        placeholder="e.g. Detect the weakness"
+        submitLabel="Add"
+        onClose={() => setAddingSection(false)}
+        onSubmit={(title) => content.createSection.mutateAsync(title).then(() => undefined)}
+      />
+      <ActionSheet
+        open={Boolean(sectionMenu)}
+        onClose={() => setSectionMenu(null)}
+        title={sectionMenu?.title || 'Section'}
+        items={[
+          { label: 'Rename section', icon: <Pencil />, onSelect: () => setRenamingSection(sectionMenu) },
+          { label: 'Delete section', icon: <Trash />, danger: true, onSelect: () => setDeletingSection(sectionMenu) },
+        ]}
+      />
+      <InputModal
+        open={Boolean(renamingSection)}
+        title="Rename section"
+        label="Theme"
+        initialValue={renamingSection?.title ?? ''}
+        onClose={() => setRenamingSection(null)}
+        onSubmit={async (title) => {
+          if (renamingSection) await content.updateSection.mutateAsync({ id: renamingSection.id, patch: { title } })
+        }}
+      />
+      <ConfirmDialog
+        open={Boolean(deletingSection)}
+        title={`Delete "${deletingSection?.title || 'this section'}"?`}
+        body="All of its positions go with it."
+        confirmLabel="Delete"
+        onClose={() => setDeletingSection(null)}
+        onConfirm={async () => {
+          if (deletingSection) await content.deleteSection.mutateAsync(deletingSection.id)
+        }}
+      />
+      <ConfirmDialog
+        open={Boolean(deletingPuzzle)}
+        title={`Delete ${deletingPuzzle?.label || 'this position'}?`}
+        confirmLabel="Delete"
+        onClose={() => setDeletingPuzzle(null)}
+        onConfirm={async () => {
+          if (deletingPuzzle) await content.deletePuzzle.mutateAsync(deletingPuzzle.id)
+        }}
+      />
+    </Page>
+  )
+}
+
+// Keyed on the saved value by its parent, so a fresh server value resets the draft.
+function TitleField({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+  const [draft, setDraft] = useState(value)
+  return (
+    <input
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => onCommit(draft.trim())}
+      placeholder="Add a title or theme…"
+      className="mt-0.5 w-full max-w-md bg-transparent text-[17px] text-ink-2 outline-none placeholder:text-ink-3"
+    />
+  )
+}
+
+function PuzzleRow({ puzzle, index, to, onDelete }: { puzzle: Puzzle; index: number; to: string; onDelete: () => void }) {
+  const excerpt = puzzle.summary.replace(/\s+/g, ' ').trim()
+  return (
+    <div className={clsx('flex items-center', index > 0 && 'border-t border-line')}>
+      <Link to={to} className="flex min-h-18 min-w-0 flex-1 items-center gap-3.5 px-4 py-2.5 transition active:bg-surface-2">
+        <div className="w-14 shrink-0">
+          <Board
+            fen={normalizeFen(puzzle.starting_fen, puzzle.side_to_move)}
+            arrows={puzzle.arrows}
+            highlights={puzzle.highlights}
+            coordinates={false}
+            className="rounded-sm shadow-none"
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[16px] font-semibold text-ink">
+            <span className="text-ink-3 tabular-nums">#{index + 1}</span> {puzzle.label}
+            {puzzle.solution.length > 0 && (
+              <span className="ml-2 font-mono text-[13px] font-medium text-ink-3">
+                [{puzzle.solution.map((m) => m.san).join(', ')}]
+              </span>
+            )}
+          </p>
+          {excerpt && <p className="truncate text-[13.5px] text-ink-2">{excerpt}</p>}
+        </div>
+        <ChevronRight className="shrink-0 text-ink-3" />
+      </Link>
+      <IconButton label="Delete position" className="mr-1 h-9 w-9 text-ink-3" onClick={onDelete}>
+        <Trash size={17} />
+      </IconButton>
+    </div>
+  )
+}
+
+/**
+ * The agenda is the coach's in-session checklist. Items live on the plan;
+ * which ones are ticked is per device per session — a fresh lesson starts unticked.
+ */
+function Agenda({ planId, items, onChange }: { planId: string; items: string[]; onChange: (items: string[]) => void }) {
+  const { set: done, toggle } = useSessionSet(`agenda-${planId}`)
+  const [adding, setAdding] = useState(false)
+
+  return (
+    <Card className="mb-5 px-4 py-3">
+      <div className="flex items-center justify-between">
+        <SectionLabel className="mb-0">Agenda</SectionLabel>
+        <button onClick={() => setAdding(true)} className="text-[14px] font-semibold text-accent">
+          + Add item
         </button>
       </div>
-    </div>
+      {items.length > 0 && (
+        <ul className="mt-2 space-y-0.5">
+          {items.map((item, i) => {
+            const key = `${i}:${item}`
+            const checked = done.has(key)
+            return (
+              <li key={key} className="group flex items-center gap-3">
+                <button
+                  onClick={() => toggle(key)}
+                  aria-pressed={checked}
+                  className={clsx(
+                    'grid h-11 w-11 shrink-0 place-items-center rounded-xl transition',
+                    checked ? 'text-accent' : 'text-line-strong',
+                  )}
+                >
+                  <span
+                    className={clsx(
+                      'grid h-6 w-6 place-items-center rounded-lg border-2',
+                      checked ? 'border-accent bg-accent text-accent-ink' : 'border-line-strong',
+                    )}
+                  >
+                    {checked && <Check size={15} />}
+                  </span>
+                </button>
+                <span className={clsx('flex-1 text-[16px]', checked ? 'text-ink-3 line-through' : 'text-ink')}>{item}</span>
+                <IconButton
+                  label="Remove item"
+                  className="h-9 w-9 text-ink-3 opacity-60"
+                  onClick={() => onChange(items.filter((_, j) => j !== i))}
+                >
+                  <Trash size={16} />
+                </IconButton>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      <InputModal
+        open={adding}
+        title="Agenda item"
+        placeholder="e.g. Review last week's game"
+        submitLabel="Add"
+        onClose={() => setAdding(false)}
+        onSubmit={(text) => onChange([...items, text])}
+      />
+    </Card>
   )
 }

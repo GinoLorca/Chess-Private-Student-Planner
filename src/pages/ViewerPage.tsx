@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { getLessonPlan, listPuzzles, listSections } from '../lib/api'
+import { getLessonPlan, listPuzzles, listSections } from '../lib/data'
 import type { LessonPlan, Puzzle } from '../types/domain'
 import { DisplayBoard } from '../components/puzzle/DisplayBoard'
 import { useSessionSet } from '../hooks/useSessionSet'

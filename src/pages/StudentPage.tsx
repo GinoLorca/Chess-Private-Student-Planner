@@ -1,66 +1,46 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { getFolderCounts, listStudents } from '../lib/api'
-import type { FolderKind, Student } from '../types/domain'
+import { Link, useParams } from 'react-router-dom'
 import { FOLDER_KINDS } from '../types/domain'
-import { SubfolderRow, FolderIcon } from '../components/folders/SubfolderRow'
+import { useFolderCounts, useStudent } from '../lib/queries'
+import { Page, Card, LoadingPage } from '../components/ui/Page'
+import { ChevronRight, Folder } from '../components/ui/Icons'
 
 export function StudentPage() {
   const { studentId } = useParams<{ studentId: string }>()
-  const navigate = useNavigate()
-  const [student, setStudent] = useState<Student | null>(null)
-  const [counts, setCounts] = useState<Record<FolderKind, number> | null>(null)
+  const { data: student, isLoading } = useStudent(studentId)
+  const { data: counts } = useFolderCounts(studentId)
 
-  useEffect(() => {
-    if (!studentId) return
-    listStudents().then((all) => setStudent(all.find((s) => s.id === studentId) ?? null))
-    getFolderCounts(studentId).then(setCounts)
-  }, [studentId])
-
-  function openFolder(kind: FolderKind) {
-    if (!studentId) return
-    if (kind === 'lesson_plan') navigate(`/students/${studentId}/lessons`)
-    else navigate(`/students/${studentId}/notes/${kind}`)
-  }
+  if (isLoading && !student) return <LoadingPage />
+  if (!student) return <Page back="/">Student not found.</Page>
 
   return (
-    <div className="mx-auto min-h-svh max-w-2xl px-6 py-10">
-      <button onClick={() => navigate('/')} className="mb-6 text-xs text-ink-400 hover:text-ink-100">
-        ← All students
-      </button>
-
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', duration: 0.4, bounce: 0.2 }}
-        className="mb-6 flex items-center gap-3"
-      >
-        <span
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-950"
-          style={{ background: student?.color ?? '#e9c98e' }}
-        >
-          <FolderIcon />
-        </span>
-        <h1 className="font-marker text-3xl text-ink-100">{student?.name ?? '…'}</h1>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.08, type: 'spring', duration: 0.4, bounce: 0.2 }}
-        className="divide-y divide-ink-800 rounded-2xl border border-ink-800 bg-ink-900/60 p-2"
-      >
-        {FOLDER_KINDS.map(({ kind, label }) => (
-          <SubfolderRow
-            key={kind}
-            icon={<FolderIcon />}
-            label={label}
-            count={counts?.[kind] ?? 0}
-            onClick={() => openFolder(kind)}
-          />
-        ))}
-      </motion.div>
-    </div>
+    <Page back="/" eyebrow="Student folder" title={student.name}>
+      <Card className="overflow-hidden">
+        {FOLDER_KINDS.map((f, i) => {
+          const to = f.kind === 'lesson_plan' ? `/students/${student.id}/lessons` : `/students/${student.id}/notes/${f.kind}`
+          const count = counts?.[f.kind]
+          return (
+            <Link
+              key={f.kind}
+              to={to}
+              className={`flex h-16 items-center gap-3.5 px-4 transition active:bg-surface-2 ${i > 0 ? 'border-t border-line' : ''}`}
+            >
+              <span
+                className="grid h-10 w-10 place-items-center rounded-xl text-black/70"
+                style={{ background: student.color }}
+              >
+                <Folder size={18} />
+              </span>
+              <span className="flex-1 text-[17px] font-semibold text-ink">{f.label}</span>
+              {count !== undefined && (
+                <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[13px] font-semibold text-ink-2 tabular-nums">
+                  {count}
+                </span>
+              )}
+              <ChevronRight className="text-ink-3" />
+            </Link>
+          )
+        })}
+      </Card>
+    </Page>
   )
 }

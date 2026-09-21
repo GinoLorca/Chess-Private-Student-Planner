@@ -1,0 +1,301 @@
+import fixtures from './fixtures.json'
+import type { LessonBundle, PuzzlePatch } from '../api'
+import type { FolderKind, LessonPlan, LessonSection, Note, Puzzle, Student, UserSettings } from '../../types/domain'
+
+/**
+ * In-memory stand-in for the Supabase API, seeded with the real imported
+ * lessons. Lets the app run with VITE_DEMO=1 and no backend — for trying it
+ * out, for screenshots, and for the automated checks that run on every phase.
+ * Edits persist in localStorage so a demo session behaves like the real thing.
+ */
+interface Store {
+  students: Student[]
+  plans: LessonPlan[]
+  sections: LessonSection[]
+  puzzles: Puzzle[]
+  notes: Note[]
+  settings: UserSettings | null
+}
+
+const KEY = 'lesson-planner-demo-store-v1'
+const now = () => new Date().toISOString()
+const uid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 10)}`
+
+function seed(): Store {
+  const created = now()
+  return {
+    students: fixtures.students.map((s, i) => ({ ...s, user_id: 'demo', sort_order: i, created_at: created })),
+    plans: fixtures.plans.map((p) => ({ ...p, created_at: created, updated_at: created })),
+    sections: fixtures.sections,
+    puzzles: fixtures.puzzles.map((p) => ({ ...p, side_to_move: p.side_to_move as 'w' | 'b' })),
+    notes: [
+      {
+        id: 'note_1',
+        student_id: 'stu_jojo',
+        folder_kind: 'student_notes',
+        title: 'Openings to revisit',
+        body: 'Caro-Kann Advance: keep an eye on the light-squared bishop.',
+        amount: null,
+        created_at: created,
+        updated_at: created,
+      },
+      {
+        id: 'note_2',
+        student_id: 'stu_jojo',
+        folder_kind: 'invoices',
+        title: 'September block (4 lessons)',
+        body: 'Paid.',
+        amount: 240,
+        created_at: created,
+        updated_at: created,
+      },
+    ],
+    settings: null,
+  }
+}
+
+// Initialised on first use, not at import, so a production build (no demo
+// flag) can drop this whole module and its fixtures from the bundle.
+let store: Store = null as unknown as Store
+function db(): Store {
+  if (store) return store
+  try {
+    const raw = localStorage.getItem(KEY)
+    if (raw) return (store = JSON.parse(raw) as Store)
+  } catch {
+    // fall through to a fresh seed
+  }
+  return (store = seed())
+}
+
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(db()))
+  } catch {
+    // demo mode keeps working in memory
+  }
+}
+
+const delay = () => new Promise<void>((r) => setTimeout(r, 40))
+
+// students --------------------------------------------------------------------
+
+export async function listStudents(): Promise<Student[]> {
+  await delay()
+  return [...db().students].sort((a, b) => a.sort_order - b.sort_order)
+}
+
+export async function createStudent(name: string, color: string): Promise<Student> {
+  const student: Student = {
+    id: uid('stu'),
+    user_id: 'demo',
+    name,
+    color,
+    sort_order: db().students.length,
+    created_at: now(),
+  }
+  db().students.push(student)
+  save()
+  return student
+}
+
+export async function updateStudent(id: string, patch: Partial<Pick<Student, 'name' | 'color' | 'sort_order'>>) {
+  db().students = db().students.map((s) => (s.id === id ? { ...s, ...patch } : s))
+  save()
+}
+
+export async function deleteStudent(id: string) {
+  const planIds = new Set(db().plans.filter((p) => p.student_id === id).map((p) => p.id))
+  const sectionIds = new Set(db().sections.filter((s) => planIds.has(s.lesson_plan_id)).map((s) => s.id))
+  db().students = db().students.filter((s) => s.id !== id)
+  db().plans = db().plans.filter((p) => !planIds.has(p.id))
+  db().sections = db().sections.filter((s) => !sectionIds.has(s.id))
+  db().puzzles = db().puzzles.filter((p) => !sectionIds.has(p.section_id))
+  db().notes = db().notes.filter((n) => n.student_id !== id)
+  save()
+}
+
+export async function getFolderCounts(studentId: string): Promise<Record<FolderKind, number>> {
+  await delay()
+  const count = (kind: Note['folder_kind']) =>
+    db().notes.filter((n) => n.student_id === studentId && n.folder_kind === kind).length
+  return {
+    lesson_plan: db().plans.filter((p) => p.student_id === studentId).length,
+    misc: count('misc'),
+    game_review: count('game_review'),
+    invoices: count('invoices'),
+    student_notes: count('student_notes'),
+  }
+}
+
+// lesson plans ------------------------------------------------------------------
+
+export async function listLessonPlans(studentId: string): Promise<LessonPlan[]> {
+  await delay()
+  return db().plans.filter((p) => p.student_id === studentId).sort((a, b) => b.number - a.number)
+}
+
+export async function getLessonPlan(id: string): Promise<LessonPlan> {
+  const plan = db().plans.find((p) => p.id === id)
+  if (!plan) throw new Error('Lesson plan not found')
+  return plan
+}
+
+export async function createLessonPlan(studentId: string, title: string): Promise<LessonPlan> {
+  const numbers = db().plans.filter((p) => p.student_id === studentId).map((p) => p.number)
+  const plan: LessonPlan = {
+    id: uid('lp'),
+    student_id: studentId,
+    number: numbers.length ? Math.max(...numbers) + 1 : 1,
+    title,
+    agenda: [],
+    created_at: now(),
+    updated_at: now(),
+  }
+  db().plans.push(plan)
+  save()
+  return plan
+}
+
+export async function updateLessonPlan(id: string, patch: Partial<Pick<LessonPlan, 'title' | 'agenda'>>) {
+  db().plans = db().plans.map((p) => (p.id === id ? { ...p, ...patch, updated_at: now() } : p))
+  save()
+}
+
+export async function deleteLessonPlan(id: string) {
+  const sectionIds = new Set(db().sections.filter((s) => s.lesson_plan_id === id).map((s) => s.id))
+  db().plans = db().plans.filter((p) => p.id !== id)
+  db().sections = db().sections.filter((s) => !sectionIds.has(s.id))
+  db().puzzles = db().puzzles.filter((p) => !sectionIds.has(p.section_id))
+  save()
+}
+
+// sections ----------------------------------------------------------------------
+
+export async function listSections(lessonPlanId: string): Promise<LessonSection[]> {
+  return db().sections.filter((s) => s.lesson_plan_id === lessonPlanId).sort((a, b) => a.sort_order - b.sort_order)
+}
+
+export async function createSection(lessonPlanId: string, title: string): Promise<LessonSection> {
+  const existing = await listSections(lessonPlanId)
+  const section: LessonSection = { id: uid('sec'), lesson_plan_id: lessonPlanId, title, sort_order: existing.length }
+  db().sections.push(section)
+  save()
+  return section
+}
+
+export async function updateSection(id: string, patch: Partial<Pick<LessonSection, 'title' | 'sort_order'>>) {
+  db().sections = db().sections.map((s) => (s.id === id ? { ...s, ...patch } : s))
+  save()
+}
+
+export async function deleteSection(id: string) {
+  db().sections = db().sections.filter((s) => s.id !== id)
+  db().puzzles = db().puzzles.filter((p) => p.section_id !== id)
+  save()
+}
+
+// puzzles -----------------------------------------------------------------------
+
+export async function listAllPuzzleIds(lessonPlanId: string): Promise<string[]> {
+  const sectionIds = new Set((await listSections(lessonPlanId)).map((s) => s.id))
+  return db().puzzles.filter((p) => sectionIds.has(p.section_id)).map((p) => p.id)
+}
+
+export async function getLessonBundle(lessonPlanId: string): Promise<LessonBundle> {
+  await delay()
+  const plan = await getLessonPlan(lessonPlanId)
+  const sections = await listSections(lessonPlanId)
+  const puzzlesBySection: Record<string, Puzzle[]> = {}
+  for (const s of sections) puzzlesBySection[s.id] = await listPuzzles(s.id)
+  return { plan, sections, puzzlesBySection }
+}
+
+export async function listPuzzles(sectionId: string): Promise<Puzzle[]> {
+  return db().puzzles.filter((p) => p.section_id === sectionId).sort((a, b) => a.sort_order - b.sort_order)
+}
+
+export async function getPuzzle(id: string): Promise<Puzzle> {
+  await delay()
+  const puzzle = db().puzzles.find((p) => p.id === id)
+  if (!puzzle) throw new Error('Puzzle not found')
+  return puzzle
+}
+
+export async function createPuzzle(sectionId: string): Promise<Puzzle> {
+  const existing = await listPuzzles(sectionId)
+  const puzzle: Puzzle = {
+    id: uid('pz'),
+    section_id: sectionId,
+    sort_order: existing.length,
+    label: `#${existing.length + 1}`,
+    starting_fen: 'start',
+    side_to_move: 'w',
+    arrows: [],
+    highlights: [],
+    quiz_prompt: '',
+    summary: '',
+    solution: [],
+    reference_url: null,
+    reference_label: null,
+  }
+  db().puzzles.push(puzzle)
+  save()
+  return puzzle
+}
+
+export async function updatePuzzle(id: string, patch: PuzzlePatch) {
+  db().puzzles = db().puzzles.map((p) => (p.id === id ? { ...p, ...patch } : p))
+  save()
+}
+
+export async function deletePuzzle(id: string) {
+  db().puzzles = db().puzzles.filter((p) => p.id !== id)
+  save()
+}
+
+// notes -------------------------------------------------------------------------
+
+export async function listNotes(studentId: string, folderKind: Note['folder_kind']): Promise<Note[]> {
+  await delay()
+  return db().notes
+    .filter((n) => n.student_id === studentId && n.folder_kind === folderKind)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+export async function createNote(studentId: string, folderKind: Note['folder_kind']): Promise<Note> {
+  const note: Note = {
+    id: uid('note'),
+    student_id: studentId,
+    folder_kind: folderKind,
+    title: 'Untitled',
+    body: '',
+    amount: null,
+    created_at: now(),
+    updated_at: now(),
+  }
+  db().notes.push(note)
+  save()
+  return note
+}
+
+export async function updateNote(id: string, patch: Partial<Pick<Note, 'title' | 'body' | 'amount'>>) {
+  db().notes = db().notes.map((n) => (n.id === id ? { ...n, ...patch, updated_at: now() } : n))
+  save()
+}
+
+export async function deleteNote(id: string) {
+  db().notes = db().notes.filter((n) => n.id !== id)
+  save()
+}
+
+// settings ----------------------------------------------------------------------
+
+export async function getUserSettings(): Promise<UserSettings | null> {
+  return db().settings
+}
+
+export async function updateUserSettings(patch: Partial<Pick<UserSettings, 'piece_set'>>) {
+  db().settings = { user_id: 'demo', piece_set: 'classic', ...db().settings, ...patch, updated_at: now() }
+  save()
+}

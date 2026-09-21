@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getPuzzle, updatePuzzle } from '../lib/api'
+import { getPuzzle, updatePuzzle } from '../lib/data'
 import type { BoardArrow, BoardHighlight, Puzzle, SolutionMove } from '../types/domain'
 import { sideToMoveFromFen } from '../lib/chessboardUtils'
 import { PositionSetupBoard } from '../components/puzzle/PositionSetupBoard'

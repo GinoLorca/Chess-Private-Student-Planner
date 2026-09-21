@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AnimatePresence, motion, type PanInfo } from 'framer-motion'
-import { getPuzzle } from '../lib/api'
+import { getPuzzle } from '../lib/data'
 import type { Puzzle } from '../types/domain'
 import { DisplayBoard } from '../components/puzzle/DisplayBoard'
 

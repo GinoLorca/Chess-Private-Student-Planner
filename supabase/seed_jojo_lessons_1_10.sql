@@ -4,8 +4,9 @@
 --
 -- HOW TO RUN:
 --   1. Open your Supabase project's SQL Editor.
---   2. Replace 'YOUR_EMAIL_HERE' below with the email you log into the
---      planner with.
+--   2. If your project has more than one login account, replace
+--      'YOUR_EMAIL_HERE' below with the email you log in with. With a
+--      single account nothing needs editing.
 --   3. Confirm the student name match below (v_student_name) matches the
 --      "Joseph "Jojo" Liu" student already in your dashboard exactly —
 --      this script looks the student UP, it does not create one.
@@ -51,7 +52,13 @@ DECLARE
   v_lp_id uuid;
   v_sec_id uuid;
 BEGIN
-  SELECT id INTO v_user_id FROM auth.users WHERE email = 'YOUR_EMAIL_HERE';
+  -- Single-coach planner: with exactly one login account, use it directly.
+  -- With more than one account, put the right email in place of YOUR_EMAIL_HERE.
+  IF (SELECT count(*) FROM auth.users) = 1 THEN
+    SELECT id INTO v_user_id FROM auth.users;
+  ELSE
+    SELECT id INTO v_user_id FROM auth.users WHERE email = 'YOUR_EMAIL_HERE';
+  END IF;
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'No auth user found for that email — update the email at the top of this script.';
   END IF;

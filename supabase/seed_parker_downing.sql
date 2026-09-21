@@ -3,8 +3,9 @@
 --
 -- HOW TO RUN:
 --   1. Open your Supabase project's SQL Editor.
---   2. Replace 'YOUR_EMAIL_HERE' below with the email you log into the
---      planner with (the SQL Editor runs as an admin role, not as you, so
+--   2. If your project has more than one login account, replace
+--      'YOUR_EMAIL_HERE' below with the email you log in with. With a
+--      single account nothing needs editing.
 --      this is how the script finds your account to own the new rows).
 --   3. Run the whole script once. It is not safe to re-run — running it
 --      twice will create a second "Parker Downing" folder.
@@ -26,7 +27,13 @@ DECLARE
   v_sec_id uuid;
   v_next_order int;
 BEGIN
-  SELECT id INTO v_user_id FROM auth.users WHERE email = 'YOUR_EMAIL_HERE';
+  -- Single-coach planner: with exactly one login account, use it directly.
+  -- With more than one account, put the right email in place of YOUR_EMAIL_HERE.
+  IF (SELECT count(*) FROM auth.users) = 1 THEN
+    SELECT id INTO v_user_id FROM auth.users;
+  ELSE
+    SELECT id INTO v_user_id FROM auth.users WHERE email = 'YOUR_EMAIL_HERE';
+  END IF;
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'No auth user found for that email — update the email at the top of this script.';
   END IF;

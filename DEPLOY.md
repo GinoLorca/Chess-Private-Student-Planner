@@ -45,16 +45,15 @@ signed in, with Jojo's and Parker's lessons in it.
 
 ## Part C — Import Jojo's and Parker's lessons (≈5 min)
 
-The lesson files look your account up by email, and Jojo's file looks the student up by name,
-so:
+Jojo's file looks the student up by name, so:
 
 1. In the app, add a student named exactly: `Joseph "Jojo" Liu` (straight double quotes).
 2. Back in Supabase → **SQL Editor** → **New query**. Paste the contents of
-   `supabase/seed_jojo_lessons_1_10.sql`. Near the top, replace `YOUR_EMAIL_HERE` with your
-   login email (keep the quotes around it). **Run** — once only; running twice duplicates the
-   lessons.
-3. New query again, paste `supabase/seed_parker_downing.sql`, replace `YOUR_EMAIL_HERE` the
-   same way, **Run** once. This creates Parker and his two lessons.
+   `supabase/seed_jojo_lessons_1_10.sql` (GitHub → **Raw** → select all → copy) and **Run** —
+   once only; running twice duplicates the lessons. Nothing needs editing: with one login
+   account the script uses it automatically.
+3. New query again, paste `supabase/seed_parker_downing.sql`, **Run** once. This creates
+   Parker and his two lessons.
 4. Reload the app. Jojo has Lessons 1–10, Parker has 1–2. A few positions show an
    *answer doesn't replay* flag — open each, re-record the answer on the board, done.
 

@@ -17,7 +17,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Board } from '../components/board/Board'
 import { StatusStamp } from '../components/lesson/Folder'
 import { FOLDER_COLORS } from '../lib/colors'
-import { describeTrigger, loadToggle, saveToggle, type Trigger } from '../lib/clicker'
+import { describeTrigger, keyLabel, loadToggle, saveToggle, type Trigger } from '../lib/clicker'
 import { Check, Moon, Sun, Trash, Upload } from '../components/ui/Icons'
 
 const APPEARANCES: { id: Appearance; label: string }[] = [
@@ -160,7 +160,7 @@ export function SettingsPage() {
 
       <SectionLabel tone="page">Clicker</SectionLabel>
       <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">
-        A Bluetooth presentation clicker walks Coach view, Present, Learn and the position page. A long press on either
+        A Bluetooth presentation clicker walks Coach view, Present, Learn and the position page. Holding the forward
         button hides and shows the answer; a clicker with a spare button that sends a key can be taught it too.
       </p>
       <ClickerCard />
@@ -513,7 +513,7 @@ function ClickerCard() {
   const rows: [string, string][] = [
     ['Next', 'Page Down · → · ↓ · Space'],
     ['Back', 'Page Up · ← · ↑'],
-    ['Hide / show the answer', `A long press on either button (most clickers send F5 or Shift+F5 for it) · B · period · H${custom ? ` · ${describeTrigger(custom)}` : ''}`],
+    ['Hide / show the answer', `Hold the forward button · F5 or Shift+F5 (what many clickers send for a long press) · B · period · H${custom ? ` · ${describeTrigger(custom)}` : ''}`],
     ['Leave the view', 'Escape'],
   ]
   return (
@@ -557,6 +557,55 @@ function ClickerCard() {
         Optional. Clickers send ordinary key presses, so any spare button that sends one can be learnt. A pointer button
         that only moves a cursor sends nothing to learn; the long press does the job then. The choice is kept on this device.
       </p>
+      <KeyMonitor />
     </Card>
+  )
+}
+
+/** What the clicker really sends: hold each button under it and read the events off. */
+function KeyMonitor() {
+  const [on, setOn] = useState(false)
+  const [events, setEvents] = useState<string[]>([])
+  useEffect(() => {
+    if (!on) return
+    let last = performance.now()
+    const log = (e: KeyboardEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const now = performance.now()
+      const mods = [e.shiftKey && 'Shift', e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.metaKey && 'Cmd'].filter(Boolean).join('+')
+      const name = `${mods ? `${mods}+` : ''}${keyLabel(e.key, e.code)}${e.code && e.code !== e.key ? ` (${e.code})` : ''}`
+      const line = `${e.type === 'keydown' ? '↓' : '↑'} ${name}${e.repeat ? ' · repeat' : ''}   +${Math.round(now - last)} ms`
+      last = now
+      setEvents((list) => [...list.slice(-13), line])
+    }
+    window.addEventListener('keydown', log, true)
+    window.addEventListener('keyup', log, true)
+    return () => {
+      window.removeEventListener('keydown', log, true)
+      window.removeEventListener('keyup', log, true)
+    }
+  }, [on])
+  return (
+    <div className="mt-4 border-t border-line pt-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant={on ? 'primary' : 'secondary'}
+          onClick={() => {
+            setEvents([])
+            setOn((o) => !o)
+          }}
+        >
+          {on ? 'Stop watching' : 'Watch what the clicker sends'}
+        </Button>
+        {on && <span className="text-[13px] text-ink-3">Press, then hold, each button. Keys do nothing else while watching.</span>}
+      </div>
+      {on && (
+        <pre className="mt-2 max-h-56 overflow-auto rounded-lg bg-surface-2 p-2.5 font-mono text-[12px] leading-5 whitespace-pre-wrap text-ink">
+          {events.length ? events.join('\n') : 'Waiting for a press…'}
+        </pre>
+      )}
+    </div>
   )
 }

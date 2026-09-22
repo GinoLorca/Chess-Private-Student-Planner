@@ -7,18 +7,23 @@ import { isTextTarget } from '../lib/clicker'
  * the arrow keys or space instead. One button walks forward, one back,
  * and the clicker's "blank" or escape key leaves the view.
  *
- * With `hold`, both buttons do double duty: a short press steps (on
- * release), holding either for `holdMs` fires `hold` instead, which the
- * pages use to hide and show the answer. Key repeat while holding is
- * ignored, so a long press is one action. (Many clickers don't hold the
- * key on a long press but send F5 / Shift+F5 instead; useHideToggle
- * catches those.)
+ * With `hold`, the forward button does double duty: a short press steps
+ * (on release), and holding it for `holdMs` fires `hold` instead, which
+ * the pages use to hide and show the answer. Clickers report a held button
+ * two ways, and both count as one hold:
+ *  - the key stays down and the OS repeats it (`e.repeat`), or
+ *  - the clicker fires quick separate press / release pairs; a release
+ *    followed by the same key again within `GAP_MS` is the same hold.
+ * (Some clickers send F5 / Shift+F5 for a long press instead of holding
+ * anything; useHideToggle catches those.)
  */
 export const CLICKER_NEXT = ['ArrowRight', 'ArrowDown', 'PageDown', ' ']
 export const CLICKER_PREV = ['ArrowLeft', 'ArrowUp', 'PageUp']
 
 /** How long the forward button is held before it counts as a hold. */
 export const HOLD_MS = 550
+/** A release followed by the same key within this is one continuous hold. */
+export const GAP_MS = 150
 
 export function useClicker({
   next,
@@ -34,48 +39,64 @@ export function useClicker({
   holdMs?: number
 }) {
   useEffect(() => {
-    let timer: number | null = null
-    const clear = () => {
-      if (timer !== null) window.clearTimeout(timer)
-      timer = null
+    // The forward button's press in progress, when `hold` is on.
+    let press: { key: string; holdFired: boolean; holdTimer: number | null; releaseTimer: number | null } | null = null
+    const stop = (id: number | null) => {
+      if (id !== null) window.clearTimeout(id)
     }
-    let pending: (() => void) | null = null
+    const finish = () => {
+      if (!press) return
+      stop(press.holdTimer)
+      stop(press.releaseTimer)
+      const fired = press.holdFired
+      press = null
+      if (!fired) next()
+    }
     const onDown = (e: KeyboardEvent) => {
       // Typing in a field must never turn the page.
       if (isTextTarget(e.target)) return
-      const action = CLICKER_NEXT.includes(e.key) ? next : CLICKER_PREV.includes(e.key) ? prev : null
-      if (action) {
+      if (CLICKER_NEXT.includes(e.key)) {
         e.preventDefault()
         if (!hold) {
-          if (!e.repeat) action()
+          if (!e.repeat) next()
           return
         }
-        if (e.repeat) return
-        clear()
-        pending = action
-        timer = window.setTimeout(() => {
-          timer = null
-          pending = null
+        if (press && press.key === e.key) {
+          // Still held: an OS repeat, or the next press of a quick burst.
+          stop(press.releaseTimer)
+          press.releaseTimer = null
+          return
+        }
+        if (press) finish()
+        const started = { key: e.key, holdFired: false, holdTimer: null as number | null, releaseTimer: null as number | null }
+        press = started
+        started.holdTimer = window.setTimeout(() => {
+          if (press !== started) return
+          started.holdTimer = null
+          started.holdFired = true
           hold()
         }, holdMs)
+      } else if (CLICKER_PREV.includes(e.key)) {
+        e.preventDefault()
+        if (!e.repeat) prev()
       } else if (e.key === 'Escape' && exit) {
         exit()
       }
     }
     const onUp = (e: KeyboardEvent) => {
-      if (!hold || !(CLICKER_NEXT.includes(e.key) || CLICKER_PREV.includes(e.key))) return
-      // Released before the hold fired: an ordinary press.
-      if (timer !== null && pending) {
-        const action = pending
-        clear()
-        pending = null
-        action()
-      }
+      if (!press || press.key !== e.key) return
+      // Wait a beat: a burst clicker sends the same key again straight away.
+      stop(press.releaseTimer)
+      press.releaseTimer = window.setTimeout(finish, GAP_MS)
     }
     window.addEventListener('keydown', onDown)
     window.addEventListener('keyup', onUp)
     return () => {
-      clear()
+      if (press) {
+        stop(press.holdTimer)
+        stop(press.releaseTimer)
+        press = null
+      }
       window.removeEventListener('keydown', onDown)
       window.removeEventListener('keyup', onUp)
     }

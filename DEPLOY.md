@@ -158,25 +158,37 @@ A GET on the URL says whether the key is configured yet.
 positions done / total and its link), `create_lesson(student_id, positions, title?)` (makes
 Lesson N and returns its link and the annotate link), `add_positions(lesson_id, positions)`.
 
-**A position** is `{ fen, source_url?, label?, question?, note?, answer? }`. Only `fen` is
-required; the placement alone is fine. `answer` is the line as moves ("Rf8 Bxh4 b4", move
-numbers optional), checked against the position, so an impossible line is rejected instead of
-saved. For positions taken from a course (Chessable, a Lichess study, a book): `fen` is the
-starting FEN, `answer` the move line, `source_url` the course link, and `note` carries the
-course's own comment on the move, so the author's explanation arrives with the position instead
-of being retyped. Whatever the agent leaves blank you finish in the workbench: the lesson shows
-**Annotate · n** until every position is saved.
+**A position** is `{ fen, source_url?, label?, question?, note?, answer?, move_notes?, arrows?,
+highlights? }`. Only `fen` is required; the placement alone is fine. `answer` is the line as
+moves ("Rf8 Bxh4 b4", move numbers optional), checked against the position, so an impossible
+line is rejected instead of saved. `move_notes` is one short comment per move of that line,
+shown under the move as you step through it in Coach view. `arrows` are
+`{ from: "d1", to: "d8", color? }` and `highlights` are `{ square: "g8", color? }`, drawn on
+the starting position and shown once the answer is revealed; colours are the app's four pens,
+`green` (default), `red`, `blue`, `yellow`. For positions taken from a course (Chessable, a
+Lichess study, a book): `fen` is the starting FEN, `answer` the move line, `source_url` the
+course link, and `note` carries the course's own comment on the move, so the author's
+explanation arrives with the position instead of being retyped. Puzzles with no text of their
+own (Lichess, chess.com) get a note the agent writes itself. With everything filled, a lesson
+is ready to teach from Coach view or Present with no preparation. Whatever the agent leaves
+blank you finish in the workbench: the lesson shows **Annotate · n** until every position is
+saved.
 
 **If the agent drives the app in a browser instead**, it can use the same New lesson sheet
 you do. Each row takes a FEN, and moves typed after the FEN on the same line ("… w KQ - 0 8
 8. O-O dxc4 9. Bxc4") become the answer line automatically.
 
 A brief for the agent: *"Use the lesson planner connector. Call list_students to find the
-student, then create_lesson with the FENs I give you. Fill every position completely: the
-answer line, a question in plain coaching words, a note, a short label, and the source link.
-When a position comes from a course, read the course's comment or annotation on that move and
-put it in the note, quoted or closely paraphrased, then add two to four sentences on why the
-answer works and what the alternatives lose. Reply with the lesson link."* With every field
+student, then create_lesson with the FENs I give you. I may teach the lesson with no
+preparation, straight from Coach view, so every position must teach itself. Fill each one
+completely: the answer line with a short move_note on every move; a question in plain coaching
+words; a note; a short label; the source link; one to four arrows (the key move, the threat,
+the plan; green for the idea, red for the threat, blue for a plan, yellow for a key square);
+and one to three highlighted squares (the weak square, the hanging piece, the target). When a
+position comes from a course, read the course's comment or annotation on that move and put it
+in the note, quoted or closely paraphrased, then add two to four sentences on why the answer
+works and what the alternatives lose. When the source has no text of its own, such as a Lichess
+or chess.com puzzle, write the note yourself. Reply with the lesson link."* With every field
 filled, the workbench is a review pass: open each position, check it, tap Save, done.
 
 Opening `https://<your-app>.vercel.app/api/mcp` in a browser shows the same information.

@@ -9,10 +9,12 @@ import { Chess } from 'chess.js'
  *
  * @typedef {{ id: string, name: string }} StudentRow
  * @typedef {{ id: string, number: number, title: string, status: string, total: number, done: number }} LessonRow
- * @typedef {{ san: string, fen: string }} Move
+ * @typedef {{ san: string, fen: string, comment?: string }} Move
+ * @typedef {{ startSquare: string, endSquare: string, color: string }} Arrow
+ * @typedef {{ square: string, color: string }} Highlight
  * @typedef {{
  *   sort_order: number, label: string, starting_fen: string, side_to_move: 'w' | 'b',
- *   arrows: never[], highlights: never[], quiz_prompt: string, summary: string, solution: Move[],
+ *   arrows: Arrow[], highlights: Highlight[], quiz_prompt: string, summary: string, solution: Move[],
  *   reference_url: string | null, reference_label: string | null,
  *   source: { kind: 'fen', url?: string }, themes: string[], done: boolean
  * }} PuzzleRow
@@ -23,9 +25,20 @@ import { Chess } from 'chess.js'
  *   targetSection(lessonId: string): Promise<{ studentId: string, number: number, sectionId: string, nextOrder: number }>,
  *   insertPuzzles(sectionId: string, rows: PuzzleRow[]): Promise<void>
  * }} Db
- * @typedef {{ fen: string, source_url?: string, label?: string, question?: string, note?: string, answer?: string }} PositionInput
+ * @typedef {{ from: string, to: string, color?: string }} ArrowInput
+ * @typedef {{ square: string, color?: string }} HighlightInput
+ * @typedef {{
+ *   fen: string, source_url?: string, label?: string, question?: string, note?: string, answer?: string,
+ *   move_notes?: string[], arrows?: ArrowInput[], highlights?: HighlightInput[]
+ * }} PositionInput
  * @typedef {{ db: Db, appOrigin: string }} ToolContext
  */
+
+/** The app's four pens (src/lib/pens.ts), by name, so the agent never sends a hex. */
+const PENS = { green: '#2ecc71', red: '#e5534b', blue: '#3b9cff', yellow: '#e8b339' }
+/** Square highlights are the pen at 40%, as when drawn by hand. */
+const HIGHLIGHT_ALPHA = '66'
+const PEN_NAMES = Object.keys(PENS)
 
 const POSITION_SCHEMA = {
   type: 'object',
@@ -45,13 +58,104 @@ const POSITION_SCHEMA = {
     note: {
       type: 'string',
       description:
-        "The coach's context for the position. When the position comes from a course (Chessable, a Lichess study, a book), start with that course's own comment or annotation on the move, quoted or closely paraphrased, then add why the answer works and what the alternatives lose, two to four sentences in the words used at the board. Always fill this in so the coach only has to review, not write.",
+        "The coach's context for the position. When the position comes from a course (Chessable, a Lichess study, a book), start with that course's own comment or annotation on the move, quoted or closely paraphrased, then add why the answer works and what the alternatives lose, two to four sentences in the words used at the board. When the source has no text of its own (a Lichess or chess.com puzzle), skip the quote and write the explanation yourself. Always fill this in so the coach only has to review, not write.",
     },
     answer: {
       type: 'string',
       description: 'The answer line as SAN moves separated by spaces, e.g. "Rf8 Bxh4 b4". Move numbers are ignored. Validated against the position.',
     },
+    move_notes: {
+      type: 'array',
+      items: { type: 'string' },
+      description:
+        'One short explanation per move of the answer, in the same order ("Threatens mate on h7", "Forced: the only square"). Shown under each move as the coach steps through the line. Use "" for a move with nothing to say.',
+    },
+    arrows: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['from', 'to'],
+        properties: {
+          from: { type: 'string', description: 'Square, e.g. "e4".' },
+          to: { type: 'string', description: 'Square, e.g. "h7".' },
+          color: { type: 'string', enum: PEN_NAMES, description: 'green (default) for the idea, red for the threat, blue for a plan or route, yellow for a key square or piece.' },
+        },
+      },
+      description:
+        'Arrows drawn on the starting position, shown when the answer is revealed: the key move, the threat it meets or creates, the plan. One to four arrows; the answer move itself is a good first arrow.',
+    },
+    highlights: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['square'],
+        properties: {
+          square: { type: 'string', description: 'Square, e.g. "f7".' },
+          color: { type: 'string', enum: PEN_NAMES, description: 'Same meaning as arrow colours.' },
+        },
+      },
+      description: 'Squares to mark on the starting position (the weak square, the hanging piece, the target). One to three.',
+    },
   },
+}
+
+const SQUARE = /^[a-h][1-8]$/
+
+/**
+ * @param {unknown} v
+ * @param {string} what
+ */
+function square(v, what) {
+  const s = String(v ?? '')
+    .trim()
+    .toLowerCase()
+  if (!SQUARE.test(s)) throw new ToolError(`${what}: "${v}" is not a square (a1–h8)`)
+  return s
+}
+
+/**
+ * @param {unknown} v
+ * @param {string} what
+ */
+function pen(v, what) {
+  if (v === undefined || v === null || v === '') return PENS.green
+  const name = String(v).trim().toLowerCase()
+  const hex = /** @type {Record<string, string>} */ (PENS)[name]
+  if (!hex) throw new ToolError(`${what}: colour "${v}" is not one of ${PEN_NAMES.join(', ')}`)
+  return hex
+}
+
+/**
+ * @param {unknown} list
+ * @param {string} what
+ * @returns {Arrow[]}
+ */
+export function parseArrows(list, what) {
+  if (list === undefined || list === null) return []
+  if (!Array.isArray(list)) throw new ToolError(`${what}: arrows must be a list`)
+  return list.map((a, i) => {
+    const o = /** @type {Record<string, unknown>} */ (a && typeof a === 'object' ? a : {})
+    const label = `${what}, arrow ${i + 1}`
+    const startSquare = square(o.from, label)
+    const endSquare = square(o.to, label)
+    if (startSquare === endSquare) throw new ToolError(`${label}: from and to are the same square`)
+    return { startSquare, endSquare, color: pen(o.color, label) }
+  })
+}
+
+/**
+ * @param {unknown} list
+ * @param {string} what
+ * @returns {Highlight[]}
+ */
+export function parseHighlights(list, what) {
+  if (list === undefined || list === null) return []
+  if (!Array.isArray(list)) throw new ToolError(`${what}: highlights must be a list`)
+  return list.map((h, i) => {
+    const o = /** @type {Record<string, unknown>} */ (h && typeof h === 'object' ? h : {})
+    const label = `${what}, highlight ${i + 1}`
+    return { square: square(o.square, label), color: pen(o.color, label) + HIGHLIGHT_ALPHA }
+  })
 }
 
 export const TOOLS = [
@@ -68,7 +172,7 @@ export const TOOLS = [
   {
     name: 'create_lesson',
     description:
-      'Create the next lesson for a student from a list of positions (FENs). Fill every position completely: fen, answer (the line), question, note, label and source_url. When a position was taken from a course, carry the course\'s comment on the move into the note, so the explanation travels with the position. The coach reviews each one in the annotation workbench and stamps it done, so complete positions make that a quick pass. Returns the lesson id and the link to open it in the app.',
+      'Create the next lesson for a student from a list of positions (FENs). Fill every position completely: fen, answer (the line), move_notes, question, note, label, source_url, arrows and highlights. The coach may open Coach view or Present with no preparation, so each position must teach itself: the answer stepped through with a note per move, arrows and marked squares on the board, and the explanation. When a position was taken from a course, carry the course\'s comment on the move into the note; when the source has none, write it yourself. Returns the lesson id and the link to open it in the app.',
     inputSchema: {
       type: 'object',
       required: ['student_id', 'positions'],
@@ -136,21 +240,31 @@ export function normalizeFen(raw) {
 
 /**
  * Replay SAN moves from a position; move numbers and result markers are ignored.
+ * `notes`, when given, is one comment per move in the same order.
  * @param {string} fen
  * @param {string} answer
+ * @param {unknown} [notes]
  * @returns {Move[]}
  */
-export function replayAnswer(fen, answer) {
+export function replayAnswer(fen, answer, notes) {
   const chess = new Chess(fen)
   const tokens = String(answer)
     .trim()
     .split(/\s+/)
     .map((t) => t.replace(/^\d+\.+/, ''))
     .filter((t) => t && !/^\d+\.*$/.test(t) && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t))
-  return tokens.map((san) => {
+  if (notes !== undefined && notes !== null && !Array.isArray(notes)) throw new ToolError('move_notes must be a list of strings, one per move')
+  const comments = Array.isArray(notes) ? notes.map((n) => (n == null ? '' : String(n).trim())) : []
+  if (comments.length > tokens.length) {
+    throw new ToolError(`move_notes has ${comments.length} entries but the answer "${answer}" has ${tokens.length} moves`)
+  }
+  return tokens.map((san, i) => {
     try {
       const move = chess.move(san)
-      return { san: move.san, fen: chess.fen() }
+      /** @type {Move} */
+      const row = { san: move.san, fen: chess.fen() }
+      if (comments[i]) row.comment = comments[i]
+      return row
     } catch {
       throw new ToolError(`Illegal move "${san}" in answer "${answer}" from ${fen}`)
     }
@@ -165,15 +279,16 @@ export function replayAnswer(fen, answer) {
 export function toRow(p, order) {
   if (!p || typeof p.fen !== 'string') throw new ToolError(`Position ${order + 1} needs a fen`)
   const fen = normalizeFen(p.fen)
-  const solution = p.answer && String(p.answer).trim() ? replayAnswer(fen, p.answer) : []
+  const solution = p.answer && String(p.answer).trim() ? replayAnswer(fen, p.answer, p.move_notes) : []
   const url = p.source_url ? String(p.source_url).trim() : ''
+  const what = `Position ${order + 1}`
   return {
     sort_order: order,
     label: (p.label && String(p.label).trim()) || solution[0]?.san || `#${order + 1}`,
     starting_fen: fen,
     side_to_move: /** @type {'w' | 'b'} */ (fen.split(' ')[1]),
-    arrows: [],
-    highlights: [],
+    arrows: parseArrows(p.arrows, what),
+    highlights: parseHighlights(p.highlights, what),
     quiz_prompt: p.question ? String(p.question).trim() : '',
     summary: p.note ? String(p.note).trim() : '',
     solution,
@@ -260,7 +375,7 @@ function positions(v) {
 // ---------------------------------------------------------------------------
 
 export const PROTOCOL_VERSION = '2025-03-26'
-export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.0.5' }
+export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.1.0' }
 
 /**
  * One JSON-RPC message in, one response out; notifications (no id) return null.

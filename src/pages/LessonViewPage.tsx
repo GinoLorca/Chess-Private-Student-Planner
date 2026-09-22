@@ -33,14 +33,19 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   const { data: lesson, isLoading } = useLesson(lessonPlanId)
   useWakeLock()
 
+  const startId = params.get('p')
+  // A shared link (solo) shows one position and nothing about whose lesson it
+  // is: no student name, no lesson number, no neighbours to swipe to.
+  const solo = params.get('solo') === '1'
+
   const items = useMemo(() => {
     if (!lesson) return []
-    return lesson.sections.flatMap((section) =>
+    const all = lesson.sections.flatMap((section) =>
       (lesson.puzzlesBySection[section.id] ?? []).map((puzzle) => ({ puzzle, sectionTitle: section.title })),
     )
-  }, [lesson])
+    return solo ? all.filter((it) => it.puzzle.id === startId) : all
+  }, [lesson, solo, startId])
 
-  const startId = params.get('p')
   const [index, setIndex] = useState(() => Math.max(0, items.findIndex((i) => i.puzzle.id === startId)))
   const [direction, setDirection] = useState(1)
   const { set: reviewed, toggle: toggleReviewed } = useSessionSet(`reviewed-${lessonPlanId}`)
@@ -64,6 +69,7 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   )
 
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
+  const exitTo = solo ? '/' : base
   // A sideways swipe anywhere on the screen turns the page, as in Photos.
   const swipe = useSwipeNav((dir) => go(index + dir))
 
@@ -82,18 +88,25 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
     <div className="flex min-h-svh touch-pan-y flex-col bg-bg" {...swipe}>
       <header className="pt-safe sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
         <div className="mx-auto flex h-12 max-w-7xl items-center gap-2 px-2">
-          <IconButton label="Exit" onClick={() => navigate(base)}>
+          <IconButton label="Exit" onClick={() => navigate(exitTo)}>
             <Close />
           </IconButton>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold text-ink">
               {mode === 'coach' ? "Coach's view" : 'Presenting'}
-              <span className="text-ink-3"> · {student?.name} · Lesson {lesson.plan.number}</span>
+              {!solo && (
+                <span className="text-ink-3">
+                  {' '}
+                  · {student?.name} · Lesson {lesson.plan.number}
+                </span>
+              )}
             </p>
           </div>
-          <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[13px] font-semibold text-ink-2 tabular-nums">
-            {index + 1} / {items.length}
-          </span>
+          {!solo && (
+            <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[13px] font-semibold text-ink-2 tabular-nums">
+              {index + 1} / {items.length}
+            </span>
+          )}
           {mode === 'coach' && (
             <Link to={`${base}/sheet`}>
               <IconButton label="Lesson sheet">
@@ -102,7 +115,7 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
             </Link>
           )}
         </div>
-        <div className="mx-auto flex max-w-7xl gap-1 px-3 pb-2">
+        <div className={clsx('mx-auto flex max-w-7xl gap-1 px-3 pb-2', solo && 'hidden')}>
           {items.map((it, i) => (
             <button
               key={it.puzzle.id}
@@ -135,13 +148,13 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
               mode={mode}
               color={student?.color ?? FOLDER_COLORS[0]}
               onSwipe={(dir) => go(index + dir)}
-              onExit={() => navigate(base)}
+              onExit={() => navigate(exitTo)}
             />
           </motion.div>
         </AnimatePresence>
       </main>
 
-      <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/90 backdrop-blur-md">
+      <nav className={clsx('pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/90 backdrop-blur-md', solo && 'hidden')}>
         <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2">
           <Button variant="secondary" icon={<ChevronLeft size={18} />} onClick={() => go(index - 1)} disabled={index === 0}>
             Previous

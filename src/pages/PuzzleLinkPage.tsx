@@ -5,8 +5,9 @@ import { LoadingPage, Page } from '../components/ui/Page'
 
 /**
  * The short link: /p/<positionId>. Looks the position up and opens it in
- * Present mode, so a link pasted into another planner keeps working even
- * if the position is later moved to a different lesson.
+ * Present mode on its own (solo): no student name, no lesson number, no
+ * neighbouring positions, so a class never learns whose lesson it came from.
+ * The link keeps working if the position is later moved to another lesson.
  */
 export function PuzzleLinkPage() {
   const { puzzleId = '' } = useParams()
@@ -19,7 +20,7 @@ export function PuzzleLinkPage() {
       .then((where) => {
         if (cancelled) return
         if (!where) setMissing(true)
-        else navigate(`/students/${where.studentId}/lessons/${where.lessonPlanId}/present?p=${puzzleId}`, { replace: true })
+        else navigate(`/students/${where.studentId}/lessons/${where.lessonPlanId}/present?p=${puzzleId}&solo=1`, { replace: true })
       })
       .catch(() => !cancelled && setMissing(true))
     return () => {

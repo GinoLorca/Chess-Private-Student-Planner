@@ -29,7 +29,9 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
 - **Lesson sheet** — the whole lesson in document form, printable to PDF.
 - **Position library and links** — every position across every student in one searchable
   page (Library, from the Students screen), each with *Copy link* and *Present*. A link opens the
-  position in Present mode and survives the position moving between lessons. *Copy link* is also
+  position in Present mode on its own: no student name, no lesson number, no other positions to
+  swipe to, so a class never learns whose lesson it came from. It survives the position moving
+  between lessons. *Copy link* is also
   on every index card, the position page, the workbench and the lesson's ⋯ menu (*Copy links to
   all positions*). Paste a link into the ICN Chess Club Planner's *Puzzle / exercise links* row
   with a label, and the class lesson opens it straight at the board.

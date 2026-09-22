@@ -202,7 +202,7 @@ export function IndexCard({
   const toMove = puzzle.side_to_move === 'w' ? 'White' : 'Black'
   return (
     <div
-      className="index-card relative rounded-xl border border-line bg-surface shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)] transition active:scale-[0.99]"
+      className="index-card relative min-w-0 rounded-xl border border-line bg-surface shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)] transition active:scale-[0.99]"
       style={{
         transform: `rotate(${index % 2 === 0 ? -0.4 : 0.5}deg)`,
         backgroundImage: 'repeating-linear-gradient(to bottom, transparent 0 27px, var(--paper-rule) 27px 28px)',

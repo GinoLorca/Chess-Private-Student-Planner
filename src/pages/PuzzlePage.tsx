@@ -56,6 +56,9 @@ export function PuzzlePage() {
       width="full"
       actions={
         <>
+          <IconButton label={hidden ? 'Show answer and explanation' : 'Hide answer and explanation'} onClick={toggleHidden}>
+            {hidden ? <EyeOff /> : <Eye />}
+          </IconButton>
           <CopyLinkButton puzzleId={puzzle.id} />
           <Link to={`${base}/coach?p=${puzzle.id}`}>
             <Button variant="ghost" size="sm" icon={<Play size={16} />}>
@@ -95,9 +98,9 @@ export function PuzzlePage() {
               <Button variant="secondary" size="md" icon={<ChevronLeft size={18} />} onClick={prev} disabled={atStart}>
                 Back
               </Button>
-              <p className="flex-1 text-center font-mono text-[15px] font-semibold text-on-bg">
+              <p className="min-w-0 flex-1 truncate text-center font-mono text-[15px] font-semibold whitespace-nowrap text-on-bg">
                 {atStart ? 'Start' : `${stepLabel(puzzle, shownStep)} ${current?.san ?? ''}`}
-                <span className="ml-2 font-sans text-[12px] font-medium text-on-bg-2 tabular-nums">
+                <span className="ml-2 font-sans text-[12px] font-medium whitespace-nowrap text-on-bg-2 tabular-nums">
                   {shownStep} / {last}
                 </span>
               </p>

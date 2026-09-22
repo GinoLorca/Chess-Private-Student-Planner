@@ -43,7 +43,8 @@ export function LessonPlanListPage() {
             <h1 className="font-display text-[28px] leading-none font-bold text-ink sm:text-[32px]">Lesson plans</h1>
             <span className="text-[13px] font-semibold text-ink-3 tabular-nums">{plans?.length ?? 0}</span>
           </div>
-          <div className="grid gap-4 lg:grid-cols-2">
+          {/* minmax(0, 1fr) columns: a long title must never widen the card past the folder. */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {plans?.map((plan) => (
               <LessonCard
                 key={plan.id}

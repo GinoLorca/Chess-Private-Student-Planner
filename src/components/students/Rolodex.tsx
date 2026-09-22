@@ -290,7 +290,7 @@ function Card({
               <p className="text-[11px] font-bold tracking-widest uppercase" style={{ color: ink.inkFaint }}>
                 Student
               </p>
-              <h2 className="mt-1 text-balance text-[26px] leading-tight font-bold sm:text-[30px]" style={{ color: ink.ink }}>
+              <h2 className="mt-1 line-clamp-2 text-balance text-[26px] leading-tight font-bold sm:text-[30px]" style={{ color: ink.ink }}>
                 {student.name}
               </h2>
             </div>
@@ -306,12 +306,12 @@ function Card({
               </button>
             </div>
           </div>
-          {/* The school badge, stamped big in the middle of the cover. */}
+          {/* The school badge, stamped in the clear band between the name and the foot of the cover. */}
           {student.logo && (
-            <div className="pointer-events-none absolute inset-0 grid place-items-center">
+            <div className="pointer-events-none absolute inset-x-0 top-[92px] bottom-[48px] grid place-items-center">
               <LogoBadge
                 logo={student.logo}
-                size={132}
+                size={104}
                 className="-rotate-3 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.5),inset_0_0_0_3px_rgba(0,0,0,0.08)]"
               />
             </div>

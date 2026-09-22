@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto'
-import { handleBody, TOOLS, SERVER_INFO } from './_lib/core.js'
+import { errorMessage, handleBody, TOOLS, SERVER_INFO } from './_lib/core.js'
 import { AuthError, openSupabaseDb } from './_lib/supabaseDb.js'
 
 /**
@@ -62,7 +62,7 @@ export async function POST(req) {
     return status === 202 ? new Response(null, { status }) : json(status, out)
   } catch (e) {
     if (e instanceof AuthError) return json(401, { error: `Sign-in failed: ${e.message}` })
-    return json(500, { error: e instanceof Error ? e.message : String(e) })
+    return json(500, { error: errorMessage(e) })
   }
 }
 

@@ -85,6 +85,30 @@ export const TOOLS = [
 export class ToolError extends Error {}
 
 /**
+ * A readable message for anything thrown. Supabase throws plain objects
+ * ({ message, details, hint, code }), which String() turns into
+ * "[object Object]"; this keeps what they say.
+ * @param {unknown} e
+ */
+export function errorMessage(e) {
+  if (e instanceof Error) return e.message
+  if (e && typeof e === 'object') {
+    const o = /** @type {Record<string, unknown>} */ (e)
+    if (typeof o.message === 'string') {
+      const extra = [o.details, o.hint].filter((x) => typeof x === 'string' && x).join(' · ')
+      const code = typeof o.code === 'string' ? ` [${o.code}]` : ''
+      return `${o.message}${extra ? ` (${extra})` : ''}${code}`
+    }
+    try {
+      return JSON.stringify(e)
+    } catch {
+      return String(e)
+    }
+  }
+  return String(e)
+}
+
+/**
  * Fill in the missing FEN fields and make sure chess.js accepts the result.
  * @param {string} raw
  */
@@ -97,7 +121,7 @@ export function normalizeFen(raw) {
   try {
     new Chess(fen)
   } catch (e) {
-    throw new ToolError(`Invalid FEN "${raw}": ${e instanceof Error ? e.message : String(e)}`)
+    throw new ToolError(`Invalid FEN "${raw}": ${errorMessage(e)}`)
   }
   return fen
 }
@@ -255,7 +279,7 @@ export async function handleRpc(msg, ctx) {
         return ok({ content: [{ type: 'text', text: JSON.stringify(result, null, 2) }], structuredContent: result })
       } catch (e) {
         // Tool failures are results the model can read, not protocol errors.
-        return ok({ content: [{ type: 'text', text: e instanceof Error ? e.message : String(e) }], isError: true })
+        return ok({ content: [{ type: 'text', text: errorMessage(e) }], isError: true })
       }
     }
     default:
@@ -276,7 +300,7 @@ export async function handleBody(body, ctx) {
     } catch (e) {
       return {
         status: e instanceof ToolError ? 400 : 500,
-        json: { ok: false, error: e instanceof Error ? e.message : String(e) },
+        json: { ok: false, error: errorMessage(e) },
       }
     }
   }

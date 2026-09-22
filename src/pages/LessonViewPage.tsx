@@ -8,6 +8,7 @@ import { lineSteps, stepLabel } from '../lib/solution'
 import { pieceList, type Orientation, type SideSetup } from '../lib/fen'
 import { useSessionSet } from '../hooks/useSessionSet'
 import { useWakeLock } from '../hooks/useWakeLock'
+import { useClicker } from '../hooks/useClicker'
 import { DrawableBoard } from '../components/board/DrawableBoard'
 import { effectiveQuizPrompt } from '../lib/prompts'
 import { Button, IconButton } from '../components/ui/Button'
@@ -131,6 +132,7 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
               mode={mode}
               color={student?.color ?? FOLDER_COLORS[0]}
               onSwipe={(dir) => go(index + dir)}
+              onExit={() => navigate(base)}
             />
           </motion.div>
         </AnimatePresence>
@@ -169,6 +171,7 @@ function PuzzleView({
   mode,
   color,
   onSwipe,
+  onExit,
 }: {
   puzzle: Puzzle
   sectionTitle: string
@@ -177,6 +180,7 @@ function PuzzleView({
   /** The student's folder colour: the section tab above the board takes it. */
   color: string
   onSwipe: (dir: 1 | -1) => void
+  onExit: () => void
 }) {
   const { lessonPlanId = '' } = useParams()
   const { update } = usePuzzleMutations(puzzle.id, lessonPlanId)
@@ -210,22 +214,30 @@ function PuzzleView({
   const next = useCallback(() => setStep((s) => Math.min(steps.length - 1, s + 1)), [steps.length])
   const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
 
+  // One clicker button walks the whole lesson: reveal, each answer move,
+  // then the next position. The other button walks it back.
+  const atEnd = step === steps.length - 1
+  const forward = useCallback(() => {
+    if (!revealed) setRevealed(true)
+    else if (!atEnd) next()
+    else onSwipe(1)
+  }, [revealed, atEnd, next, onSwipe])
+  const backward = useCallback(() => {
+    if (step > 0) prev()
+    else onSwipe(-1)
+  }, [step, prev, onSwipe])
+  useClicker({ next: forward, prev: backward, exit: onExit })
+
+  // Square brackets jump a whole position either way, whatever the step.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      if (e.key === 'ArrowRight' || e.key === ' ') {
-        e.preventDefault()
-        if (!revealed) setRevealed(true)
-        else next()
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault()
-        prev()
-      } else if (e.key === ']') onSwipe(1)
+      if (e.key === ']') onSwipe(1)
       else if (e.key === '[') onSwipe(-1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [next, prev, onSwipe, revealed])
+  }, [onSwipe])
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-start">

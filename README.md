@@ -22,6 +22,10 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   chains straight into the next Quick add.
 - **Coach view** — set-up piece list, quiz prompt, answer stepper with auto-drawn arrows, notes.
 - **Present** — the student's side: quiz first, answer on reveal.
+- **Clicker** — in Coach view and Present, a Bluetooth presentation clicker (Page Down / Page
+  Up, or the arrow keys and space) walks the whole lesson: reveal, each answer move, then the
+  next position; the back button reverses it; Escape returns to the folder. `]` and `[` jump a
+  whole position.
 - **Lesson sheet** — the whole lesson in document form, printable to PDF.
 - Installable PWA, works offline for lessons already opened, light and dark.
 

@@ -1,5 +1,5 @@
 import fixtures from './fixtures.json'
-import type { LessonBundle, LessonPlanPatch, PuzzlePatch, SettingsPatch } from '../api'
+import { sortLibrary, type LessonBundle, type LessonPlanPatch, type LibraryEntry, type PuzzleLocation, type PuzzlePatch, type SettingsPatch } from '../api'
 import { rankByUse } from '../rank'
 import type {
   CustomPieceSet,
@@ -275,6 +275,36 @@ export async function listAllPuzzleIds(lessonPlanId: string): Promise<string[]> 
   return db().puzzles.filter((p) => sectionIds.has(p.section_id)).map((p) => p.id)
 }
 
+export async function locatePuzzle(puzzleId: string): Promise<PuzzleLocation | null> {
+  const puzzle = db().puzzles.find((p) => p.id === puzzleId)
+  const section = puzzle && db().sections.find((s) => s.id === puzzle.section_id)
+  const plan = section && db().plans.find((p) => p.id === section.lesson_plan_id)
+  return plan ? { studentId: plan.student_id, lessonPlanId: plan.id } : null
+}
+
+export async function listLibrary(): Promise<LibraryEntry[]> {
+  await delay()
+  const entries: LibraryEntry[] = []
+  for (const puzzle of db().puzzles) {
+    const section = db().sections.find((s) => s.id === puzzle.section_id)
+    const plan = section && db().plans.find((p) => p.id === section.lesson_plan_id)
+    const student = plan && db().students.find((s) => s.id === plan.student_id)
+    if (!section || !plan || !student) continue
+    entries.push({
+      puzzle,
+      studentId: student.id,
+      studentName: student.name,
+      studentColor: student.color,
+      lessonPlanId: plan.id,
+      lessonNumber: plan.number,
+      lessonTitle: plan.title,
+      sectionTitle: section.title,
+      sectionOrder: section.sort_order,
+    })
+  }
+  return sortLibrary(entries)
+}
+
 export async function getLessonBundle(lessonPlanId: string): Promise<LessonBundle> {
   await delay()
   const plan = await getLessonPlan(lessonPlanId)
@@ -391,3 +421,6 @@ export async function deleteCustomPieceSet(id: string) {
   db().pieceSets = (db().pieceSets ?? []).filter((s) => s.id !== id)
   save()
 }
+
+// Shared with the real API; the data layer expects the same surface from both.
+export { sortLibrary }

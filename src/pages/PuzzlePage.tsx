@@ -4,6 +4,7 @@ import { normalizeFen } from '../lib/fen'
 import { Page, Card, LoadingPage, SectionLabel } from '../components/ui/Page'
 import { effectiveQuizPrompt } from '../lib/prompts'
 import { penHint } from '../lib/pens'
+import { CopyLinkButton } from '../components/ui/CopyLink'
 import { Button } from '../components/ui/Button'
 import { DrawableBoard } from '../components/board/DrawableBoard'
 import { Pencil, Play } from '../components/ui/Icons'
@@ -35,6 +36,7 @@ export function PuzzlePage() {
       width="full"
       actions={
         <>
+          <CopyLinkButton puzzleId={puzzle.id} />
           <Link to={`${base}/coach?p=${puzzle.id}`}>
             <Button variant="ghost" size="sm" icon={<Play size={16} />}>
               Coach view

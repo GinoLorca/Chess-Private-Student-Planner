@@ -27,6 +27,12 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   next position; the back button reverses it; Escape returns to the folder. `]` and `[` jump a
   whole position, and so does a sideways swipe anywhere on the screen, as in Photos.
 - **Lesson sheet** — the whole lesson in document form, printable to PDF.
+- **Position library and links** — every position across every student in one searchable
+  page (Library, from the Students screen), each with *Copy link* and *Present*. A link opens the
+  position in Present mode and survives the position moving between lessons. *Copy link* is also
+  on every index card, the position page, the workbench and the lesson's ⋯ menu (*Copy links to
+  all positions*). Paste a link into the ICN Chess Club Planner's *Puzzle / exercise links* row
+  with a label, and the class lesson opens it straight at the board.
 - Installable PWA, works offline for lessons already opened, light and dark.
 
 ## Stack

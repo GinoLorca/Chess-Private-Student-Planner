@@ -11,6 +11,7 @@ import { Board } from '../components/board/Board'
 import { MoveBoard } from '../components/board/MoveBoard'
 import { PaperCard } from '../components/lesson/Folder'
 import { Button, IconButton } from '../components/ui/Button'
+import { CopyLinkButton } from '../components/ui/CopyLink'
 import { LoadingPage, Page, SectionLabel } from '../components/ui/Page'
 import { Check, ChevronRight, Close } from '../components/ui/Icons'
 
@@ -287,6 +288,7 @@ function Bench({
         <div>
           <div className="flex items-baseline justify-between">
             <SectionLabel>Source</SectionLabel>
+            <CopyLinkButton puzzleId={puzzle.id} className="-mt-1 mb-1" label="Copy this position's link" />
             {puzzle.reference_url && (
               <a href={puzzle.reference_url} target="_blank" rel="noreferrer" className="mb-2 text-[12px] font-semibold text-accent">
                 Open ↗

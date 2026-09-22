@@ -304,6 +304,77 @@ export interface LessonBundle {
 }
 
 /** Everything a lesson screen needs in two round trips instead of one per section. */
+/** Where a position lives, for the short /p/<id> link. */
+export interface PuzzleLocation {
+  studentId: string
+  lessonPlanId: string
+}
+
+export async function locatePuzzle(puzzleId: string): Promise<PuzzleLocation | null> {
+  const { data, error } = await supabase
+    .from('puzzles')
+    .select('id, lesson_sections!inner(lesson_plan_id, lesson_plans!inner(id, student_id))')
+    .eq('id', puzzleId)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  const section = data.lesson_sections as unknown as { lesson_plan_id: string; lesson_plans: { id: string; student_id: string } }
+  return { studentId: section.lesson_plans.student_id, lessonPlanId: section.lesson_plan_id }
+}
+
+/** One position with everything needed to find it again: student, lesson, section. */
+export interface LibraryEntry {
+  puzzle: Puzzle
+  studentId: string
+  studentName: string
+  studentColor: string
+  lessonPlanId: string
+  lessonNumber: number
+  lessonTitle: string
+  sectionTitle: string
+  sectionOrder: number
+}
+
+/** Every position across every student, for browsing and linking. */
+export async function listLibrary(): Promise<LibraryEntry[]> {
+  const { data, error } = await supabase
+    .from('puzzles')
+    .select('*, lesson_sections!inner(title, sort_order, lesson_plan_id, lesson_plans!inner(id, number, title, student_id, students!inner(name, color)))')
+  if (error) throw error
+  type Row = Puzzle & {
+    lesson_sections: {
+      title: string
+      sort_order: number
+      lesson_plan_id: string
+      lesson_plans: { id: string; number: number; title: string; student_id: string; students: { name: string; color: string } }
+    }
+  }
+  return sortLibrary(
+    (data as Row[]).map(({ lesson_sections: s, ...puzzle }) => ({
+      puzzle: puzzle as Puzzle,
+      studentId: s.lesson_plans.student_id,
+      studentName: s.lesson_plans.students.name,
+      studentColor: s.lesson_plans.students.color,
+      lessonPlanId: s.lesson_plan_id,
+      lessonNumber: s.lesson_plans.number,
+      lessonTitle: s.lesson_plans.title,
+      sectionTitle: s.title,
+      sectionOrder: s.sort_order,
+    })),
+  )
+}
+
+/** Student A→Z, then newest lesson first, then section and position order. */
+export function sortLibrary(entries: LibraryEntry[]): LibraryEntry[] {
+  return [...entries].sort(
+    (a, b) =>
+      a.studentName.localeCompare(b.studentName) ||
+      b.lessonNumber - a.lessonNumber ||
+      a.sectionOrder - b.sectionOrder ||
+      a.puzzle.sort_order - b.puzzle.sort_order,
+  )
+}
+
 export async function getLessonBundle(lessonPlanId: string): Promise<LessonBundle> {
   const [plan, sections] = await Promise.all([getLessonPlan(lessonPlanId), listSections(lessonPlanId)])
   const puzzlesBySection: Record<string, Puzzle[]> = Object.fromEntries(sections.map((s) => [s.id, []]))

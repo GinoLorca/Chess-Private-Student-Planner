@@ -13,11 +13,17 @@ export const keys = {
   lessonHistory: ['lessonHistory'] as const,
   lessonTemplates: ['lessonTemplates'] as const,
   pieceSets: ['pieceSets'] as const,
+  library: ['library'] as const,
 }
 
 // ---------------------------------------------------------------------------
 // students
 // ---------------------------------------------------------------------------
+
+/** Every position across every student, for the library page. */
+export function useLibrary() {
+  return useQuery({ queryKey: keys.library, queryFn: api.listLibrary })
+}
 
 export function useStudents() {
   return useQuery({ queryKey: keys.students, queryFn: api.listStudents })

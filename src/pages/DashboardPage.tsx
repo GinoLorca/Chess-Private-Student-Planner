@@ -8,7 +8,7 @@ import { Button, IconButton } from '../components/ui/Button'
 import { InputModal } from '../components/ui/InputModal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { ActionSheet } from '../components/ui/ActionSheet'
-import { More, Pencil, Plus, Settings, Trash } from '../components/ui/Icons'
+import { More, Pencil, Plus, Settings, Trash, Library } from '../components/ui/Icons'
 import { FOLDER_COLORS } from '../lib/colors'
 
 export function DashboardPage() {
@@ -28,6 +28,11 @@ export function DashboardPage() {
       title="Students"
       actions={
         <>
+          <Link to="/library">
+            <IconButton label="Position library">
+              <Library />
+            </IconButton>
+          </Link>
           <Link to="/settings">
             <IconButton label="Settings">
               <Settings />

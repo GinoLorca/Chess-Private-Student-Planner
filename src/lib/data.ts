@@ -28,6 +28,8 @@ export const updateSection = impl.updateSection
 export const deleteSection = impl.deleteSection
 export const listAllPuzzleIds = impl.listAllPuzzleIds
 export const getLessonBundle = impl.getLessonBundle
+export const locatePuzzle = impl.locatePuzzle
+export const listLibrary = impl.listLibrary
 export const listPuzzles = impl.listPuzzles
 export const getPuzzle = impl.getPuzzle
 export const createPuzzle = impl.createPuzzle
@@ -43,4 +45,4 @@ export const listCustomPieceSets = impl.listCustomPieceSets
 export const createCustomPieceSet = impl.createCustomPieceSet
 export const deleteCustomPieceSet = impl.deleteCustomPieceSet
 
-export type { LessonBundle, LessonPlanPatch, PuzzlePatch, SettingsPatch } from './api'
+export type { LessonBundle, LessonPlanPatch, LibraryEntry, PuzzleLocation, PuzzlePatch, SettingsPatch } from './api'

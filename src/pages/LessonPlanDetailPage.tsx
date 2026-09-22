@@ -25,8 +25,9 @@ import { ActionSheet } from '../components/ui/ActionSheet'
 import { ImportSheet } from '../components/import/ImportSheet'
 import { FenSheet } from '../components/lesson/FenSheet'
 import { patchFromImported } from '../lib/import'
-import { Check, ChevronDown, Document, Download, Eye, Knight, More, Pencil, Plus, Trash } from '../components/ui/Icons'
+import { Check, ChevronDown, Document, Download, Eye, Knight, LinkIcon, More, Pencil, Plus, Trash } from '../components/ui/Icons'
 import { answerProblem } from '../lib/solution'
+import { copyText, puzzleLink } from '../lib/links'
 
 export function LessonPlanDetailPage() {
   const { studentId = '', lessonPlanId = '' } = useParams<{ studentId: string; lessonPlanId: string }>()
@@ -298,6 +299,21 @@ export function LessonPlanDetailPage() {
             },
           },
           { label: 'Save shape as template', icon: <Document />, onSelect: () => setSavingTemplate(true) },
+          ...(puzzleCount > 0
+            ? [
+                {
+                  label: 'Copy links to all positions',
+                  icon: <LinkIcon />,
+                  onSelect: () =>
+                    copyText(
+                      sections
+                        .flatMap((s) => puzzlesBySection[s.id] ?? [])
+                        .map((p, i) => `${p.label || `#${i + 1}`} — ${puzzleLink(p.id)}`)
+                        .join('\n'),
+                    ),
+                },
+              ]
+            : []),
           ...(plan.theme
             ? [{ label: 'Clear theme block', icon: <Trash />, onSelect: () => planMutations.update.mutate({ id: plan.id, patch: { theme: '' } }) }]
             : []),

@@ -153,3 +153,16 @@ export const Home = (p: IconProps) => (
     <path d="M10 20v-6h4v6" />
   </svg>
 )
+export const LinkIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M10 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5" />
+    <path d="M14 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5" />
+  </svg>
+)
+export const Library = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 5.5h5v14H4z" />
+    <path d="M10 5.5h5v14h-5z" />
+    <path d="m16.5 6.5 3.5-.8 3 13.6-3.5.8z" />
+  </svg>
+)

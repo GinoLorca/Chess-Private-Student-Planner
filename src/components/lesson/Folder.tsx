@@ -8,6 +8,7 @@ import { answerProblem } from '../../lib/solution'
 import { Board } from '../board/Board'
 import { Trash, Warning } from '../ui/Icons'
 import { IconButton } from '../ui/Button'
+import { CopyLinkButton } from '../ui/CopyLink'
 
 /**
  * The lesson page as an open manila folder: the student's tab on top, the
@@ -233,6 +234,7 @@ export function IndexCard({
       <div className="flex items-center justify-between px-4 pb-3">
         <span className="text-[12px] font-semibold tracking-[0.1em] text-ink-3 uppercase">{toMove} to move</span>
         <div className="flex items-center gap-1">
+          <CopyLinkButton puzzleId={puzzle.id} />
           <IconButton label="Delete position" className="h-9 w-9 text-ink-3" onClick={onDelete}>
             <Trash size={16} />
           </IconButton>

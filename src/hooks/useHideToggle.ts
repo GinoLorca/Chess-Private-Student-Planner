@@ -14,8 +14,11 @@ export function useHideToggle(): [boolean, () => void] {
     const onKey = (e: KeyboardEvent) => {
       if (isTextTarget(e.target) || e.metaKey || e.ctrlKey || e.altKey) return
       if (isToggleKey(e, custom)) {
+        // Swallow it on the way down and up: F5 would reload the page and
+        // Shift+F5 opens a browser panel otherwise.
         e.preventDefault()
-        toggle()
+        e.stopPropagation()
+        if (e.type === 'keydown' && !e.repeat) toggle()
       }
     }
     // A clicker whose extra button reports as a mouse button (never the
@@ -26,12 +29,14 @@ export function useHideToggle(): [boolean, () => void] {
         if (e.type === 'mousedown') toggle()
       }
     }
-    window.addEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
+    window.addEventListener('keyup', onKey, true)
     window.addEventListener('mousedown', onMouse)
     window.addEventListener('mouseup', onMouse)
     window.addEventListener('auxclick', onMouse)
     return () => {
-      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('keyup', onKey, true)
       window.removeEventListener('mousedown', onMouse)
       window.removeEventListener('mouseup', onMouse)
       window.removeEventListener('auxclick', onMouse)

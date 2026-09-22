@@ -2,16 +2,21 @@
  * The presentation clicker's buttons. Next and back are fixed (Page Down /
  * Page Up, the arrow keys, space: what every clicker sends). The third
  * button, the one clickers use for a pointer or a blank screen, differs
- * per model, so the coach teaches it to the app once in Settings and it
- * becomes the hide / show key for explanations. Until then a few common
- * "blank screen" keys do the job.
+ * per model, so the coach can teach it to the app once in Settings and it
+ * becomes the hide / show key for the answer. Without teaching, the keys
+ * clickers send on a long press (F5, Shift+F5) and for a blank screen do
+ * the job.
  */
 export type Trigger = { kind: 'key'; key: string; code: string } | { kind: 'mouse'; button: number }
 
 const STORE = 'clicker-toggle'
 
-/** Keys that hide / show explanations when no button has been taught. */
-export const DEFAULT_TOGGLE_KEYS = ['b', '.', 'h']
+/**
+ * Keys that hide / show the answer without teaching: F5 and Shift+F5 are
+ * what presentation clickers send on a long press (PowerPoint's "start
+ * the show"); B, period and H are their "blank screen" keys.
+ */
+export const DEFAULT_TOGGLE_KEYS = ['f5', 'b', '.', 'h']
 
 export function loadToggle(): Trigger | null {
   try {

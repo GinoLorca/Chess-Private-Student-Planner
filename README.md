@@ -7,7 +7,7 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
 
 - **New lesson = the FENs.** The + button asks for the positions and nothing else: one row per
   FEN (or Lichess / Chess.com link) with an optional source link, + for another row, and a
-  multi-line paste splits into rows. Create lesson makes Lesson N and opens the workbench.
+  multi-line paste splits into rows. Moves after a FEN on the same line become the answer. Create lesson makes Lesson N and opens the workbench.
 - **Annotate workbench** — one position at a time with the rest queued beside it: play the
   answer on the board, right-drag arrows, write the question and the note, *Save, done* stamps
   it and brings up the next. The folder shows *Annotate · n* until the queue is empty, and

@@ -148,6 +148,10 @@ against the position, so an impossible line is rejected instead of saved. Whatev
 leaves blank you finish in the workbench: the lesson shows **Annotate · n** until every position
 is saved.
 
+**If the agent drives the app in a browser instead**, it can use the same New lesson sheet
+you do. Each row takes a FEN, and moves typed after the FEN on the same line ("… w KQ - 0 8
+8. O-O dxc4 9. Bxc4") become the answer line automatically.
+
 A one-line brief for the agent: *"Use the lesson planner connector. Call list_students to find
 the student, then create_lesson with the FENs I give you, each with its source link, the
 question to ask, the answer line and a short note. Reply with the lesson link."*

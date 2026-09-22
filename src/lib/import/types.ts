@@ -47,6 +47,7 @@ export type DetectedInput =
   | { kind: 'lichess_study'; studyId: string; chapterId?: string; url: string }
   | { kind: 'lichess_game'; id: string; url: string }
   | { kind: 'chesscom_game'; url: string; id: string }
-  | { kind: 'fen'; fen: string }
+  /** A FEN, with the moves that followed it on the line (the answer) when there were any. */
+  | { kind: 'fen'; fen: string; moves?: string[] }
   | { kind: 'pgn'; pgn: string }
   | { kind: 'unknown' }

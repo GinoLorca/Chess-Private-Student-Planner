@@ -33,15 +33,18 @@ export async function resolveInput(
       return { type: 'game', games: [await fetchChesscomGame(opts.chesscomUsername ?? '', detected.url, detected.id)] }
     case 'fen': {
       const fen = normalizeFen(detected.fen)
+      // Moves after the FEN are the answer; they must play from the position.
+      const { moves, error } = detected.moves ? replayLine(fen, detected.moves) : { moves: [] }
+      if (error) throw new Error(`The moves after the FEN don't play from it: ${error}`)
       return {
         type: 'position',
         position: {
           fen,
           side: sideToMoveOf(fen),
-          solution: [],
+          solution: moves,
           arrows: [],
           highlights: [],
-          label: '',
+          label: moves[0]?.san ?? '',
           source: { kind: 'fen' },
         },
       }

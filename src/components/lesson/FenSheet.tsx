@@ -92,7 +92,7 @@ export function FenSheet({ open, title, submitLabel, onClose, onSubmit }: FenShe
         if (input.kind === 'unknown') continue
         if (input.kind !== 'fen') setBusy(`Fetching ${i} of ${filled.length}…`)
         const result = await resolveBatchItem(input, { chesscomUsername: settings?.chesscom_username })
-        if (result.positions.length === 0) throw new Error(result.note ?? `Nothing came of line ${i}.`)
+        if (result.positions.length === 0) throw new Error(`Line ${i}: ${result.note ?? 'nothing came of it.'}`)
         for (const p of result.positions) {
           const patch = patchFromImported(p)
           const url = row.url.trim()
@@ -116,7 +116,8 @@ export function FenSheet({ open, title, submitLabel, onClose, onSubmit }: FenShe
     <Modal open={open} onClose={close} title={title}>
       <div className="space-y-3">
         <p className="text-[13.5px] text-ink-2">
-          One position per line: a FEN, or a Lichess / Chess.com link. Paste a whole list and it splits into rows.
+          One position per line: a FEN, or a Lichess / Chess.com link. Moves after the FEN become the answer. Paste a whole
+          list and it splits into rows.
         </p>
         <ol className="space-y-2">
           {rows.map((row, i) => {

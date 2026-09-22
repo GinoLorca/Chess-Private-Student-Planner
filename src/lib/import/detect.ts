@@ -1,11 +1,42 @@
 import type { DetectedInput } from './types'
 
-const FEN_RE = /^([rnbqkpRNBQKP1-8]{1,8}\/){7}[rnbqkpRNBQKP1-8]{1,8}(\s+[wb](\s+(-|[KQkq]{1,4})(\s+(-|[a-h][36])(\s+\d+(\s+\d+)?)?)?)?)?$/
+// A FEN anywhere in a line: the placement, then whichever of the other fields
+// are present. Whatever follows (moves, a dash, a note) is kept as the rest.
+const FEN_ANYWHERE_RE =
+  /(?:^|[\s"'`(:])((?:[rnbqkpRNBQKP1-8]{1,8}\/){7}[rnbqkpRNBQKP1-8]{1,8})(?:\s+([wb])(?:\s+(-|[KQkq]{1,4})(?:\s+(-|[a-h][36])(?:\s+(\d+)(?:\s+(\d+))?)?)?)?)?(?![\w/])/
+
+/**
+ * Find the FEN in a line, plus anything after it: "6k1/... w - - 0 1 1. Rd8#"
+ * is a position with its answer line, and "FEN: ..." or a quoted FEN still
+ * counts. Returns null when there is no FEN.
+ */
+export function extractFen(text: string): { fen: string; rest: string } | null {
+  const m = FEN_ANYWHERE_RE.exec(text)
+  if (!m) return null
+  const fen = m.slice(1).filter(Boolean).join(' ')
+  const rest = text
+    .slice(m.index + m[0].length)
+    .replace(/^["'`)\]]+/, '')
+    .replace(/^[\s\-–—:;,|]+/, '')
+    .trim()
+  return { fen, rest }
+}
+
+/** The moves after a FEN, as SAN tokens: move numbers, dots and result markers dropped. */
+export function movesFromRest(rest: string): string[] {
+  return rest
+    .replace(/\{[^}]*\}/g, ' ')
+    .split(/\s+/)
+    .map((t) => t.replace(/^\d+\.+/, ''))
+    .filter((t) => t && !/^\d+\.*$/.test(t) && !/^(1-0|0-1|1\/2-1\/2|\*|…|\.\.\.)$/.test(t))
+}
 
 /**
  * Work out what the coach pasted. Order matters: URLs first (a Lichess study
- * URL also contains an 8-character id that would look like a game), then
- * FEN, then PGN as the catch-all for anything with moves in it.
+ * URL also contains an 8-character id that would look like a game), then PGN
+ * with headers (its FEN tag must not be mistaken for a bare FEN), then a FEN
+ * anywhere in the line with any moves after it, then movetext as the
+ * catch-all for anything with moves in it.
  */
 export function detectInput(raw: string): DetectedInput {
   const text = raw.trim()
@@ -37,14 +68,21 @@ export function detectInput(raw: string): DetectedInput {
     }
   }
 
-  if (FEN_RE.test(text)) return { kind: 'fen', fen: text }
+  // PGN with headers: the [FEN "..."] tag belongs to the game, not on its own.
+  if (/\[\w+\s+"/.test(text)) return { kind: 'pgn', pgn: text }
+
+  const found = extractFen(text)
+  if (found) {
+    const moves = movesFromRest(found.rest)
+    return moves.length ? { kind: 'fen', fen: found.fen, moves } : { kind: 'fen', fen: found.fen }
+  }
 
   // Bare Lichess puzzle ids are 5 alphanumerics.
   if (/^[A-Za-z0-9]{5}$/.test(text)) {
     return { kind: 'lichess_puzzle', id: text, url: `https://lichess.org/training/${text}` }
   }
 
-  if (/\[\w+\s+"/.test(text) || /\b\d+\.(\.\.)?\s*[a-hNBRQKO]/.test(text)) return { kind: 'pgn', pgn: text }
+  if (/\b\d+\.(\.\.)?\s*[a-hNBRQKO]/.test(text)) return { kind: 'pgn', pgn: text }
 
   return { kind: 'unknown' }
 }
@@ -69,7 +107,7 @@ export function describeDetected(d: DetectedInput): string {
     case 'chesscom_game':
       return 'Chess.com game'
     case 'fen':
-      return 'FEN position'
+      return d.moves ? `FEN + answer (${d.moves.length} move${d.moves.length === 1 ? '' : 's'})` : 'FEN position'
     case 'pgn':
       return 'PGN moves'
     default:

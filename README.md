@@ -25,7 +25,7 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
 - **Clicker** — in Coach view and Present, a Bluetooth presentation clicker (Page Down / Page
   Up, or the arrow keys and space) walks the whole lesson: reveal, each answer move, then the
   next position; the back button reverses it; Escape returns to the folder. `]` and `[` jump a
-  whole position.
+  whole position, and so does a sideways swipe anywhere on the screen, as in Photos.
 - **Lesson sheet** — the whole lesson in document form, printable to PDF.
 - Installable PWA, works offline for lessons already opened, light and dark.
 

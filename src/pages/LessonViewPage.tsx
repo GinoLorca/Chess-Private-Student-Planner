@@ -9,6 +9,7 @@ import { pieceList, type Orientation, type SideSetup } from '../lib/fen'
 import { useSessionSet } from '../hooks/useSessionSet'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { useClicker } from '../hooks/useClicker'
+import { useSwipeNav } from '../hooks/useSwipeNav'
 import { DrawableBoard } from '../components/board/DrawableBoard'
 import { effectiveQuizPrompt } from '../lib/prompts'
 import { Button, IconButton } from '../components/ui/Button'
@@ -63,6 +64,8 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   )
 
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
+  // A sideways swipe anywhere on the screen turns the page, as in Photos.
+  const swipe = useSwipeNav((dir) => go(index + dir))
 
   if (isLoading && !lesson) return <LoadingPage />
   if (!lesson || items.length === 0) {
@@ -76,7 +79,7 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   const current = items[Math.min(index, items.length - 1)]
 
   return (
-    <div className="flex min-h-svh flex-col bg-bg">
+    <div className="flex min-h-svh touch-pan-y flex-col bg-bg" {...swipe}>
       <header className="pt-safe sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
         <div className="mx-auto flex h-12 max-w-7xl items-center gap-2 px-2">
           <IconButton label="Exit" onClick={() => navigate(base)}>
@@ -265,6 +268,7 @@ function PuzzleView({
             else if (info.offset.x > 70 || info.velocity.x > 500) onSwipe(-1)
           }}
           className="touch-pan-y"
+          data-swipe-own
         >
           <DrawableBoard
             fen={current.fen}

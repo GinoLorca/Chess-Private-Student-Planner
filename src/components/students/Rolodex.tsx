@@ -162,11 +162,11 @@ export function Rolodex({ students, onOpen, onMenu }: RolodexProps) {
         <div
           className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10"
           style={{
-            // Both gradients reach transparent before the box edge, so no
-            // rectangle shows on a patterned background: a pool of light,
-            // and a ring of shadow around it.
+            // A pool of light, and a soft shadow around it. Both radii stay
+            // at or under 50% of the box, so each gradient reaches transparent
+            // before the box edge and no rectangle shows on a patterned skin.
             background:
-              'radial-gradient(ellipse 46% 44% at 50% 47%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.45) 40%, rgba(255,255,255,0) 72%), radial-gradient(ellipse 88% 82% at 50% 48%, rgba(0,0,0,0) 36%, rgba(0,0,0,0.13) 60%, rgba(0,0,0,0.05) 84%, rgba(0,0,0,0) 100%)',
+              'radial-gradient(ellipse 40% 40% at 50% 47%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.45) 40%, rgba(255,255,255,0) 72%), radial-gradient(ellipse 50% 50% at 50% 48%, rgba(0,0,0,0) 44%, rgba(0,0,0,0.14) 66%, rgba(0,0,0,0.05) 88%, rgba(0,0,0,0) 100%)',
           }}
         />
         {/* The spindle the folders hang off, for a hint of the machine. */}

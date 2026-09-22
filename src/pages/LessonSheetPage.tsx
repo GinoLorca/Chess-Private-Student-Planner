@@ -42,7 +42,10 @@ export function LessonSheetPage() {
         </Button>
       }
     >
-      <header className="mb-8 border-b border-line pb-4">
+      {/* The sheet is a white page on screen too: its ink colours are paper
+          colours, and it prints as-is. */}
+      <div className="rounded-2xl border border-line bg-surface px-5 py-6 shadow-float sm:px-10 sm:py-9 print:rounded-none print:border-0 print:p-0 print:shadow-none">
+      <div className="mb-8 border-b border-line pb-4">
         <p className="text-[13px] font-semibold tracking-wider text-ink-3 uppercase">{student?.name}</p>
         <h1 className="mt-1 text-[30px] leading-tight font-bold tracking-tight text-ink">
           Lesson {lesson.plan.number}
@@ -51,7 +54,7 @@ export function LessonSheetPage() {
         <p className="mt-1 text-[14px] text-ink-3">
           {[lesson.plan.theme, date].filter(Boolean).join(' · ')}
         </p>
-      </header>
+      </div>
 
       {lesson.sections.map((section) => {
         const puzzles = lesson.puzzlesBySection[section.id] ?? []
@@ -69,6 +72,7 @@ export function LessonSheetPage() {
           </section>
         )
       })}
+      </div>
     </Page>
   )
 }

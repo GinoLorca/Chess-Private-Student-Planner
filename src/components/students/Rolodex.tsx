@@ -156,6 +156,19 @@ export function Rolodex({ students, onOpen, onMenu }: RolodexProps) {
         aria-label="Students"
         aria-activedescendant={front ? `folder-${front.id}` : undefined}
       >
+        {/* Stage light: a spotlight cone the folders turn through. The pool
+            of light sits where the front folder faces you; the edges of the
+            wheel fall off into shadow, as in a portrait-lighting shot. */}
+        <div
+          className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10"
+          style={{
+            // Both gradients reach transparent before the box edge, so no
+            // rectangle shows on a patterned background: a pool of light,
+            // and a ring of shadow around it.
+            background:
+              'radial-gradient(ellipse 46% 44% at 50% 47%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.45) 40%, rgba(255,255,255,0) 72%), radial-gradient(ellipse 88% 82% at 50% 48%, rgba(0,0,0,0) 36%, rgba(0,0,0,0.13) 60%, rgba(0,0,0,0.05) 84%, rgba(0,0,0,0) 100%)',
+          }}
+        />
         {/* The spindle the folders hang off, for a hint of the machine. */}
         <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-line" />
         {students.map((s, i) => (
@@ -223,10 +236,15 @@ function Card({
   // front) fall into shadow faster than cards below; a sheen slides across
   // the cover as a card turns through the light, and the top edge catches a
   // rim highlight when it faces you.
-  const shade = useTransform(offset, (o) => (o < 0 ? Math.min(-o, 2) * 0.36 : Math.min(o, 2) * 0.22))
-  const sheenPos = useTransform(offset, (o) => `${55 - Math.max(-1.5, Math.min(1.5, o)) * 80}% 0%`)
-  const sheenOpacity = useTransform(offset, (o) => Math.max(0, 0.9 - Math.abs(o) * 0.6))
-  const rim = useTransform(offset, (o) => Math.max(0, 0.7 - Math.abs(o) * 0.55))
+  const clampO = (o: number) => Math.max(-1.5, Math.min(1.5, o))
+  const shade = useTransform(offset, (o) => (o < 0 ? Math.min(-o, 2) * 0.5 : Math.min(o, 2) * 0.34))
+  const sheenPos = useTransform(offset, (o) => `${55 - clampO(o) * 90}% 0%`)
+  const sheenOpacity = useTransform(offset, (o) => Math.max(0, 1 - Math.abs(o) * 0.7))
+  const rim = useTransform(offset, (o) => Math.max(0, 0.85 - Math.abs(o) * 0.7))
+  // The spotlight itself: a pool of light that slides over the cover as the
+  // card comes round to face you, with the cover's corners left in shadow.
+  const spotPos = useTransform(offset, (o) => `${50 - clampO(o) * 38}% ${44 - clampO(o) * 48}%`)
+  const spotOpacity = useTransform(offset, (o) => Math.max(0, 1 - Math.abs(o) * 0.75))
   const pointerEvents = useTransform(offset, (o) => (Math.abs(o) > VISIBLE ? 'none' : 'auto'))
 
   const { data: counts } = useFolderCounts(isFront ? student.id : undefined)
@@ -249,7 +267,7 @@ function Card({
             ? { scale: 1.16, y: -22, rotateX: -8, boxShadow: '0 40px 70px -20px rgba(0,0,0,0.55)' }
             : dimmed
               ? { scale: 0.96, opacity: 0.5 }
-              : { scale: 1, y: 0, rotateX: 0, opacity: 1, boxShadow: '0 18px 40px -22px rgba(0,0,0,0.45)' }
+              : { scale: 1, y: 0, rotateX: 0, opacity: 1, boxShadow: '0 34px 64px -26px rgba(0,0,0,0.65)' }
         }
         transition={{ type: 'spring', stiffness: 380, damping: 26 }}
         className="relative h-full cursor-pointer rounded-2xl"
@@ -279,10 +297,22 @@ function Card({
             className="pointer-events-none absolute inset-0"
             style={{
               opacity: sheenOpacity,
-              backgroundImage: 'linear-gradient(105deg, rgba(255,255,255,0) 32%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 68%)',
+              backgroundImage: 'linear-gradient(105deg, rgba(255,255,255,0) 36%, rgba(255,255,255,0.42) 50%, rgba(255,255,255,0) 64%)',
               backgroundSize: '220% 100%',
               backgroundRepeat: 'no-repeat',
               backgroundPosition: sheenPos,
+            }}
+          />
+          {/* The spotlight pool and its falloff. */}
+          <motion.span
+            className="pointer-events-none absolute inset-0"
+            style={{
+              opacity: spotOpacity,
+              backgroundImage:
+                'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.18) 20%, rgba(255,255,255,0) 36%, rgba(0,0,0,0.3) 62%, rgba(0,0,0,0.45) 100%)',
+              backgroundSize: '240% 240%',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: spotPos,
             }}
           />
           <div className="relative flex items-start justify-between gap-3">

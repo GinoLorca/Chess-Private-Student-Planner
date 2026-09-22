@@ -270,3 +270,11 @@ create policy "lesson_templates are owned by their user" on lesson_templates
 -- Which look the coach chose: 'folder' (the default) or one of the Chess
 -- Arcade skins (felt, hustler, bauhaus, gameboy, outerspace).
 alter table user_settings add column if not exists skin text not null default 'folder';
+
+-- ===================== 0006_puzzle_done.sql =====================
+-- Chess Private Student Planner — annotation queue
+-- Run this after 0005_skins.sql. Additive; safe to re-run.
+
+-- A position is "done" once the coach has saved its annotation in the
+-- workbench; the queue shows what's left.
+alter table puzzles add column if not exists done boolean not null default false;

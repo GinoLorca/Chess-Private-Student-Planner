@@ -179,6 +179,13 @@ export async function createLessonPlan(studentId: string, init: NewLessonInit = 
   return plan
 }
 
+export async function createLessonFromPositions(studentId: string, positions: PuzzlePatch[]): Promise<LessonPlan> {
+  const plan = await createLessonPlan(studentId, { sections: ['Positions'] })
+  const section = db().sections.find((s) => s.lesson_plan_id === plan.id)!
+  for (const p of positions) await createPuzzle(section.id, p)
+  return plan
+}
+
 export async function duplicateLessonPlan(planId: string): Promise<LessonPlan> {
   const source = await getLessonBundle(planId)
   const plan = await createLessonPlan(source.plan.student_id, {

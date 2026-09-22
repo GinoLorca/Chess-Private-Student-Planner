@@ -15,6 +15,7 @@ export const listLessonPlans = impl.listLessonPlans
 export const getLessonPlan = impl.getLessonPlan
 export const createLessonPlan = impl.createLessonPlan
 export const updateLessonPlan = impl.updateLessonPlan
+export const createLessonFromPositions = impl.createLessonFromPositions
 export const duplicateLessonPlan = impl.duplicateLessonPlan
 export const getLessonHistory = impl.getLessonHistory
 export const listLessonTemplates = impl.listLessonTemplates

@@ -148,6 +148,19 @@ export async function createLessonPlan(studentId: string, init: NewLessonInit = 
 }
 
 /**
+ * The simple way in: a lesson is its positions. One "Positions" section holds
+ * them in the order they were pasted.
+ */
+export async function createLessonFromPositions(studentId: string, positions: PuzzlePatch[]): Promise<LessonPlan> {
+  const plan = await createLessonPlan(studentId, { sections: ['Positions'] })
+  const { data: sections, error } = await supabase.from('lesson_sections').select('id').eq('lesson_plan_id', plan.id).limit(1)
+  if (error) throw error
+  const sectionId = (sections as { id: string }[])[0].id
+  for (const p of positions) await createPuzzle(sectionId, p)
+  return plan
+}
+
+/**
  * A deep copy of a lesson as the student's next lesson: sections and every
  * position come along; status starts over at planned.
  */
@@ -339,6 +352,7 @@ export interface PuzzlePatch {
   sort_order?: number
   source?: PuzzleSource | null
   themes?: string[]
+  done?: boolean
 }
 
 /** A blank position, or one pre-filled from an import. */

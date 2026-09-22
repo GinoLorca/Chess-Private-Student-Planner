@@ -19,6 +19,7 @@ const LessonPlanDetailPage = lazy(() =>
 )
 const PuzzlePage = lazy(() => import('./pages/PuzzlePage').then((m) => ({ default: m.PuzzlePage })))
 const PuzzleEditorPage = lazy(() => import('./pages/PuzzleEditorPage').then((m) => ({ default: m.PuzzleEditorPage })))
+const AnnotatePage = lazy(() => import('./pages/AnnotatePage').then((m) => ({ default: m.AnnotatePage })))
 const LessonViewPage = lazy(() => import('./pages/LessonViewPage').then((m) => ({ default: m.LessonViewPage })))
 const LessonSheetPage = lazy(() => import('./pages/LessonSheetPage').then((m) => ({ default: m.LessonSheetPage })))
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
@@ -41,6 +42,7 @@ function App() {
                     <Route path="/students/:studentId/notes/:folderKind" element={<NotesPage />} />
                     <Route path="/students/:studentId/lessons" element={<LessonPlanListPage />} />
                     <Route path={lesson} element={<LessonPlanDetailPage />} />
+                    <Route path={`${lesson}/annotate`} element={<AnnotatePage />} />
                     <Route path={`${lesson}/puzzles/:puzzleId`} element={<PuzzlePage />} />
                     <Route path={`${lesson}/puzzles/:puzzleId/edit`} element={<PuzzleEditorPage />} />
                     <Route path={`${lesson}/present`} element={<LessonViewPage mode="present" />} />

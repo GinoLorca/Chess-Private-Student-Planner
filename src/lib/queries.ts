@@ -91,6 +91,10 @@ export function useLessonPlanMutations(studentId: string) {
     mutationFn: (init: NewLessonInit = {}) => api.createLessonPlan(studentId, init),
     onSuccess: invalidate,
   })
+  const createFromPositions = useMutation({
+    mutationFn: (positions: api.PuzzlePatch[]) => api.createLessonFromPositions(studentId, positions),
+    onSuccess: invalidate,
+  })
   const duplicate = useMutation({
     mutationFn: (planId: string) => api.duplicateLessonPlan(planId),
     onSuccess: invalidate,
@@ -110,7 +114,7 @@ export function useLessonPlanMutations(studentId: string) {
     },
   })
   const remove = useMutation({ mutationFn: (id: string) => api.deleteLessonPlan(id), onSuccess: invalidate })
-  return { create, duplicate, update, remove }
+  return { create, createFromPositions, duplicate, update, remove }
 }
 
 /** The coach's recurring section titles, theme blocks and agenda items, most-used first. */

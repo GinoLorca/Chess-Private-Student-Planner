@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import clsx from 'clsx'
 import type { LessonSection, Puzzle } from '../types/domain'
+import type { PuzzlePatch } from '../lib/data'
 import {
   useLesson,
   useLessonContentMutations,
@@ -22,6 +23,7 @@ import { InputModal } from '../components/ui/InputModal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { ActionSheet } from '../components/ui/ActionSheet'
 import { ImportSheet } from '../components/import/ImportSheet'
+import { FenSheet } from '../components/lesson/FenSheet'
 import { patchFromImported } from '../lib/import'
 import { Check, ChevronDown, Document, Download, Eye, Knight, More, Pencil, Plus, Trash } from '../components/ui/Icons'
 import { answerProblem } from '../lib/solution'
@@ -44,6 +46,7 @@ export function LessonPlanDetailPage() {
   const [deletingSection, setDeletingSection] = useState<LessonSection | null>(null)
   const [deletingPuzzle, setDeletingPuzzle] = useState<Puzzle | null>(null)
   const [quickAddFor, setQuickAddFor] = useState<LessonSection | null>(null)
+  const [addingFens, setAddingFens] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   // Which divider is open. Remembered per lesson for the session, so coming
   // back from a position lands on the same tab.
@@ -68,6 +71,15 @@ export function LessonPlanDetailPage() {
   const { plan, sections, puzzlesBySection } = lesson
   const base = `/students/${studentId}/lessons/${plan.id}`
   const puzzleCount = Object.values(puzzlesBySection).reduce((n, list) => n + list.length, 0)
+  const todoCount = Object.values(puzzlesBySection).reduce((n, list) => n + list.filter((p) => !p.done).length, 0)
+
+  // FENs go into the open section, or a "Positions" section when there is none yet; then straight to the bench.
+  async function addFens(positions: PuzzlePatch[]) {
+    let sectionId = active?.id
+    if (!sectionId) sectionId = (await content.createSection.mutateAsync('Positions')).id
+    for (const p of positions) await content.createPuzzle.mutateAsync({ sectionId, initial: p })
+    if (positions.length) navigate(`${base}/annotate`)
+  }
 
   async function addPuzzle(sectionId: string) {
     const puzzle = await content.createPuzzle.mutateAsync({ sectionId })
@@ -92,6 +104,13 @@ export function LessonPlanDetailPage() {
 
   const viewButtons = (compact: boolean) => (
     <>
+      {todoCount > 0 && (
+        <Link to={`${base}/annotate`} className="contents">
+          <Button variant="soft" icon={compact ? undefined : <Pencil size={18} />}>
+            Annotate{compact ? '' : ` · ${todoCount}`}
+          </Button>
+        </Link>
+      )}
       <Link to={`${base}/sheet`} className="contents">
         <Button variant={compact ? 'soft' : 'ghost'} icon={compact ? undefined : <Document size={18} />} disabled={puzzleCount === 0}>
           Sheet
@@ -204,10 +223,13 @@ export function LessonPlanDetailPage() {
                     />
                   ))}
                   <div className="add-slot flex min-h-[120px] flex-wrap items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-line-strong p-4">
-                    <Button variant="primary" icon={<Download size={18} />} onClick={() => setQuickAddFor(active)}>
+                    <Button variant="primary" icon={<Plus size={18} />} onClick={() => setAddingFens(true)}>
+                      FENs
+                    </Button>
+                    <Button variant="secondary" icon={<Download size={18} />} onClick={() => setQuickAddFor(active)}>
                       Quick add
                     </Button>
-                    <Button variant="secondary" icon={<Plus size={18} />} onClick={() => addPuzzle(active.id)}>
+                    <Button variant="ghost" onClick={() => addPuzzle(active.id)}>
                       Blank position
                     </Button>
                   </div>
@@ -220,16 +242,26 @@ export function LessonPlanDetailPage() {
               </>
             ) : (
               <div className="py-8 text-center">
-                <p className="font-display text-[22px] font-semibold text-ink">Start with a section</p>
+                <p className="font-display text-[22px] font-semibold text-ink">Start with the positions</p>
                 <p className="mx-auto mt-1 max-w-sm text-[14px] text-ink-2">
-                  Sections are the themes of the session: "Back rank", "Can I take it?", "Endgame technique". Tap + Section above.
+                  Paste the FENs and annotate them one by one. Sections ("Back rank", "Can I take it?") are optional: tap + Section above.
                 </p>
+                <Button variant="primary" className="mt-4" icon={<Plus size={18} />} onClick={() => setAddingFens(true)}>
+                  FENs
+                </Button>
               </div>
             )}
           </DividerPaper>
         </div>
       </FolderBody>
 
+      <FenSheet
+        open={addingFens}
+        title="Add positions"
+        submitLabel={(n) => (n === 0 ? 'Nothing to add' : `Add ${n} position${n === 1 ? '' : 's'}`)}
+        onClose={() => setAddingFens(false)}
+        onSubmit={addFens}
+      />
       <PickSheet
         open={addingSection}
         title="Add sections"

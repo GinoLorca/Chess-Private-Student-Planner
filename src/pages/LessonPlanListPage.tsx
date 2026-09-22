@@ -6,7 +6,7 @@ import { Page, LoadingPage } from '../components/ui/Page'
 import { Button, IconButton } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Plus } from '../components/ui/Icons'
-import { NewLessonSheet } from '../components/lesson/NewLessonSheet'
+import { FenSheet } from '../components/lesson/FenSheet'
 import { DividerPaper, FolderBody, FolderTab, LessonCard } from '../components/lesson/Folder'
 import { FOLDER_COLORS } from '../lib/colors'
 
@@ -15,13 +15,10 @@ export function LessonPlanListPage() {
   const navigate = useNavigate()
   const { data: student } = useStudent(studentId)
   const { data: plans, isLoading } = useLessonPlans(studentId)
-  const { create, duplicate, remove } = useLessonPlanMutations(studentId)
+  const { createFromPositions, remove } = useLessonPlanMutations(studentId)
   const [deleting, setDeleting] = useState<LessonPlan | null>(null)
   const [creating, setCreating] = useState(false)
 
-  function open(plan: LessonPlan) {
-    navigate(`/students/${studentId}/lessons/${plan.id}`)
-  }
 
   if (isLoading && !plans) return <LoadingPage />
 
@@ -34,7 +31,7 @@ export function LessonPlanListPage() {
       width="wide"
       className="pt-6"
       actions={
-        <IconButton label="New lesson plan" onClick={() => setCreating(true)} disabled={create.isPending}>
+        <IconButton label="New lesson plan" onClick={() => setCreating(true)} disabled={createFromPositions.isPending}>
           <Plus />
         </IconButton>
       }
@@ -60,7 +57,7 @@ export function LessonPlanListPage() {
               />
             ))}
             <div className="add-slot flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line-strong p-4 text-center">
-              <Button variant="primary" icon={<Plus size={18} />} onClick={() => setCreating(true)} disabled={create.isPending}>
+              <Button variant="primary" icon={<Plus size={18} />} onClick={() => setCreating(true)} disabled={createFromPositions.isPending}>
                 New lesson plan
               </Button>
               {plans && plans.length === 0 && (
@@ -73,12 +70,16 @@ export function LessonPlanListPage() {
         </DividerPaper>
       </FolderBody>
 
-      <NewLessonSheet
+      <FenSheet
         open={creating}
-        plans={plans ?? []}
+        title="New lesson"
+        submitLabel={(n) => (n === 0 ? 'Create empty lesson' : `Create lesson · ${n} position${n === 1 ? '' : 's'}`)}
         onClose={() => setCreating(false)}
-        onCreate={async (init) => open(await create.mutateAsync(init))}
-        onDuplicate={async (planId) => open(await duplicate.mutateAsync(planId))}
+        onSubmit={async (positions) => {
+          const plan = await createFromPositions.mutateAsync(positions)
+          // Straight into annotating; an empty lesson opens as a folder.
+          navigate(`/students/${studentId}/lessons/${plan.id}${positions.length ? '/annotate' : ''}`)
+        }}
       />
       <ConfirmDialog
         open={Boolean(deleting)}

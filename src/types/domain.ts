@@ -126,6 +126,8 @@ export interface Puzzle {
   reference_label: string | null
   source?: PuzzleSource | null
   themes?: string[]
+  /** Annotated and saved in the workbench. */
+  done?: boolean
 }
 
 export interface CustomBoard {

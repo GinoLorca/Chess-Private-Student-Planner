@@ -45,7 +45,7 @@ const POSITION_SCHEMA = {
     note: {
       type: 'string',
       description:
-        "The coach's explanation: why the answer works and what the alternatives lose, two to four sentences in the words used at the board. Always fill this in so the coach only has to review, not write.",
+        "The coach's context for the position. When the position comes from a course (Chessable, a Lichess study, a book), start with that course's own comment or annotation on the move, quoted or closely paraphrased, then add why the answer works and what the alternatives lose, two to four sentences in the words used at the board. Always fill this in so the coach only has to review, not write.",
     },
     answer: {
       type: 'string',
@@ -68,7 +68,7 @@ export const TOOLS = [
   {
     name: 'create_lesson',
     description:
-      'Create the next lesson for a student from a list of positions (FENs). Fill every position completely: fen, answer (the line), question, note, label and source_url. The coach reviews each one in the annotation workbench and stamps it done, so complete positions make that a quick pass. Returns the lesson id and the link to open it in the app.',
+      'Create the next lesson for a student from a list of positions (FENs). Fill every position completely: fen, answer (the line), question, note, label and source_url. When a position was taken from a course, carry the course\'s comment on the move into the note, so the explanation travels with the position. The coach reviews each one in the annotation workbench and stamps it done, so complete positions make that a quick pass. Returns the lesson id and the link to open it in the app.',
     inputSchema: {
       type: 'object',
       required: ['student_id', 'positions'],
@@ -260,7 +260,7 @@ function positions(v) {
 // ---------------------------------------------------------------------------
 
 export const PROTOCOL_VERSION = '2025-03-26'
-export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.0.4' }
+export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.0.5' }
 
 /**
  * One JSON-RPC message in, one response out; notifications (no id) return null.

@@ -161,10 +161,11 @@ Lesson N and returns its link and the annotate link), `add_positions(lesson_id, 
 **A position** is `{ fen, source_url?, label?, question?, note?, answer? }`. Only `fen` is
 required; the placement alone is fine. `answer` is the line as moves ("Rf8 Bxh4 b4", move
 numbers optional), checked against the position, so an impossible line is rejected instead of
-saved. For converted Chessable lines: `fen` is the starting FEN, `answer` the move line,
-`source_url` the Chessable link, `note` the theme. Whatever the agent
-leaves blank you finish in the workbench: the lesson shows **Annotate · n** until every position
-is saved.
+saved. For positions taken from a course (Chessable, a Lichess study, a book): `fen` is the
+starting FEN, `answer` the move line, `source_url` the course link, and `note` carries the
+course's own comment on the move, so the author's explanation arrives with the position instead
+of being retyped. Whatever the agent leaves blank you finish in the workbench: the lesson shows
+**Annotate · n** until every position is saved.
 
 **If the agent drives the app in a browser instead**, it can use the same New lesson sheet
 you do. Each row takes a FEN, and moves typed after the FEN on the same line ("… w KQ - 0 8
@@ -172,10 +173,11 @@ you do. Each row takes a FEN, and moves typed after the FEN on the same line ("�
 
 A brief for the agent: *"Use the lesson planner connector. Call list_students to find the
 student, then create_lesson with the FENs I give you. Fill every position completely: the
-answer line, a question in plain coaching words, a two-to-four-sentence note on why the answer
-works and what the alternatives lose, a short label, and the source link. Reply with the lesson
-link."* With every field filled, the workbench is a review pass: open each position, check it,
-tap Save, done.
+answer line, a question in plain coaching words, a note, a short label, and the source link.
+When a position comes from a course, read the course's comment or annotation on that move and
+put it in the note, quoted or closely paraphrased, then add two to four sentences on why the
+answer works and what the alternatives lose. Reply with the lesson link."* With every field
+filled, the workbench is a review pass: open each position, check it, tap Save, done.
 
 Opening `https://<your-app>.vercel.app/api/mcp` in a browser shows the same information.
 

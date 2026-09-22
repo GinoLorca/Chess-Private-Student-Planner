@@ -10,6 +10,7 @@ import {
   useLessonPlanMutations,
   useLessonTemplateMutations,
   useStudent,
+  useStudents,
 } from '../lib/queries'
 import { agendaOptions, sectionOptions, themeOptions } from '../lib/lessonDefaults'
 import { PickSheet } from '../components/lesson/PickSheet'
@@ -25,7 +26,7 @@ import { ActionSheet } from '../components/ui/ActionSheet'
 import { ImportSheet } from '../components/import/ImportSheet'
 import { FenSheet } from '../components/lesson/FenSheet'
 import { patchFromImported } from '../lib/import'
-import { Check, ChevronDown, Document, Download, Eye, Knight, LinkIcon, More, Pencil, Plus, Trash } from '../components/ui/Icons'
+import { Check, ChevronDown, Document, Download, Eye, Knight, LinkIcon, More, Pencil, Plus, Recycle, Target, Trash } from '../components/ui/Icons'
 import { answerProblem } from '../lib/solution'
 import { copyText, puzzleLink } from '../lib/links'
 
@@ -41,6 +42,8 @@ export function LessonPlanDetailPage() {
   const [addingSection, setAddingSection] = useState(false)
   const [pickingTheme, setPickingTheme] = useState(false)
   const [planMenu, setPlanMenu] = useState(false)
+  const [recycling, setRecycling] = useState(false)
+  const { data: students = [] } = useStudents()
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [sectionMenu, setSectionMenu] = useState<LessonSection | null>(null)
   const [renamingSection, setRenamingSection] = useState<LessonSection | null>(null)
@@ -116,6 +119,11 @@ export function LessonPlanDetailPage() {
       <Link to={`${base}/sheet`} className="contents">
         <Button variant={compact ? 'soft' : 'ghost'} icon={compact ? undefined : <Document size={18} />} disabled={puzzleCount === 0}>
           Sheet
+        </Button>
+      </Link>
+      <Link to={`${base}/learn`} className="contents">
+        <Button variant="secondary" icon={compact ? undefined : <Target size={18} />} disabled={puzzleCount === 0}>
+          Learn
         </Button>
       </Link>
       <Link to={`${base}/coach`} className="contents">
@@ -301,10 +309,13 @@ export function LessonPlanDetailPage() {
             label: 'Duplicate as next lesson',
             icon: <Plus />,
             onSelect: async () => {
-              const copy = await planMutations.duplicate.mutateAsync(plan.id)
+              const copy = await planMutations.duplicate.mutateAsync({ planId: plan.id })
               navigate(`/students/${studentId}/lessons/${copy.id}`)
             },
           },
+          ...(students.some((s) => s.id !== studentId)
+            ? [{ label: 'Recycle for another student…', icon: <Recycle />, onSelect: () => setRecycling(true) }]
+            : []),
           { label: 'Save shape as template', icon: <Document />, onSelect: () => setSavingTemplate(true) },
           ...(puzzleCount > 0
             ? [
@@ -325,6 +336,23 @@ export function LessonPlanDetailPage() {
             ? [{ label: 'Clear theme block', icon: <Trash />, onSelect: () => planMutations.update.mutate({ id: plan.id, patch: { theme: '' } }) }]
             : []),
         ]}
+      />
+      {/* Recycle: the whole lesson, positions and annotations included,
+          becomes another student's next lesson. */}
+      <ActionSheet
+        open={recycling}
+        onClose={() => setRecycling(false)}
+        title={`Recycle Lesson ${plan.number} for…`}
+        items={students
+          .filter((s) => s.id !== studentId)
+          .map((s) => ({
+            label: s.name,
+            icon: <Recycle />,
+            onSelect: async () => {
+              const copy = await planMutations.duplicate.mutateAsync({ planId: plan.id, studentId: s.id })
+              navigate(`/students/${s.id}/lessons/${copy.id}`)
+            },
+          }))}
       />
       <InputModal
         open={savingTemplate}

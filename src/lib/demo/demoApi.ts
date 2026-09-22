@@ -186,9 +186,9 @@ export async function createLessonFromPositions(studentId: string, positions: Pu
   return plan
 }
 
-export async function duplicateLessonPlan(planId: string): Promise<LessonPlan> {
+export async function duplicateLessonPlan(planId: string, studentId?: string): Promise<LessonPlan> {
   const source = await getLessonBundle(planId)
-  const plan = await createLessonPlan(source.plan.student_id, {
+  const plan = await createLessonPlan(studentId ?? source.plan.student_id, {
     title: source.plan.title,
     theme: source.plan.theme,
     agenda: source.plan.agenda,

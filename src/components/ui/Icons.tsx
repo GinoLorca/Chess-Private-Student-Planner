@@ -159,6 +159,21 @@ export const LinkIcon = (p: IconProps) => (
     <path d="M14 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5" />
   </svg>
 )
+export const Target = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="8.5" />
+    <circle cx="12" cy="12" r="4.5" />
+    <circle cx="12" cy="12" r="1" fill="currentColor" />
+  </svg>
+)
+/** Three arrows chasing round a triangle. */
+export const Recycle = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M7 13.1 10.5 7.05M7.78 8.32 10.5 7.05l.26 2.99" />
+    <path d="M7 13.1 10.5 7.05M7.78 8.32 10.5 7.05l.26 2.99" transform="rotate(120 12 12)" />
+    <path d="M7 13.1 10.5 7.05M7.78 8.32 10.5 7.05l.26 2.99" transform="rotate(240 12 12)" />
+  </svg>
+)
 export const Library = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M4 5.5h5v14H4z" />

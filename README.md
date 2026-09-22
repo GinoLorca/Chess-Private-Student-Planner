@@ -22,6 +22,12 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   chains straight into the next Quick add.
 - **Coach view** — set-up piece list, quiz prompt, answer stepper with auto-drawn arrows, notes.
 - **Present** — the student's side: quiz first, answer on reveal.
+- **Learn** — solve it yourself: the board is live and nothing is given away. A right move is
+  accepted and the other side replies; a wrong one bounces back. Solved (or *Show me the
+  answer*), then *Show explanation* reveals the line, arrows and notes. A tally for the
+  session sits in the top bar.
+- **Recycle** — ⋯ on a lesson → *Recycle for another student…* copies the whole lesson,
+  annotations included, as that student's next lesson.
 - **Clicker** — in Coach view and Present, a Bluetooth presentation clicker (Page Down / Page
   Up, or the arrow keys and space) walks the whole lesson: reveal, each answer move, then the
   next position; the back button reverses it; Escape returns to the folder. `]` and `[` jump a

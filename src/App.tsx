@@ -55,6 +55,7 @@ function App() {
                     <Route path={`${lesson}/puzzles/:puzzleId/edit`} element={<PuzzleEditorPage />} />
                     <Route path={`${lesson}/present`} element={<LessonViewPage mode="present" />} />
                     <Route path={`${lesson}/coach`} element={<LessonViewPage mode="coach" />} />
+                    <Route path={`${lesson}/learn`} element={<LessonViewPage mode="learn" />} />
                     <Route path={`${lesson}/sheet`} element={<LessonSheetPage />} />
                   </Routes>
                 </Suspense>

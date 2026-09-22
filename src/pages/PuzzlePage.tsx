@@ -53,9 +53,10 @@ export function PuzzlePage() {
       {/* Desktop (a mouse or trackpad, wide window) gets a board about a third larger; iPad and iPhone keep their layout. */}
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start pointer-fine:min-[1280px]:max-w-[1300px] pointer-fine:min-[1280px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="mx-auto w-full max-w-[560px] pointer-fine:min-[1280px]:max-w-[665px]">
-          <div className="mb-2 flex items-baseline justify-between">
-            <h1 className="text-[26px] font-bold tracking-tight text-ink">{puzzle.label || 'Untitled position'}</h1>
-            <span className="text-[14px] font-semibold text-ink-2">{toMove} to play</span>
+          {/* The title sits on its own paper strip so it reads on any skin's background. */}
+          <div className="mb-2 flex items-baseline justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-2.5 shadow-card">
+            <h1 className="min-w-0 truncate text-[24px] font-bold tracking-tight text-ink">{puzzle.label || 'Untitled position'}</h1>
+            <span className="shrink-0 text-[14px] font-semibold text-ink-2">{toMove} to play</span>
           </div>
           <DrawableBoard
             fen={fen}
@@ -65,7 +66,7 @@ export function PuzzlePage() {
             onArrowsChange={(arrows) => update.mutate({ arrows })}
             onHighlightsChange={(highlights) => update.mutate({ highlights })}
           />
-          <p className="mt-2 text-[12.5px] text-ink-3">
+          <p className="mt-2 text-[12.5px] text-on-bg-2">
             Right-drag for an arrow, right-click a square to highlight it, left-click to clear. Hold {penHint()}.
           </p>
         </div>
@@ -105,7 +106,7 @@ export function PuzzlePage() {
               href={puzzle.reference_url}
               target="_blank"
               rel="noreferrer"
-              className="block text-[14px] font-medium text-accent underline-offset-2 hover:underline"
+              className="block text-[14px] font-medium text-accent-on-bg underline-offset-2 hover:underline"
             >
               {puzzle.reference_label || puzzle.reference_url} ↗
             </a>

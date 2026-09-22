@@ -101,9 +101,16 @@ export function useLessonPlanMutations(studentId: string) {
     mutationFn: (positions: api.PuzzlePatch[]) => api.createLessonFromPositions(studentId, positions),
     onSuccess: invalidate,
   })
+  // Given another student's id the copy is recycled into their folder.
   const duplicate = useMutation({
-    mutationFn: (planId: string) => api.duplicateLessonPlan(planId),
-    onSuccess: invalidate,
+    mutationFn: ({ planId, studentId: target }: { planId: string; studentId?: string }) => api.duplicateLessonPlan(planId, target),
+    onSuccess: (_plan, { studentId: target }) => {
+      invalidate()
+      if (target && target !== studentId) {
+        qc.invalidateQueries({ queryKey: keys.lessonPlans(target) })
+        qc.invalidateQueries({ queryKey: keys.folderCounts(target) })
+      }
+    },
   })
   const update = useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: api.LessonPlanPatch }) => api.updateLessonPlan(id, patch),

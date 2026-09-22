@@ -11,6 +11,7 @@ import { useWakeLock } from '../hooks/useWakeLock'
 import { useClicker } from '../hooks/useClicker'
 import { useSwipeNav } from '../hooks/useSwipeNav'
 import { DrawableBoard } from '../components/board/DrawableBoard'
+import { MoveBoard } from '../components/board/MoveBoard'
 import { effectiveQuizPrompt } from '../lib/prompts'
 import { Button, IconButton } from '../components/ui/Button'
 import { LoadingPage, Page, SectionLabel } from '../components/ui/Page'
@@ -18,12 +19,14 @@ import { PaperCard, StickyNote } from '../components/lesson/Folder'
 import { FOLDER_COLORS, onColor } from '../lib/colors'
 import { Check, ChevronLeft, ChevronRight, Close, Document, Eye } from '../components/ui/Icons'
 
-type Mode = 'coach' | 'present'
+type Mode = 'coach' | 'present' | 'learn'
 
 /**
- * The two lesson-table views. Coach: everything visible — set-up list, prompt,
+ * The lesson-table views. Coach: everything visible — set-up list, prompt,
  * answer stepper, notes — for the coach's eyes across the board. Present: the
- * student's view, quiz first, answer on reveal. Same skeleton, different defaults.
+ * student's view, quiz first, answer on reveal. Learn: the board is live and
+ * nothing is given away until the line is played out or given up. Same
+ * skeleton, different defaults.
  */
 export function LessonViewPage({ mode }: { mode: Mode }) {
   const { studentId = '', lessonPlanId = '' } = useParams()
@@ -49,6 +52,9 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   const [index, setIndex] = useState(() => Math.max(0, items.findIndex((i) => i.puzzle.id === startId)))
   const [direction, setDirection] = useState(1)
   const { set: reviewed, toggle: toggleReviewed } = useSessionSet(`reviewed-${lessonPlanId}`)
+  // Learn view keeps a tally for the session: solved on the board, or shown.
+  const solved = useSessionSet(`learn-solved-${lessonPlanId}`)
+  const shown = useSessionSet(`learn-shown-${lessonPlanId}`)
 
   // Once the lesson loads, land on the requested puzzle (deep link from a position page).
   useEffect(() => {
@@ -93,7 +99,7 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
           </IconButton>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold text-ink">
-              {mode === 'coach' ? "Coach's view" : 'Presenting'}
+              {mode === 'coach' ? "Coach's view" : mode === 'learn' ? 'Learn' : 'Presenting'}
               {!solo && (
                 <span className="text-ink-3">
                   {' '}
@@ -102,6 +108,11 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
               )}
             </p>
           </div>
+          {mode === 'learn' && (
+            <span className="hidden rounded-full bg-surface-2 px-2.5 py-0.5 text-[13px] font-semibold text-ink-2 tabular-nums sm:inline">
+              {solved.set.size} solved · {shown.set.size} shown
+            </span>
+          )}
           {!solo && (
             <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[13px] font-semibold text-ink-2 tabular-nums">
               {index + 1} / {items.length}
@@ -123,7 +134,13 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
               aria-label={`Position ${i + 1}`}
               className={clsx(
                 'h-1.5 flex-1 rounded-full transition',
-                i === index ? 'bg-accent' : reviewed.has(it.puzzle.id) ? 'bg-accent/40' : 'bg-line-strong',
+                i === index
+                  ? 'bg-accent'
+                  : (mode === 'learn' ? solved.set.has(it.puzzle.id) : reviewed.has(it.puzzle.id))
+                    ? 'bg-accent/40'
+                    : mode === 'learn' && shown.set.has(it.puzzle.id)
+                      ? 'bg-ink-3/50'
+                      : 'bg-line-strong',
               )}
             />
           ))}
@@ -149,6 +166,7 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
               color={student?.color ?? FOLDER_COLORS[0]}
               onSwipe={(dir) => go(index + dir)}
               onExit={() => navigate(exitTo)}
+              onResult={(kind) => (kind === 'solved' ? solved.add : shown.add)(current.puzzle.id)}
             />
           </motion.div>
         </AnimatePresence>
@@ -188,6 +206,7 @@ function PuzzleView({
   color,
   onSwipe,
   onExit,
+  onResult,
 }: {
   puzzle: Puzzle
   sectionTitle: string
@@ -197,6 +216,8 @@ function PuzzleView({
   color: string
   onSwipe: (dir: 1 | -1) => void
   onExit: () => void
+  /** Learn view: the position was solved on the board, or given up. */
+  onResult?: (kind: 'solved' | 'shown') => void
 }) {
   const { lessonPlanId = '' } = useParams()
   const { update } = usePuzzleMutations(puzzle.id, lessonPlanId)
@@ -206,6 +227,13 @@ function PuzzleView({
   // puzzle; mid-line they're a sketch for this step only.
   const [sketch, setSketch] = useState<{ step: number; arrows: BoardArrow[]; highlights: BoardHighlight[] } | null>(null)
   const [revealed, setRevealed] = useState(mode === 'coach')
+  // Learn view: the answer stays hidden and the board is live until the line
+  // is played out (solved) or given up (shown). Needs a legal recorded line.
+  const canSolve = mode === 'learn' && steps.length > 1 && steps.every((s) => s.index === 0 || Boolean(s.from))
+  const solving = canSolve && !revealed
+  const [outcome, setOutcome] = useState<'solved' | 'shown' | null>(null)
+  const [wrong, setWrong] = useState<string | null>(null)
+  const [misses, setMisses] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const sideOrientation: Orientation = puzzle.side_to_move === 'b' ? 'black' : 'white'
   const orientation: Orientation = flipped ? (sideOrientation === 'white' ? 'black' : 'white') : sideOrientation
@@ -227,6 +255,34 @@ function PuzzleView({
     atStart ? update.mutate({ highlights }) : setSketch({ step, highlights, arrows: sketchHere?.arrows ?? [] })
   const lastMove = !atStart && current.from && current.to ? { from: current.from, to: current.to } : null
 
+  const last = steps.length - 1
+  const finish = (kind: 'solved' | 'shown') => {
+    setOutcome(kind)
+    onResult?.(kind)
+    if (kind === 'shown') {
+      setStep(0)
+      setRevealed(true)
+    }
+  }
+  const tryMove = (san: string) => {
+    if (!solving || outcome) return
+    const expected = steps[step + 1]
+    if (!expected || !sameMove(san, expected.san ?? '')) {
+      setWrong(san)
+      setMisses((n) => n + 1)
+      return
+    }
+    setWrong(null)
+    const after = step + 1
+    setStep(after)
+    if (after >= last) return finish('solved')
+    // The other side answers after a beat, then it's the solver's move again.
+    window.setTimeout(() => {
+      setStep(after + 1)
+      if (after + 1 >= last) finish('solved')
+    }, 550)
+  }
+
   const next = useCallback(() => setStep((s) => Math.min(steps.length - 1, s + 1)), [steps.length])
   const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
 
@@ -234,10 +290,17 @@ function PuzzleView({
   // then the next position. The other button walks it back.
   const atEnd = step === steps.length - 1
   const forward = useCallback(() => {
-    if (!revealed) setRevealed(true)
+    if (solving) {
+      // While solving, the clicker never gives the answer away: it moves on
+      // to the explanation once solved, or to the next position.
+      if (outcome === 'solved') {
+        setStep(0)
+        setRevealed(true)
+      } else onSwipe(1)
+    } else if (!revealed) setRevealed(true)
     else if (!atEnd) next()
     else onSwipe(1)
-  }, [revealed, atEnd, next, onSwipe])
+  }, [solving, outcome, revealed, atEnd, next, onSwipe])
   const backward = useCallback(() => {
     if (step > 0) prev()
     else onSwipe(-1)
@@ -272,6 +335,19 @@ function PuzzleView({
             Flip board
           </button>
         </div>
+        {solving ? (
+          // A live board: a swipe container would fight piece drags, so the
+          // board owns its pointer and the page turns from anywhere else.
+          <motion.div
+            initial={{ x: 0 }}
+            animate={{ x: wrong ? [0, -12, 12, -7, 7, 0] : 0 }}
+            transition={{ duration: 0.4 }}
+            key={misses}
+            data-swipe-own
+          >
+            <MoveBoard fen={current.fen} orientation={orientation} lastMove={lastMove} onMove={tryMove} disabled={Boolean(outcome)} />
+          </motion.div>
+        ) : (
         <motion.div
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
@@ -295,6 +371,7 @@ function PuzzleView({
             className="shadow-float"
           />
         </motion.div>
+        )}
         <div className="mt-2 flex items-center justify-between">
           <p className="text-[15px] font-semibold text-on-bg">
             <span className="text-on-bg-2">#{position}</span>{' '}
@@ -318,7 +395,54 @@ function PuzzleView({
           <p className="font-display text-[22px] leading-snug font-medium text-ink">{effectiveQuizPrompt(puzzle, sectionTitle)}</p>
         </PaperCard>
 
-        {!revealed ? (
+        {solving ? (
+          outcome === 'solved' ? (
+            <PaperCard className="p-4" tilt={0.4}>
+              <div className="flex items-center gap-4">
+                <span
+                  className="inline-block -rotate-6 rounded-md border-[3px] px-3 py-0.5 font-display text-[22px] font-bold tracking-[0.12em] uppercase"
+                  style={{ color: 'var(--stamp-taught)', borderColor: 'var(--stamp-taught)' }}
+                >
+                  Solved
+                </span>
+                <p className="text-[15px] text-ink-2">
+                  {misses === 0 ? 'First try.' : `${misses} wrong ${misses === 1 ? 'try' : 'tries'} along the way.`}
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                size="lg"
+                block
+                className="mt-4"
+                icon={<Eye size={20} />}
+                onClick={() => {
+                  setStep(0)
+                  setRevealed(true)
+                }}
+              >
+                Show explanation
+              </Button>
+            </PaperCard>
+          ) : (
+            <PaperCard className="p-4" tilt={0.4}>
+              <SectionLabel>Your move</SectionLabel>
+              <p className="text-[17px] leading-snug text-ink">
+                {wrong ? `${wrong}? Not that one, try again.` : step === 0 ? `Play ${toMove}'s move on the board.` : 'Good. Keep going.'}
+              </p>
+              {step > 0 && (
+                <p className="mt-2 font-mono text-[15px] font-semibold text-ink-2">
+                  {steps
+                    .slice(1, step + 1)
+                    .map((s) => `${stepLabel(puzzle, s.index)} ${s.san}`)
+                    .join('  ')}
+                </p>
+              )}
+              <button onClick={() => finish('shown')} className="mt-3 text-[13px] font-medium text-ink-3 hover:text-ink">
+                Show me the answer
+              </button>
+            </PaperCard>
+          )
+        ) : !revealed ? (
           <Button variant="primary" size="lg" block icon={<Eye size={20} />} onClick={() => setRevealed(true)}>
             Reveal answer
           </Button>
@@ -396,6 +520,12 @@ function PuzzleView({
       </div>
     </div>
   )
+}
+
+/** "Nf4+" and "Nf4" are the same move; so are O-O and 0-0. */
+function sameMove(a: string, b: string) {
+  const norm = (s: string) => s.replace(/[+#!?]/g, '').replace(/0/g, 'O').trim()
+  return norm(a) === norm(b)
 }
 
 /** One side's set-up: the pieces on one line, the pawns on the next, so it reads like a real call-out. */

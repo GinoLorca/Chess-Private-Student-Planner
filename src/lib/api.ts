@@ -161,12 +161,14 @@ export async function createLessonFromPositions(studentId: string, positions: Pu
 }
 
 /**
- * A deep copy of a lesson as the student's next lesson: sections and every
- * position come along; status starts over at planned.
+ * A deep copy of a lesson as the student's next lesson, or, given another
+ * student, recycled as that student's next lesson: sections and every
+ * position (answer, notes, arrows, highlights, source) come along; status
+ * starts over at planned.
  */
-export async function duplicateLessonPlan(planId: string): Promise<LessonPlan> {
+export async function duplicateLessonPlan(planId: string, studentId?: string): Promise<LessonPlan> {
   const source = await getLessonBundle(planId)
-  const plan = await createLessonPlan(source.plan.student_id, {
+  const plan = await createLessonPlan(studentId ?? source.plan.student_id, {
     title: source.plan.title,
     theme: source.plan.theme,
     agenda: source.plan.agenda,

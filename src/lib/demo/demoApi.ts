@@ -1,5 +1,5 @@
 import fixtures from './fixtures.json'
-import { sortLibrary, type LessonBundle, type LessonPlanPatch, type LibraryEntry, type PuzzleLocation, type PuzzlePatch, type SettingsPatch } from '../api'
+import { sortLibrary, type LessonBundle, type LessonPlanPatch, type LibraryEntry, type PuzzleLocation, type PuzzlePatch, type SettingsPatch, type UscfEvent, type UscfHistory, type UscfRating } from '../api'
 import { rankByUse } from '../rank'
 import type {
   CustomPieceSet,
@@ -115,7 +115,43 @@ export async function createStudent(name: string, color: string): Promise<Studen
   return student
 }
 
-export async function updateStudent(id: string, patch: Partial<Pick<Student, 'name' | 'color' | 'logo' | 'sort_order'>>) {
+export { STUDENT_MIGRATION_COLUMNS } from '../api'
+
+export async function missingStudentColumns(): Promise<string[]> {
+  return []
+}
+
+/** Stand-in ratings for the demo's members, so the folders show something without the network. */
+const DEMO_RATINGS: Record<string, Omit<UscfRating, 'id' | 'fetchedAt'>> = {
+  '32473012': { name: 'JOSEPH LIU', regular: 1436, quick: 1390, blitz: 1402, expires: '2027-06-30' },
+  '32653994': { name: 'PARKER DOWNING', regular: 812, quick: 790, blitz: null, expires: '2027-03-31' },
+}
+
+const DEMO_EVENTS: Record<string, UscfEvent[]> = {
+  '32473012': [
+    { date: '2026-06-14', eventId: '202606141234', name: '2026 SUMMER SCHOLASTIC OPEN', section: '3: U1500', points: 3.5, games: 4, before: 1405, after: 1436 },
+    { date: '2026-03-02', eventId: '202603021111', name: 'MARSHALL SUNDAY G/45', section: '1: OPEN', points: 2, games: 4, before: 1362, after: 1405 },
+    { date: '2025-12-07', eventId: '202512071234', name: 'NYC SCHOLASTIC CHAMPIONSHIP', section: '2: K-6 U1400', points: 4, games: 5, before: 1290, after: 1362 },
+  ],
+  '32653994': [
+    { date: '2026-05-17', eventId: '202605171234', name: 'CHELSEA CHESSMATES SPRING OPEN', section: '4: U900', points: 3, games: 4, before: 760, after: 812 },
+    { date: '2026-02-08', eventId: '202602081234', name: 'PS 11 WINTER RATED', section: '2: U1000', points: 1.5, games: 4, before: null, after: 760 },
+  ],
+}
+
+export async function getUscfHistory(id: string): Promise<UscfHistory> {
+  const rating = await getUscfRating(id)
+  return { ...rating, events: DEMO_EVENTS[id] ?? [] }
+}
+
+export async function getUscfRating(id: string): Promise<UscfRating> {
+  await delay()
+  const known = DEMO_RATINGS[id]
+  if (!known) throw new Error('No member with that ID on the USCF page')
+  return { id, ...known, fetchedAt: now() }
+}
+
+export async function updateStudent(id: string, patch: Partial<Pick<Student, 'name' | 'color' | 'logo' | 'uscf_id' | 'sort_order'>>) {
   db().students = db().students.map((s) => (s.id === id ? { ...s, ...patch } : s))
   save()
 }

@@ -4,7 +4,7 @@ import clsx from 'clsx'
 import type { Student } from '../../types/domain'
 import { LogoBadge } from '../lesson/Folder'
 import { onColor } from '../../lib/colors'
-import { useFolderCounts } from '../../lib/queries'
+import { useFolderCounts, useUscfRating } from '../../lib/queries'
 import { More } from '../ui/Icons'
 
 interface RolodexProps {
@@ -148,6 +148,17 @@ export function Rolodex({ students, onOpen, onMenu }: RolodexProps) {
 
   return (
     <div className="select-none">
+      {/* The house lights go down: the whole page darkens around the wheel
+          and a beam comes in from above, so the front folder sits in a
+          spotlight. Painted behind everything (negative z) but over the
+          page's own background. */}
+      <div
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            'conic-gradient(from 166deg at 50% -6%, rgba(255,255,255,0) 0deg, rgba(255,255,255,0.22) 11deg, rgba(255,255,255,0.22) 17deg, rgba(255,255,255,0) 28deg), radial-gradient(ellipse 52% 56% at 50% 50%, rgba(0,0,0,0) 28%, rgba(0,0,0,0.3) 62%, rgba(0,0,0,0.6) 100%)',
+        }}
+      />
       <div
         className="relative mx-auto h-[440px] w-full max-w-[560px] touch-none [perspective:1400px] sm:h-[480px]"
         onPointerDown={onPointerDown}
@@ -162,11 +173,11 @@ export function Rolodex({ students, onOpen, onMenu }: RolodexProps) {
         <div
           className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10"
           style={{
-            // A pool of light, and a soft shadow around it. Both radii stay
-            // at or under 50% of the box, so each gradient reaches transparent
-            // before the box edge and no rectangle shows on a patterned skin.
+            // The pool of light on the stage. Its radii stay under 50% of the
+            // box, so it reaches transparent before the box edge and no
+            // rectangle shows on a patterned skin.
             background:
-              'radial-gradient(ellipse 40% 40% at 50% 47%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.45) 40%, rgba(255,255,255,0) 72%), radial-gradient(ellipse 50% 50% at 50% 48%, rgba(0,0,0,0) 44%, rgba(0,0,0,0.14) 66%, rgba(0,0,0,0.05) 88%, rgba(0,0,0,0) 100%)',
+              'radial-gradient(ellipse 44% 42% at 50% 47%, rgba(255,255,255,1) 0%, rgba(255,255,255,0.55) 38%, rgba(255,255,255,0) 72%)',
           }}
         />
         {/* The spindle the folders hang off, for a hint of the machine. */}
@@ -249,6 +260,7 @@ function Card({
 
   const { data: counts } = useFolderCounts(isFront ? student.id : undefined)
   const lessons = counts?.lesson_plan
+  const rating = useUscfRating(student.uscf_id)
   const ink = useMemo(() => onColor(student.color), [student.color])
   const dark = ink.dark
 
@@ -325,6 +337,15 @@ function Card({
               </h2>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {student.uscf_id && (
+                <span
+                  className="rounded-full px-2.5 py-1 text-[12px] font-bold tracking-wide tabular-nums"
+                  style={{ background: ink.chip, color: ink.ink }}
+                  title={rating.data?.name ? `USCF ${student.uscf_id} · ${rating.data.name}` : `USCF ${student.uscf_id}`}
+                >
+                  {rating.data ? (rating.data.regular ? `USCF ${rating.data.regular}` : 'USCF unrated') : rating.isError ? 'USCF ?' : 'USCF …'}
+                </span>
+              )}
               <button
                 type="button"
                 data-menu

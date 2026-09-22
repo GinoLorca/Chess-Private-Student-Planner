@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Rolodex } from '../components/students/Rolodex'
 import type { Student } from '../types/domain'
 import { useStudentMutations, useStudents } from '../lib/queries'
+import { missingStudentColumns, STUDENT_MIGRATION_COLUMNS } from '../lib/data'
+import { copyText } from '../lib/links'
 import { Page, EmptyState, LoadingPage } from '../components/ui/Page'
 import { Button, IconButton } from '../components/ui/Button'
 import { InputModal } from '../components/ui/InputModal'
@@ -24,7 +26,22 @@ export function DashboardPage() {
   const [recoloring, setRecoloring] = useState<Student | null>(null)
   const [logoFor, setLogoFor] = useState<Student | null>(null)
   const [customColorFor, setCustomColorFor] = useState<Student | null>(null)
+  const [uscfFor, setUscfFor] = useState<Student | null>(null)
   const [deleting, setDeleting] = useState<Student | null>(null)
+  // Columns later migrations add; when the database lacks one, say so up
+  // front with the SQL to run, rather than letting a save quietly fail.
+  const [missing, setMissing] = useState<string[]>([])
+  const [copiedSql, setCopiedSql] = useState(false)
+  useEffect(() => {
+    let live = true
+    missingStudentColumns()
+      .then((cols) => live && setMissing(cols))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [])
+  const missingSql = missing.map((c) => `alter table students add column if not exists ${c} text;`).join('\n')
   // A failed save rolls the folder back; say why, instead of the change just vanishing.
   const [saveError, setSaveError] = useState<string | null>(null)
   const report = { onError: (e: unknown) => setSaveError(explainSaveError(e)) }
@@ -52,6 +69,34 @@ export function DashboardPage() {
         </>
       }
     >
+      {missing.length > 0 && (
+        <div role="alert" className="mb-4 rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-[14px] text-warn">
+          <p className="font-semibold">
+            {missing.length === 1 ? 'A database update is waiting' : `${missing.length} database updates are waiting`}, so{' '}
+            {missing.map((c) => (c === 'logo' ? 'school logos' : c === 'uscf_id' ? 'USCF IDs' : c)).join(' and ')} can't be saved yet.
+          </p>
+          <p className="mt-1">In Supabase → SQL Editor, paste this and Run, once:</p>
+          <pre className="mt-2 overflow-x-auto rounded-lg bg-surface px-3 py-2 font-mono text-[12.5px] whitespace-pre-wrap text-ink">{missingSql}</pre>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={async () => {
+                await copyText(missingSql)
+                setCopiedSql(true)
+              }}
+            >
+              {copiedSql ? 'Copied' : 'Copy the SQL'}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => window.location.reload()}>
+              I've run it, check again
+            </Button>
+          </div>
+          <p className="mt-2 text-[12.5px]">
+            These are {missing.map((c) => STUDENT_MIGRATION_COLUMNS[c]).join(' and ')} in the repo's supabase/migrations folder.
+          </p>
+        </div>
+      )}
       {saveError && (
         <div role="alert" className="mb-4 flex items-start gap-3 rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-[14px] text-warn">
           <p className="flex-1">{saveError}</p>
@@ -95,6 +140,7 @@ export function DashboardPage() {
           { label: 'Rename', icon: <Pencil />, onSelect: () => setRenaming(menuFor) },
           { label: 'Change folder colour', icon: <More />, onSelect: () => setRecoloring(menuFor) },
           { label: 'School logo…', icon: <Library />, onSelect: () => setLogoFor(menuFor) },
+          { label: menuFor?.uscf_id ? `USCF ID… (${menuFor.uscf_id})` : 'USCF ID…', icon: <Pencil />, onSelect: () => setUscfFor(menuFor) },
           { label: 'Delete student', icon: <Trash />, danger: true, onSelect: () => setDeleting(menuFor) },
         ]}
       />
@@ -146,11 +192,27 @@ export function DashboardPage() {
           if (customColorFor && /^#[0-9a-f]{6}$/i.test(hex)) await update.mutateAsync({ id: customColorFor.id, patch: { color: hex.toLowerCase() } }, report)
         }}
       />
+      <InputModal
+        open={Boolean(uscfFor)}
+        title="USCF ID"
+        label="Member number (the digits on the USCF card)"
+        placeholder="e.g. 32473012"
+        initialValue={uscfFor?.uscf_id ?? ''}
+        submitLabel="Save"
+        onClose={() => setUscfFor(null)}
+        onSubmit={async (value) => {
+          const digits = value.replace(/\D/g, '')
+          if (uscfFor) await update.mutateAsync({ id: uscfFor.id, patch: { uscf_id: digits || null } }, report)
+        }}
+      />
       <LogoPicker
         student={logoFor}
         onClose={() => setLogoFor(null)}
         onPick={(logo, color) => {
-          if (logoFor) update.mutate({ id: logoFor.id, patch: color ? { logo, color } : { logo } }, report)
+          if (!logoFor) return
+          // Two saves, so the colour lands even when the logo column is missing.
+          if (color) update.mutate({ id: logoFor.id, patch: { color } }, report)
+          update.mutate({ id: logoFor.id, patch: { logo } }, report)
           setLogoFor(null)
         }}
       />
@@ -162,8 +224,10 @@ export function DashboardPage() {
 function explainSaveError(e: unknown): string {
   const msg =
     e instanceof Error ? e.message : e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : String(e)
-  if (/logo/i.test(msg) && /does not exist|schema cache/i.test(msg)) {
-    return "The database doesn't have the logo column yet, so the logo and colour were not saved. In Supabase → SQL Editor, run supabase/migrations/0007_student_logo.sql once (it is one line), then pick the logo again."
+  const column = Object.keys(STUDENT_MIGRATION_COLUMNS).find((c) => msg.toLowerCase().includes(c))
+  if (column && /does not exist|schema cache/i.test(msg)) {
+    const what = column === 'logo' ? 'the logo' : column === 'uscf_id' ? 'the USCF ID' : column
+    return `The database doesn't have the ${column} column yet, so ${what} was not saved. In Supabase → SQL Editor, run supabase/migrations/${STUDENT_MIGRATION_COLUMNS[column]} once (it is one line), then try again.`
   }
   return `Couldn't save that change: ${msg}`
 }

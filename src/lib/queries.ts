@@ -14,6 +14,30 @@ export const keys = {
   lessonTemplates: ['lessonTemplates'] as const,
   pieceSets: ['pieceSets'] as const,
   library: ['library'] as const,
+  uscf: (memberId: string) => ['uscf', memberId] as const,
+  uscfHistory: (memberId: string) => ['uscfHistory', memberId] as const,
+}
+
+/** A student's live USCF rating, kept for six hours (and offline, from the persisted cache). */
+export function useUscfRating(memberId: string | null | undefined) {
+  return useQuery({
+    queryKey: keys.uscf(memberId ?? ''),
+    queryFn: () => api.getUscfRating(memberId!),
+    enabled: Boolean(memberId),
+    staleTime: 6 * 60 * 60_000,
+    retry: 1,
+  })
+}
+
+/** The member's tournament history with scores, for the player tracker; a slower lookup, kept a day. */
+export function useUscfHistory(memberId: string | null | undefined) {
+  return useQuery({
+    queryKey: keys.uscfHistory(memberId ?? ''),
+    queryFn: () => api.getUscfHistory(memberId!),
+    enabled: Boolean(memberId),
+    staleTime: 24 * 60 * 60_000,
+    retry: 1,
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -51,7 +75,7 @@ export function useStudentMutations() {
     onSuccess: invalidate,
   })
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<Student, 'name' | 'color' | 'logo' | 'sort_order'>> }) =>
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<Student, 'name' | 'color' | 'logo' | 'uscf_id' | 'sort_order'>> }) =>
       api.updateStudent(id, patch),
     onMutate: async ({ id, patch }) => {
       await qc.cancelQueries({ queryKey: keys.students })

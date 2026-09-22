@@ -46,9 +46,67 @@ export async function createStudent(name: string, color: string): Promise<Studen
   return data as Student
 }
 
-export async function updateStudent(id: string, patch: Partial<Pick<Student, 'name' | 'color' | 'logo' | 'sort_order'>>) {
+export async function updateStudent(id: string, patch: Partial<Pick<Student, 'name' | 'color' | 'logo' | 'uscf_id' | 'sort_order'>>) {
   const { error } = await supabase.from('students').update(patch).eq('id', id)
   if (error) throw error
+}
+
+/** Student columns added by later migrations, and the file that adds each. */
+export const STUDENT_MIGRATION_COLUMNS: Record<string, string> = {
+  logo: '0007_student_logo.sql',
+  uscf_id: '0008_student_uscf.sql',
+}
+
+/** Which of those columns this database doesn't have yet; empty when every migration has been run. */
+export async function missingStudentColumns(): Promise<string[]> {
+  const missing: string[] = []
+  for (const column of Object.keys(STUDENT_MIGRATION_COLUMNS)) {
+    const { error } = await supabase.from('students').select(column).limit(1)
+    if (error && error.message.toLowerCase().includes(column)) missing.push(column)
+  }
+  return missing
+}
+
+/** A member's current USCF ratings, from the app's own /api/uscf function. */
+export interface UscfRating {
+  id: string
+  name: string | null
+  regular: number | null
+  quick: number | null
+  blitz: number | null
+  expires: string | null
+  fetchedAt: string
+}
+
+/** One rated event from the member's USCF history, with the score from its crosstable when read. */
+export interface UscfEvent {
+  date: string
+  eventId: string
+  name: string
+  section: string | null
+  points: number | null
+  games: number | null
+  before: number | null
+  after: number | null
+}
+
+export interface UscfHistory extends UscfRating {
+  events: UscfEvent[]
+  eventsError?: string
+}
+
+export async function getUscfHistory(id: string): Promise<UscfHistory> {
+  const res = await fetch(`/api/uscf?id=${encodeURIComponent(id)}&events=1`)
+  const body = (await res.json().catch(() => ({}))) as Partial<UscfHistory> & { error?: string }
+  if (!res.ok) throw new Error(body.error || `USCF lookup failed (${res.status})`)
+  return { ...(body as UscfHistory), events: body.events ?? [] }
+}
+
+export async function getUscfRating(id: string): Promise<UscfRating> {
+  const res = await fetch(`/api/uscf?id=${encodeURIComponent(id)}`)
+  const body = (await res.json().catch(() => ({}))) as Partial<UscfRating> & { error?: string }
+  if (!res.ok) throw new Error(body.error || `USCF lookup failed (${res.status})`)
+  return body as UscfRating
 }
 
 export async function deleteStudent(id: string) {

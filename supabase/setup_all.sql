@@ -286,3 +286,7 @@ alter table puzzles add column if not exists done boolean not null default false
 -- A student's school badge: a path to a built-in logo (/logos/buckley.png)
 -- or a small image the coach uploaded, stored as a data URL.
 alter table students add column if not exists logo text;
+
+-- ===================== 0008_student_uscf.sql =====================
+-- A student's USCF ID; the live rating is looked up from it.
+alter table students add column if not exists uscf_id text;

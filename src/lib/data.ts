@@ -9,6 +9,11 @@ const impl: typeof real = isDemo ? demo : real
 export const listStudents = impl.listStudents
 export const createStudent = impl.createStudent
 export const updateStudent = impl.updateStudent
+export const missingStudentColumns = impl.missingStudentColumns
+export const getUscfRating = impl.getUscfRating
+export const getUscfHistory = impl.getUscfHistory
+export { STUDENT_MIGRATION_COLUMNS } from './api'
+export type { UscfEvent, UscfHistory, UscfRating } from './api'
 export const deleteStudent = impl.deleteStudent
 export const getFolderCounts = impl.getFolderCounts
 export const listLessonPlans = impl.listLessonPlans

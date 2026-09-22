@@ -111,6 +111,7 @@ re-run, so if you're not sure which you've done, run `supabase/setup_all.sql` ag
 | `0005_skins.sql` | the chosen skin (Folder or a Chess Arcade skin) |
 | `0006_puzzle_done.sql` | the done flag on positions, for the annotation queue |
 | `0007_student_logo.sql` | a school logo on each student folder |
+| `0008_student_uscf.sql` | a USCF ID on each student, for the live rating on the folder |
 
 ---
 

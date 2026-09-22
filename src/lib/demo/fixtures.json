@@ -4,13 +4,15 @@
       "id": "stu_jojo",
       "name": "Joseph \"Jojo\" Liu",
       "color": "#1b3a6b",
-      "logo": "/logos/buckley.png"
+      "logo": "/logos/buckley.png",
+      "uscf_id": "32473012"
     },
     {
       "id": "stu_parker",
       "name": "Parker Downing",
       "color": "#2b4fc4",
-      "logo": "/logos/chelsea-chessmates.png"
+      "logo": "/logos/chelsea-chessmates.png",
+      "uscf_id": "32653994"
     },
     {
       "id": "stu_aria",

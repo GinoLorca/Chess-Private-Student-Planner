@@ -37,6 +37,9 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   quiz alone on the board. A long press on either clicker button does the same (the app takes
   the F5 / Shift+F5 most clickers send for it, or a genuinely held key); so do B, period and H,
   or a spare clicker button taught in Settings → Clicker.
+- **USCF rating on the folder** — ⋯ on a folder → *USCF ID…*; the app looks the member's
+  current rating up (through its own `/api/uscf` function, since the USCF site blocks browsers)
+  and shows it on the folder front, refreshed every few hours and kept for offline.
 - **Lesson sheet** — the whole lesson in document form, printable to PDF.
 - **School logos and colours** — a student's folder can carry their school badge (⋯ on the
   folder → *School logo…*: a built-in badge with its school colour in one tap, or any picture
@@ -99,6 +102,7 @@ browser's localStorage). The AI helpers return sample responses in demo mode.
    | `supabase/migrations/0005_skins.sql` | the chosen skin |
    | `supabase/migrations/0006_puzzle_done.sql` | the done flag on positions (annotation queue) |
    | `supabase/migrations/0007_student_logo.sql` | a school logo on each student folder |
+   | `supabase/migrations/0008_student_uscf.sql` | a USCF ID on each student, for the live rating on the folder |
 
 3. In **Project Settings → API**, copy the **Project URL** and **anon public key** into
    `.env.local`:

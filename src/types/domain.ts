@@ -15,6 +15,8 @@ export interface Student {
   color: string
   /** A school badge: a built-in /logos path or a small data URL. */
   logo?: string | null
+  /** USCF member number; the live rating is looked up from it. */
+  uscf_id?: string | null
   sort_order: number
   created_at: string
 }

@@ -193,6 +193,8 @@ export function SettingsPage() {
         </Button>
       </Card>
 
+      <AboutCard />
+
       <ImportPieceSetSheet open={importing} onClose={() => setImporting(false)} />
       <ConfirmDialog
         open={Boolean(deleting)}
@@ -426,5 +428,44 @@ function ImportPieceSetSheet({ open, onClose }: { open: boolean; onClose: () => 
         </div>
       </div>
     </Modal>
+  )
+}
+
+/** Which build this is, and a way to fetch a newer one without reinstalling the app. */
+function AboutCard() {
+  const [state, setState] = useState<'idle' | 'checking' | 'current' | 'updated'>('idle')
+  async function check() {
+    setState('checking')
+    try {
+      const reg = await navigator.serviceWorker?.getRegistration()
+      if (reg) {
+        await reg.update()
+        if (reg.waiting || reg.installing) {
+          setState('updated')
+          return
+        }
+      }
+      setState('current')
+    } catch {
+      setState('current')
+    }
+  }
+  return (
+    <Card className="p-4">
+      <SectionLabel>About</SectionLabel>
+      <p className="text-[14px] text-ink-2">
+        Private Chess Lesson Planner · build <span className="font-mono font-semibold text-ink">{__BUILD__}</span>
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button variant="secondary" size="sm" onClick={check} disabled={state === 'checking'}>
+          {state === 'checking' ? 'Checking…' : 'Check for updates'}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => window.location.reload()}>
+          Reload
+        </Button>
+        {state === 'current' && <span className="text-[13px] text-ink-3">Nothing newer found. Reload to be sure.</span>}
+        {state === 'updated' && <span className="text-[13px] text-ink-3">A newer build is downloading. Reload in a moment.</span>}
+      </div>
+    </Card>
   )
 }

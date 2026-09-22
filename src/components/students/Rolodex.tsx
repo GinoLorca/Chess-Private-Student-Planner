@@ -223,10 +223,10 @@ function Card({
   // front) fall into shadow faster than cards below; a sheen slides across
   // the cover as a card turns through the light, and the top edge catches a
   // rim highlight when it faces you.
-  const shade = useTransform(offset, (o) => (o < 0 ? Math.min(-o, 2) * 0.3 : Math.min(o, 2) * 0.16))
-  const sheenPos = useTransform(offset, (o) => `${55 - Math.max(-1.5, Math.min(1.5, o)) * 70}% 0%`)
-  const sheenOpacity = useTransform(offset, (o) => Math.max(0, 0.55 - Math.abs(o) * 0.45))
-  const rim = useTransform(offset, (o) => Math.max(0, 0.45 - Math.abs(o) * 0.4))
+  const shade = useTransform(offset, (o) => (o < 0 ? Math.min(-o, 2) * 0.36 : Math.min(o, 2) * 0.22))
+  const sheenPos = useTransform(offset, (o) => `${55 - Math.max(-1.5, Math.min(1.5, o)) * 80}% 0%`)
+  const sheenOpacity = useTransform(offset, (o) => Math.max(0, 0.9 - Math.abs(o) * 0.6))
+  const rim = useTransform(offset, (o) => Math.max(0, 0.7 - Math.abs(o) * 0.55))
   const pointerEvents = useTransform(offset, (o) => (Math.abs(o) > VISIBLE ? 'none' : 'auto'))
 
   const { data: counts } = useFolderCounts(isFront ? student.id : undefined)
@@ -279,7 +279,7 @@ function Card({
             className="pointer-events-none absolute inset-0"
             style={{
               opacity: sheenOpacity,
-              backgroundImage: 'linear-gradient(105deg, rgba(255,255,255,0) 35%, rgba(255,255,255,0.32) 50%, rgba(255,255,255,0) 65%)',
+              backgroundImage: 'linear-gradient(105deg, rgba(255,255,255,0) 32%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 68%)',
               backgroundSize: '220% 100%',
               backgroundRepeat: 'no-repeat',
               backgroundPosition: sheenPos,

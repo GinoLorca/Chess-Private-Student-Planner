@@ -25,6 +25,9 @@ export function DashboardPage() {
   const [logoFor, setLogoFor] = useState<Student | null>(null)
   const [customColorFor, setCustomColorFor] = useState<Student | null>(null)
   const [deleting, setDeleting] = useState<Student | null>(null)
+  // A failed save rolls the folder back; say why, instead of the change just vanishing.
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const report = { onError: (e: unknown) => setSaveError(explainSaveError(e)) }
 
   if (isLoading && !students) return <LoadingPage />
 
@@ -49,6 +52,14 @@ export function DashboardPage() {
         </>
       }
     >
+      {saveError && (
+        <div role="alert" className="mb-4 flex items-start gap-3 rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-[14px] text-warn">
+          <p className="flex-1">{saveError}</p>
+          <button onClick={() => setSaveError(null)} className="shrink-0 font-semibold underline underline-offset-2">
+            Dismiss
+          </button>
+        </div>
+      )}
       {students && students.length === 0 ? (
         <EmptyState
           title="No students yet"
@@ -95,7 +106,7 @@ export function DashboardPage() {
         initialValue={renaming?.name ?? ''}
         onClose={() => setRenaming(null)}
         onSubmit={async (name) => {
-          if (renaming) await update.mutateAsync({ id: renaming.id, patch: { name } })
+          if (renaming) await update.mutateAsync({ id: renaming.id, patch: { name } }, report)
         }}
       />
 
@@ -114,7 +125,7 @@ export function DashboardPage() {
         student={recoloring}
         onClose={() => setRecoloring(null)}
         onPick={(color) => {
-          if (recoloring) update.mutate({ id: recoloring.id, patch: { color } })
+          if (recoloring) update.mutate({ id: recoloring.id, patch: { color } }, report)
           setRecoloring(null)
         }}
         onCustom={() => {
@@ -132,19 +143,29 @@ export function DashboardPage() {
         onClose={() => setCustomColorFor(null)}
         onSubmit={async (value) => {
           const hex = value.trim().startsWith('#') ? value.trim() : `#${value.trim()}`
-          if (customColorFor && /^#[0-9a-f]{6}$/i.test(hex)) await update.mutateAsync({ id: customColorFor.id, patch: { color: hex.toLowerCase() } })
+          if (customColorFor && /^#[0-9a-f]{6}$/i.test(hex)) await update.mutateAsync({ id: customColorFor.id, patch: { color: hex.toLowerCase() } }, report)
         }}
       />
       <LogoPicker
         student={logoFor}
         onClose={() => setLogoFor(null)}
         onPick={(logo, color) => {
-          if (logoFor) update.mutate({ id: logoFor.id, patch: color ? { logo, color } : { logo } })
+          if (logoFor) update.mutate({ id: logoFor.id, patch: color ? { logo, color } : { logo } }, report)
           setLogoFor(null)
         }}
       />
     </Page>
   )
+}
+
+/** What went wrong saving a folder, in the coach's terms; the missing-column case names its fix. */
+function explainSaveError(e: unknown): string {
+  const msg =
+    e instanceof Error ? e.message : e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : String(e)
+  if (/logo/i.test(msg) && /does not exist|schema cache/i.test(msg)) {
+    return "The database doesn't have the logo column yet, so the logo and colour were not saved. In Supabase → SQL Editor, run supabase/migrations/0007_student_logo.sql once (it is one line), then pick the logo again."
+  }
+  return `Couldn't save that change: ${msg}`
 }
 
 /**

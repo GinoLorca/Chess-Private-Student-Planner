@@ -98,7 +98,9 @@ nothing else depends on it.
 
 ## When the app gets an update
 
-Vercel redeploys on every push, so the app itself updates by itself. When an update adds a
+Vercel redeploys on every push, so the app itself updates by itself. To see which build you are
+running, open **Settings → About**: it shows the commit, with **Check for updates** and **Reload**
+buttons for a copy that seems behind. When an update adds a
 database change there is a new file in `supabase/migrations/`, numbered after the ones you've
 run. Paste it into **SQL Editor → New query** and **Run**, once. Every migration is safe to
 re-run, so if you're not sure which you've done, run `supabase/setup_all.sql` again instead.

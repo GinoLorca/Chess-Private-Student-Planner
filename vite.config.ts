@@ -5,6 +5,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // The commit this build came from (Vercel sets it), shown in Settings so
+  // "which version am I running?" has a one-look answer.
+  define: {
+    __BUILD__: JSON.stringify((process.env.VERCEL_GIT_COMMIT_SHA ?? 'dev').slice(0, 7)),
+  },
   plugins: [
     react(),
     tailwindcss(),

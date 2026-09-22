@@ -9,9 +9,10 @@ import { Page, Card, LoadingPage, SectionLabel } from '../components/ui/Page'
 import { effectiveQuizPrompt } from '../lib/prompts'
 import { penHint } from '../lib/pens'
 import { CopyLinkButton } from '../components/ui/CopyLink'
-import { Button } from '../components/ui/Button'
+import { Button, IconButton } from '../components/ui/Button'
 import { DrawableBoard } from '../components/board/DrawableBoard'
-import { ChevronLeft, ChevronRight, Pencil, Play } from '../components/ui/Icons'
+import { ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Play } from '../components/ui/Icons'
+import { useHideToggle } from '../hooks/useHideToggle'
 
 /**
  * The read view of one position: what the coach glances at right before a
@@ -32,6 +33,8 @@ export function PuzzlePage() {
   const next = useCallback(() => setStep((s) => Math.min(last, s + 1)), [last])
   const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
   useClicker({ next, prev })
+  // The eye (or the clicker's third button) hides the explanation and move notes.
+  const [hidden, toggleHidden] = useHideToggle()
 
   if (isLoading && !puzzle) return <LoadingPage />
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
@@ -132,7 +135,7 @@ export function PuzzlePage() {
                     >
                       <span className="w-8 shrink-0 text-right font-mono text-[13px] text-ink-3 tabular-nums">{stepLabel(puzzle, i + 1)}</span>
                       <span className="font-mono text-[17px] font-semibold text-ink">{move.san}</span>
-                      {move.comment && <span className="text-[14px] text-ink-2">{move.comment}</span>}
+                      {move.comment && !hidden && <span className="text-[14px] text-ink-2">{move.comment}</span>}
                     </button>
                   </li>
                 ))}
@@ -140,10 +143,19 @@ export function PuzzlePage() {
             )}
           </Card>
 
-          {puzzle.summary && (
+          {(puzzle.summary || puzzle.solution.some((m) => m.comment)) && (
             <Card className="p-4">
-              <SectionLabel>Explanation</SectionLabel>
-              <p className="text-[16px] leading-relaxed whitespace-pre-wrap text-ink">{puzzle.summary}</p>
+              <div className="flex items-center justify-between">
+                <SectionLabel className="mb-0">Explanation</SectionLabel>
+                <IconButton label={hidden ? 'Show explanation' : 'Hide explanation'} onClick={toggleHidden} className="-mr-2">
+                  {hidden ? <EyeOff /> : <Eye />}
+                </IconButton>
+              </div>
+              {hidden ? (
+                <p className="mt-1 text-[14px] text-ink-3">Hidden. Tap the eye, or the clicker's third button, to show it.</p>
+              ) : (
+                puzzle.summary && <p className="mt-2 text-[16px] leading-relaxed whitespace-pre-wrap text-ink">{puzzle.summary}</p>
+              )}
             </Card>
           )}
 

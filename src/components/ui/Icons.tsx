@@ -159,6 +159,14 @@ export const LinkIcon = (p: IconProps) => (
     <path d="M14 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5" />
   </svg>
 )
+export const EyeOff = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M3 3l18 18" />
+    <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+    <path d="M9.9 5.2A10 10 0 0 1 12 5c5 0 8.5 4 9.5 7-.4 1.1-1.2 2.4-2.3 3.6" />
+    <path d="M6.6 6.6C4.6 8 3.2 9.9 2.5 12c1 3 4.5 7 9.5 7 1.6 0 3-.4 4.3-1" />
+  </svg>
+)
 export const Target = (p: IconProps) => (
   <svg {...base(p)}>
     <circle cx="12" cy="12" r="8.5" />

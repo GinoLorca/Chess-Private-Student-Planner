@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { useAuth } from '../auth/AuthProvider'
 import { useAppearance, type Appearance } from '../app/providers'
@@ -17,6 +17,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Board } from '../components/board/Board'
 import { StatusStamp } from '../components/lesson/Folder'
 import { FOLDER_COLORS } from '../lib/colors'
+import { describeTrigger, loadToggle, saveToggle, type Trigger } from '../lib/clicker'
 import { Check, Moon, Sun, Trash, Upload } from '../components/ui/Icons'
 
 const APPEARANCES: { id: Appearance; label: string }[] = [
@@ -156,6 +157,13 @@ export function SettingsPage() {
       <Button variant="soft" icon={<Upload size={18} />} onClick={() => setImporting(true)} className="mb-8">
         Import piece set
       </Button>
+
+      <SectionLabel tone="page">Clicker</SectionLabel>
+      <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">
+        A Bluetooth presentation clicker walks Coach view, Present, Learn and the position page. Its third button can hide
+        and show explanations once the app has learnt it.
+      </p>
+      <ClickerCard />
 
       <SectionLabel tone="page">Game accounts</SectionLabel>
       <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">Lets Quick Add find your own games by link.</p>
@@ -466,6 +474,89 @@ function AboutCard() {
         {state === 'current' && <span className="text-[13px] text-ink-3">Nothing newer found. Reload to be sure.</span>}
         {state === 'updated' && <span className="text-[13px] text-ink-3">A newer build is downloading. Reload in a moment.</span>}
       </div>
+    </Card>
+  )
+}
+
+/** The clicker's buttons, and teaching the third one to hide / show explanations. */
+function ClickerCard() {
+  const [custom, setCustom] = useState<Trigger | null>(() => loadToggle())
+  const [listening, setListening] = useState(false)
+  const [seen, setSeen] = useState<string | null>(null)
+  useEffect(() => {
+    if (!listening) return
+    const learn = (t: Trigger) => {
+      saveToggle(t)
+      setCustom(t)
+      setSeen(describeTrigger(t))
+      setListening(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.key === 'Escape') setListening(false)
+      else learn({ kind: 'key', key: e.key, code: e.code })
+    }
+    const onMouse = (e: MouseEvent) => {
+      // Never the left button (taps) or the right one (draws arrows).
+      if (e.button === 0 || e.button === 2) return
+      e.preventDefault()
+      learn({ kind: 'mouse', button: e.button })
+    }
+    window.addEventListener('keydown', onKey, true)
+    window.addEventListener('mousedown', onMouse, true)
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('mousedown', onMouse, true)
+    }
+  }, [listening])
+  const rows: [string, string][] = [
+    ['Next', 'Page Down · → · ↓ · Space'],
+    ['Back', 'Page Up · ← · ↑'],
+    ['Hide / show explanation', custom ? `${describeTrigger(custom)}, and B · period · H` : 'B · period · H, or teach the third button below'],
+    ['Leave the view', 'Escape'],
+  ]
+  return (
+    <Card className="mb-8 p-4">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[14px]">
+        {rows.map(([k, v]) => (
+          <Fragment key={k}>
+            <dt className="font-semibold text-ink">{k}</dt>
+            <dd className="text-ink-2">{v}</dd>
+          </Fragment>
+        ))}
+      </dl>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Button
+          variant={listening ? 'primary' : 'secondary'}
+          size="sm"
+          onClick={() => {
+            setSeen(null)
+            setListening((l) => !l)
+          }}
+        >
+          {listening ? 'Press the button on the clicker now…' : custom ? 'Teach the button again' : 'Teach the third button'}
+        </Button>
+        {custom && !listening && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              saveToggle(null)
+              setCustom(null)
+              setSeen(null)
+            }}
+          >
+            Forget it
+          </Button>
+        )}
+        {seen && <span className="text-[13px] text-ink-3">Got it: {seen}.</span>}
+        {listening && <span className="text-[13px] text-ink-3">Escape cancels.</span>}
+      </div>
+      <p className="mt-3 text-[13px] text-ink-3">
+        Clickers send ordinary key presses, so any button that sends one can be learnt. A pointer button that only moves a
+        cursor sends nothing to learn; use B on a keyboard then, or the eye on the page. The choice is kept on this device.
+      </p>
     </Card>
   )
 }

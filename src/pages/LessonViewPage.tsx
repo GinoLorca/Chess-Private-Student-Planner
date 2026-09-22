@@ -17,7 +17,8 @@ import { Button, IconButton } from '../components/ui/Button'
 import { LoadingPage, Page, SectionLabel } from '../components/ui/Page'
 import { PaperCard, StickyNote } from '../components/lesson/Folder'
 import { FOLDER_COLORS, onColor } from '../lib/colors'
-import { Check, ChevronLeft, ChevronRight, Close, Document, Eye } from '../components/ui/Icons'
+import { Check, ChevronLeft, ChevronRight, Close, Document, Eye, EyeOff } from '../components/ui/Icons'
+import { useHideToggle } from '../hooks/useHideToggle'
 
 type Mode = 'coach' | 'present' | 'learn'
 
@@ -55,6 +56,8 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   // Learn view keeps a tally for the session: solved on the board, or shown.
   const solved = useSessionSet(`learn-solved-${lessonPlanId}`)
   const shown = useSessionSet(`learn-shown-${lessonPlanId}`)
+  // The eye in the top bar (or the clicker's third button) hides the notes across positions.
+  const [notesHidden, toggleNotes] = useHideToggle()
 
   // Once the lesson loads, land on the requested puzzle (deep link from a position page).
   useEffect(() => {
@@ -98,10 +101,10 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
             <Close />
           </IconButton>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold text-ink">
+            <p className="truncate text-[13px] font-semibold text-on-bg">
               {mode === 'coach' ? "Coach's view" : mode === 'learn' ? 'Learn' : 'Presenting'}
               {!solo && (
-                <span className="text-ink-3">
+                <span className="text-on-bg-2">
                   {' '}
                   · {student?.name} · Lesson {lesson.plan.number}
                 </span>
@@ -118,6 +121,9 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
               {index + 1} / {items.length}
             </span>
           )}
+          <IconButton label={notesHidden ? 'Show explanation' : 'Hide explanation'} onClick={toggleNotes}>
+            {notesHidden ? <EyeOff /> : <Eye />}
+          </IconButton>
           {mode === 'coach' && (
             <Link to={`${base}/sheet`}>
               <IconButton label="Lesson sheet">
@@ -167,6 +173,8 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
               onSwipe={(dir) => go(index + dir)}
               onExit={() => navigate(exitTo)}
               onResult={(kind) => (kind === 'solved' ? solved.add : shown.add)(current.puzzle.id)}
+              notesHidden={notesHidden}
+              onToggleNotes={toggleNotes}
             />
           </motion.div>
         </AnimatePresence>
@@ -207,6 +215,8 @@ function PuzzleView({
   onSwipe,
   onExit,
   onResult,
+  notesHidden,
+  onToggleNotes,
 }: {
   puzzle: Puzzle
   sectionTitle: string
@@ -218,6 +228,8 @@ function PuzzleView({
   onExit: () => void
   /** Learn view: the position was solved on the board, or given up. */
   onResult?: (kind: 'solved' | 'shown') => void
+  notesHidden: boolean
+  onToggleNotes: () => void
 }) {
   const { lessonPlanId = '' } = useParams()
   const { update } = usePuzzleMutations(puzzle.id, lessonPlanId)
@@ -479,7 +491,7 @@ function PuzzleView({
                     </button>
                   ))}
                 </div>
-                {current.comment && <p className="mt-3 text-[15px] leading-relaxed text-ink">{current.comment}</p>}
+                {current.comment && !notesHidden && <p className="mt-3 text-[15px] leading-relaxed text-ink">{current.comment}</p>}
                 <div className="mt-3 flex gap-2">
                   <Button variant="secondary" size="md" onClick={prev} disabled={atStart} icon={<ChevronLeft size={18} />}>
                     Back
@@ -501,9 +513,18 @@ function PuzzleView({
         )}
 
         {revealed && puzzle.summary && (
-          <PaperCard className="p-4" ruled tilt={-0.4}>
-            <SectionLabel>{mode === 'coach' ? 'Your notes' : 'Explanation'}</SectionLabel>
-            <p className="text-[16px] leading-[28px] whitespace-pre-wrap text-ink">{puzzle.summary}</p>
+          <PaperCard className="p-4" ruled={!notesHidden} tilt={-0.4}>
+            <div className="flex items-center justify-between">
+              <SectionLabel className="mb-0">{mode === 'coach' ? 'Your notes' : 'Explanation'}</SectionLabel>
+              <IconButton label={notesHidden ? 'Show explanation' : 'Hide explanation'} onClick={onToggleNotes} className="-mr-2">
+                {notesHidden ? <EyeOff /> : <Eye />}
+              </IconButton>
+            </div>
+            {notesHidden ? (
+              <p className="text-[14px] text-ink-3">Hidden. Tap the eye, or the clicker's third button, to show it.</p>
+            ) : (
+              <p className="mt-1 text-[16px] leading-[28px] whitespace-pre-wrap text-ink">{puzzle.summary}</p>
+            )}
           </PaperCard>
         )}
 

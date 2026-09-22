@@ -32,6 +32,10 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   Up, or the arrow keys and space) walks the whole lesson: reveal, each answer move, then the
   next position; the back button reverses it; Escape returns to the folder. `]` and `[` jump a
   whole position, and so does a sideways swipe anywhere on the screen, as in Photos.
+- **The eye** — on the position page and in every lesson view, an eye button hides the
+  explanation and move notes in one tap (say, when a student leans over). The clicker's third
+  button does the same once you teach it to the app in Settings → Clicker; B, period and H
+  work out of the box.
 - **Lesson sheet** — the whole lesson in document form, printable to PDF.
 - **School logos and colours** — a student's folder can carry their school badge (⋯ on the
   folder → *School logo…*: a built-in badge with its school colour in one tap, or any picture

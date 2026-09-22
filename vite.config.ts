@@ -31,7 +31,8 @@ export default defineConfig({
         navigateFallback: 'index.html',
         // Supabase calls are cached by the query layer (localStorage persister),
         // so the service worker only needs to own the app shell.
-        navigateFallbackDenylist: [/^\/rest\//, /^\/auth\//],
+        // /api is the agent connector (a Vercel function), never the app shell.
+        navigateFallbackDenylist: [/^\/rest\//, /^\/auth\//, /^\/api\//],
       },
     }),
   ],

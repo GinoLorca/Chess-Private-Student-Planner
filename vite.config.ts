@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: 'Lesson Planner',
-        short_name: 'Lessons',
+        name: 'Private Chess Lesson Planner',
+        short_name: 'Lesson Planner',
         description: 'Private chess lesson planner — build puzzles, present them at the board.',
         start_url: '/',
         display: 'standalone',

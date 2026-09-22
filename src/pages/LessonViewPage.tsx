@@ -318,7 +318,7 @@ function PuzzleView({
     if (step > 0) prev()
     else onSwipe(-1)
   }, [step, prev, onSwipe])
-  useClicker({ next: forward, prev: backward, exit: onExit })
+  useClicker({ next: forward, prev: backward, exit: onExit, hold: onToggleNotes })
 
   // Square brackets jump a whole position either way, whatever the step.
   useEffect(() => {
@@ -467,7 +467,7 @@ function PuzzleView({
                 <EyeOff />
               </IconButton>
             </div>
-            <p className="text-[14px] text-ink-3">Answer and explanation hidden. Tap the eye, or the clicker's third button, to show them.</p>
+            <p className="text-[14px] text-ink-3">Answer and explanation hidden. Tap the eye, or hold the clicker's forward button, to show them.</p>
           </PaperCard>
         ) : (
           <PaperCard className="p-4" tilt={0.4}>
@@ -532,7 +532,7 @@ function PuzzleView({
               </IconButton>
             </div>
             {notesHidden ? (
-              <p className="text-[14px] text-ink-3">Hidden. Tap the eye, or the clicker's third button, to show it.</p>
+              <p className="text-[14px] text-ink-3">Hidden. Tap the eye, or hold the clicker's forward button, to show it.</p>
             ) : (
               <p className="mt-1 text-[16px] leading-[28px] whitespace-pre-wrap text-ink">{puzzle.summary}</p>
             )}

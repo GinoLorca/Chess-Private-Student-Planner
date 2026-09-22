@@ -160,8 +160,8 @@ export function SettingsPage() {
 
       <SectionLabel tone="page">Clicker</SectionLabel>
       <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">
-        A Bluetooth presentation clicker walks Coach view, Present, Learn and the position page. Its third button can hide
-        and show explanations once the app has learnt it.
+        A Bluetooth presentation clicker walks Coach view, Present, Learn and the position page. Holding the forward
+        button hides and shows the answer; a clicker with a spare button that sends a key can be taught it too.
       </p>
       <ClickerCard />
 
@@ -513,7 +513,7 @@ function ClickerCard() {
   const rows: [string, string][] = [
     ['Next', 'Page Down · → · ↓ · Space'],
     ['Back', 'Page Up · ← · ↑'],
-    ['Hide / show explanation', custom ? `${describeTrigger(custom)}, and B · period · H` : 'B · period · H, or teach the third button below'],
+    ['Hide / show the answer', `Hold Next for half a second · B · period · H${custom ? ` · ${describeTrigger(custom)}` : ''}`],
     ['Leave the view', 'Escape'],
   ]
   return (
@@ -535,7 +535,7 @@ function ClickerCard() {
             setListening((l) => !l)
           }}
         >
-          {listening ? 'Press the button on the clicker now…' : custom ? 'Teach the button again' : 'Teach the third button'}
+          {listening ? 'Press the button on the clicker now…' : custom ? 'Teach the button again' : 'Teach a spare button'}
         </Button>
         {custom && !listening && (
           <Button
@@ -554,8 +554,8 @@ function ClickerCard() {
         {listening && <span className="text-[13px] text-ink-3">Escape cancels.</span>}
       </div>
       <p className="mt-3 text-[13px] text-ink-3">
-        Clickers send ordinary key presses, so any button that sends one can be learnt. A pointer button that only moves a
-        cursor sends nothing to learn; use B on a keyboard then, or the eye on the page. The choice is kept on this device.
+        Optional. Clickers send ordinary key presses, so any spare button that sends one can be learnt. A pointer button
+        that only moves a cursor sends nothing to learn; holding Next does the job then. The choice is kept on this device.
       </p>
     </Card>
   )

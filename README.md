@@ -33,9 +33,9 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   next position; the back button reverses it; Escape returns to the folder. `]` and `[` jump a
   whole position, and so does a sideways swipe anywhere on the screen, as in Photos.
 - **The eye** — on the position page and in every lesson view, an eye button hides the
-  explanation and move notes in one tap (say, when a student leans over). The clicker's third
-  button does the same once you teach it to the app in Settings → Clicker; B, period and H
-  work out of the box.
+  answer, explanation and move notes in one tap (say, when a student leans over), leaving the
+  quiz alone on the board. Holding the clicker's forward button for half a second does the same;
+  so do B, period and H, or a spare clicker button taught in Settings → Clicker.
 - **Lesson sheet** — the whole lesson in document form, printable to PDF.
 - **School logos and colours** — a student's folder can carry their school badge (⋯ on the
   folder → *School logo…*: a built-in badge with its school colour in one tap, or any picture

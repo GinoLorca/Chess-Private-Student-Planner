@@ -32,9 +32,9 @@ export function PuzzlePage() {
   const last = Math.max(0, steps.length - 1)
   const next = useCallback(() => setStep((s) => Math.min(last, s + 1)), [last])
   const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
-  useClicker({ next, prev })
-  // The eye (or the clicker's third button) hides the explanation and move notes.
+  // The eye hides the answer and explanation: tap it, hold the clicker's forward button, or press B.
   const [hidden, toggleHidden] = useHideToggle()
+  useClicker({ next, prev, hold: toggleHidden })
 
   if (isLoading && !puzzle) return <LoadingPage />
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
@@ -156,7 +156,7 @@ export function PuzzlePage() {
                 </IconButton>
               </div>
               {hidden ? (
-                <p className="mt-1 text-[14px] text-ink-3">Answer and explanation hidden. Tap the eye, or the clicker's third button, to show them.</p>
+                <p className="mt-1 text-[14px] text-ink-3">Answer and explanation hidden. Tap the eye, or hold the clicker's forward button, to show them.</p>
               ) : (
                 puzzle.summary && <p className="mt-2 text-[16px] leading-relaxed whitespace-pre-wrap text-ink">{puzzle.summary}</p>
               )}

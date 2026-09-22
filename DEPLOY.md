@@ -118,33 +118,50 @@ server (the standard agents use for tools) and also answers plain JSON, so any a
 call a URL can use it. Nothing to deploy or configure: it's part of the app and uses the same
 Supabase settings Vercel already has.
 
-**Sign-in.** The agent signs in as you with your planner email and password, sent as HTTP
-Basic auth. It runs under the same row security as the app, so it can only see your students.
-Nothing is stored on the server; every call signs in afresh. Give the agent the credentials the
-same way you'd give it any login, never in a URL.
+**Sign-in: an API key for the agent (≈3 min, once).** The agent gets a key, not your password.
+The key stands for your login, which lives only in Vercel's environment settings:
 
-**Giving it to the agent.** Add a custom MCP connector (or tool server) with:
+1. Make up a long random key. In Terminal, `openssl rand -hex 32` prints one; or use any
+   password generator, 40+ characters.
+2. In Vercel: your project → **Settings → Environment Variables**. Add three, for all
+   environments:
+   - `MCP_API_KEY` = the key you just made
+   - `MCP_USER_EMAIL` = your planner login email
+   - `MCP_USER_PASSWORD` = your planner password
+3. **Deployments → ⋯ on the latest → Redeploy**, so the function picks them up.
+4. Paste the key into the agent's credential store. It sends `Authorization: Bearer <key>`.
+
+The connector then signs into Supabase as you, under the same row security as the app, so
+it can only see your students. Nothing is stored server-side beyond those settings. To cut
+the agent off, change `MCP_API_KEY` and redeploy. (Your own login also works, as HTTP Basic
+auth, for a quick test from a terminal.)
+
+**Giving it to the agent.** Add it as a tool server / custom MCP connector with:
 
 - URL: `https://<your-app>.vercel.app/api/mcp`
-- Auth: HTTP Basic, username = your planner email, password = your planner password
+- Auth: Bearer token = the key
 
-If the agent can't do MCP, tell it to POST JSON to the same URL with the same Basic auth:
+If the agent can't do MCP, tell it to POST JSON to the same URL with the same header:
 
 ```bash
-curl -u 'you@example.com:yourpassword' https://<your-app>.vercel.app/api/mcp \
-  -H 'Content-Type: application/json' \
+curl https://<your-app>.vercel.app/api/mcp \
+  -H 'Authorization: Bearer <key>' -H 'Content-Type: application/json' \
   -d '{"tool":"create_lesson","args":{"student_id":"<id>","positions":[
         {"fen":"6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1","answer":"Rd8#","note":"Back rank.","source_url":"https://lichess.org/study/..."}
       ]}}'
 ```
+
+A GET on the URL says whether the key is configured yet.
 
 **The tools.** `list_students` (ids and names), `list_lessons(student_id)` (each lesson with
 positions done / total and its link), `create_lesson(student_id, positions, title?)` (makes
 Lesson N and returns its link and the annotate link), `add_positions(lesson_id, positions)`.
 
 **A position** is `{ fen, source_url?, label?, question?, note?, answer? }`. Only `fen` is
-required; the placement alone is fine. `answer` is the line as moves ("Rf8 Bxh4 b4"), checked
-against the position, so an impossible line is rejected instead of saved. Whatever the agent
+required; the placement alone is fine. `answer` is the line as moves ("Rf8 Bxh4 b4", move
+numbers optional), checked against the position, so an impossible line is rejected instead of
+saved. For converted Chessable lines: `fen` is the starting FEN, `answer` the move line,
+`source_url` the Chessable link, `note` the theme. Whatever the agent
 leaves blank you finish in the workbench: the lesson shows **Annotate · n** until every position
 is saved.
 

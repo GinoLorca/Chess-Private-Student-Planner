@@ -3,59 +3,29 @@ import { Chess } from 'chess.js'
 /**
  * The agent connector, independent of transport and storage: MCP framing
  * (JSON-RPC over HTTP, stateless), the four tools, and the position checks.
- * `Db` is whatever stores lessons; see supabaseDb.ts for the real one.
+ * `db` is whatever stores lessons; see supabaseDb.js for the real one.
+ *
+ * Plain JavaScript on purpose: Vercel runs it as-is, with nothing to compile.
+ *
+ * @typedef {{ id: string, name: string }} StudentRow
+ * @typedef {{ id: string, number: number, title: string, status: string, total: number, done: number }} LessonRow
+ * @typedef {{ san: string, fen: string }} Move
+ * @typedef {{
+ *   sort_order: number, label: string, starting_fen: string, side_to_move: 'w' | 'b',
+ *   arrows: never[], highlights: never[], quiz_prompt: string, summary: string, solution: Move[],
+ *   reference_url: string | null, reference_label: string | null,
+ *   source: { kind: 'fen', url?: string }, themes: string[], done: boolean
+ * }} PuzzleRow
+ * @typedef {{
+ *   listStudents(): Promise<StudentRow[]>,
+ *   listLessons(studentId: string): Promise<LessonRow[]>,
+ *   createLesson(studentId: string, title: string): Promise<{ id: string, number: number, sectionId: string }>,
+ *   targetSection(lessonId: string): Promise<{ studentId: string, number: number, sectionId: string, nextOrder: number }>,
+ *   insertPuzzles(sectionId: string, rows: PuzzleRow[]): Promise<void>
+ * }} Db
+ * @typedef {{ fen: string, source_url?: string, label?: string, question?: string, note?: string, answer?: string }} PositionInput
+ * @typedef {{ db: Db, appOrigin: string }} ToolContext
  */
-
-export interface StudentRow {
-  id: string
-  name: string
-}
-
-export interface LessonRow {
-  id: string
-  number: number
-  title: string
-  status: string
-  total: number
-  done: number
-}
-
-export interface PuzzleRow {
-  sort_order: number
-  label: string
-  starting_fen: string
-  side_to_move: 'w' | 'b'
-  arrows: never[]
-  highlights: never[]
-  quiz_prompt: string
-  summary: string
-  solution: { san: string; fen: string }[]
-  reference_url: string | null
-  reference_label: string | null
-  source: { kind: 'fen'; url?: string }
-  themes: string[]
-  done: boolean
-}
-
-export interface Db {
-  listStudents(): Promise<StudentRow[]>
-  listLessons(studentId: string): Promise<LessonRow[]>
-  /** A new lesson, numbered next, with one "Positions" section; returns the section to fill. */
-  createLesson(studentId: string, title: string): Promise<{ id: string; number: number; sectionId: string }>
-  /** The section new positions go into (the last one, or a new "Positions"), and the next sort order. */
-  targetSection(lessonId: string): Promise<{ studentId: string; number: number; sectionId: string; nextOrder: number }>
-  insertPuzzles(sectionId: string, rows: PuzzleRow[]): Promise<void>
-}
-
-export interface PositionInput {
-  fen: string
-  source_url?: string
-  label?: string
-  question?: string
-  note?: string
-  /** The answer as moves in SAN, e.g. "Rf8 Bxh4 b4" (move numbers are ignored). */
-  answer?: string
-}
 
 const POSITION_SCHEMA = {
   type: 'object',
@@ -71,10 +41,10 @@ const POSITION_SCHEMA = {
     note: { type: 'string', description: "The coach's explanation, in the words used at the board." },
     answer: {
       type: 'string',
-      description: 'The answer line as SAN moves separated by spaces, e.g. "Rf8 Bxh4 b4". Validated against the position.',
+      description: 'The answer line as SAN moves separated by spaces, e.g. "Rf8 Bxh4 b4". Move numbers are ignored. Validated against the position.',
     },
   },
-} as const
+}
 
 export const TOOLS = [
   {
@@ -110,13 +80,16 @@ export const TOOLS = [
       properties: { lesson_id: { type: 'string' }, positions: { type: 'array', minItems: 1, items: POSITION_SCHEMA } },
     },
   },
-] as const
+]
 
 export class ToolError extends Error {}
 
-/** Fill in the missing FEN fields and make sure chess.js accepts the result. */
-export function normalizeFen(raw: string): string {
-  const parts = raw.trim().split(/\s+/)
+/**
+ * Fill in the missing FEN fields and make sure chess.js accepts the result.
+ * @param {string} raw
+ */
+export function normalizeFen(raw) {
+  const parts = String(raw).trim().split(/\s+/)
   if (parts.length < 1 || !parts[0].includes('/')) throw new ToolError(`Not a FEN: "${raw}"`)
   const [placement, turn = 'w', castling = '-', ep = '-', half = '0', full = '1'] = parts
   if (turn !== 'w' && turn !== 'b') throw new ToolError(`Side to move must be w or b in "${raw}"`)
@@ -129,14 +102,19 @@ export function normalizeFen(raw: string): string {
   return fen
 }
 
-/** Replay SAN moves from a position; move numbers and result markers are ignored. */
-export function replayAnswer(fen: string, answer: string): { san: string; fen: string }[] {
+/**
+ * Replay SAN moves from a position; move numbers and result markers are ignored.
+ * @param {string} fen
+ * @param {string} answer
+ * @returns {Move[]}
+ */
+export function replayAnswer(fen, answer) {
   const chess = new Chess(fen)
-  const tokens = answer
+  const tokens = String(answer)
     .trim()
     .split(/\s+/)
-    .filter((t) => t && !/^\d+\.+$/.test(t) && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t))
     .map((t) => t.replace(/^\d+\.+/, ''))
+    .filter((t) => t && !/^\d+\.*$/.test(t) && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t))
   return tokens.map((san) => {
     try {
       const move = chess.move(san)
@@ -147,22 +125,27 @@ export function replayAnswer(fen: string, answer: string): { san: string; fen: s
   })
 }
 
-export function toRow(p: PositionInput, order: number): PuzzleRow {
+/**
+ * @param {PositionInput} p
+ * @param {number} order
+ * @returns {PuzzleRow}
+ */
+export function toRow(p, order) {
   if (!p || typeof p.fen !== 'string') throw new ToolError(`Position ${order + 1} needs a fen`)
   const fen = normalizeFen(p.fen)
-  const solution = p.answer?.trim() ? replayAnswer(fen, p.answer) : []
-  const url = p.source_url?.trim() || null
+  const solution = p.answer && String(p.answer).trim() ? replayAnswer(fen, p.answer) : []
+  const url = p.source_url ? String(p.source_url).trim() : ''
   return {
     sort_order: order,
-    label: p.label?.trim() || solution[0]?.san || `#${order + 1}`,
+    label: (p.label && String(p.label).trim()) || solution[0]?.san || `#${order + 1}`,
     starting_fen: fen,
-    side_to_move: fen.split(' ')[1] as 'w' | 'b',
+    side_to_move: /** @type {'w' | 'b'} */ (fen.split(' ')[1]),
     arrows: [],
     highlights: [],
-    quiz_prompt: p.question?.trim() ?? '',
-    summary: p.note?.trim() ?? '',
+    quiz_prompt: p.question ? String(p.question).trim() : '',
+    summary: p.note ? String(p.note).trim() : '',
     solution,
-    reference_url: url,
+    reference_url: url || null,
     reference_label: url ? hostOf(url) : null,
     source: url ? { kind: 'fen', url } : { kind: 'fen' },
     themes: [],
@@ -170,7 +153,8 @@ export function toRow(p: PositionInput, order: number): PuzzleRow {
   }
 }
 
-function hostOf(url: string): string {
+/** @param {string} url */
+function hostOf(url) {
   try {
     return new URL(url).hostname.replace(/^www\./, '')
   } catch {
@@ -178,15 +162,15 @@ function hostOf(url: string): string {
   }
 }
 
-/** Where the app lives, for the links the tools hand back. */
-export interface ToolContext {
-  db: Db
-  appOrigin: string
-}
-
-export async function callTool(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<unknown> {
+/**
+ * @param {string} name
+ * @param {Record<string, unknown>} args
+ * @param {ToolContext} ctx
+ */
+export async function callTool(name, args, ctx) {
   const { db, appOrigin } = ctx
-  const lessonUrl = (studentId: string, lessonId: string) => `${appOrigin}/#/students/${studentId}/lessons/${lessonId}`
+  const lessonUrl = (/** @type {string} */ studentId, /** @type {string} */ lessonId) =>
+    `${appOrigin}/#/students/${studentId}/lessons/${lessonId}`
   switch (name) {
     case 'list_students':
       return { students: await db.listStudents() }
@@ -227,14 +211,16 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   }
 }
 
-function str(v: unknown, field: string): string {
+/** @param {unknown} v @param {string} field */
+function str(v, field) {
   if (typeof v !== 'string' || !v.trim()) throw new ToolError(`${field} is required`)
   return v.trim()
 }
 
-function positions(v: unknown): PositionInput[] {
+/** @param {unknown} v @returns {PositionInput[]} */
+function positions(v) {
   if (!Array.isArray(v) || v.length === 0) throw new ToolError('positions must be a non-empty array')
-  return v as PositionInput[]
+  return v
 }
 
 // ---------------------------------------------------------------------------
@@ -242,24 +228,17 @@ function positions(v: unknown): PositionInput[] {
 // ---------------------------------------------------------------------------
 
 export const PROTOCOL_VERSION = '2025-03-26'
-export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.0.0' }
+export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.0.1' }
 
-interface RpcRequest {
-  jsonrpc: '2.0'
-  id?: string | number | null
-  method: string
-  params?: Record<string, unknown>
-}
-
-type RpcResponse =
-  | { jsonrpc: '2.0'; id: string | number | null; result: unknown }
-  | { jsonrpc: '2.0'; id: string | number | null; error: { code: number; message: string } }
-
-/** One JSON-RPC message in, one response out; notifications (no id) return null. */
-export async function handleRpc(msg: RpcRequest, ctx: ToolContext): Promise<RpcResponse | null> {
+/**
+ * One JSON-RPC message in, one response out; notifications (no id) return null.
+ * @param {{ jsonrpc?: string, id?: string | number | null, method: string, params?: Record<string, any> }} msg
+ * @param {ToolContext} ctx
+ */
+export async function handleRpc(msg, ctx) {
   const id = msg.id ?? null
-  const ok = (result: unknown): RpcResponse => ({ jsonrpc: '2.0', id, result })
-  const fail = (code: number, message: string): RpcResponse => ({ jsonrpc: '2.0', id, error: { code, message } })
+  const ok = (/** @type {unknown} */ result) => ({ jsonrpc: '2.0', id, result })
+  const fail = (/** @type {number} */ code, /** @type {string} */ message) => ({ jsonrpc: '2.0', id, error: { code, message } })
   if (msg.id === undefined) return null // a notification, e.g. notifications/initialized
   switch (msg.method) {
     case 'initialize':
@@ -270,7 +249,7 @@ export async function handleRpc(msg: RpcRequest, ctx: ToolContext): Promise<RpcR
       return ok({ tools: TOOLS })
     case 'tools/call': {
       const name = String(msg.params?.name ?? '')
-      const args = (msg.params?.arguments ?? {}) as Record<string, unknown>
+      const args = msg.params?.arguments ?? {}
       try {
         const result = await callTool(name, args, ctx)
         return ok({ content: [{ type: 'text', text: JSON.stringify(result, null, 2) }], structuredContent: result })
@@ -284,12 +263,16 @@ export async function handleRpc(msg: RpcRequest, ctx: ToolContext): Promise<RpcR
   }
 }
 
-/** The whole HTTP body: a single message, a batch, or the plain {tool, args} shortcut for non-MCP callers. */
-export async function handleBody(body: unknown, ctx: ToolContext): Promise<{ status: number; json: unknown }> {
+/**
+ * The whole HTTP body: a single message, a batch, or the plain {tool, args} shortcut for non-MCP callers.
+ * @param {any} body
+ * @param {ToolContext} ctx
+ * @returns {Promise<{ status: number, json: unknown }>}
+ */
+export async function handleBody(body, ctx) {
   if (body && typeof body === 'object' && 'tool' in body && !('jsonrpc' in body)) {
-    const { tool, args } = body as { tool: string; args?: Record<string, unknown> }
     try {
-      return { status: 200, json: { ok: true, result: await callTool(tool, args ?? {}, ctx) } }
+      return { status: 200, json: { ok: true, result: await callTool(body.tool, body.args ?? {}, ctx) } }
     } catch (e) {
       return {
         status: e instanceof ToolError ? 400 : 500,
@@ -298,12 +281,12 @@ export async function handleBody(body: unknown, ctx: ToolContext): Promise<{ sta
     }
   }
   if (Array.isArray(body)) {
-    const out = (await Promise.all(body.map((m) => handleRpc(m as RpcRequest, ctx)))).filter(Boolean)
+    const out = (await Promise.all(body.map((m) => handleRpc(m, ctx)))).filter(Boolean)
     return out.length ? { status: 200, json: out } : { status: 202, json: null }
   }
-  if (!body || typeof body !== 'object' || (body as RpcRequest).jsonrpc !== '2.0') {
+  if (!body || typeof body !== 'object' || body.jsonrpc !== '2.0') {
     return { status: 400, json: { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid request' } } }
   }
-  const res = await handleRpc(body as RpcRequest, ctx)
+  const res = await handleRpc(body, ctx)
   return res ? { status: 200, json: res } : { status: 202, json: null }
 }

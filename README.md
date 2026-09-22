@@ -31,8 +31,8 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   persister for offline reads), `vite-plugin-pwa`
 - A custom board component (no chessboard library); `chess.js` for move legality and PGN
 - Supabase (Postgres + Auth + one Edge Function for the AI helpers)
-- `api/mcp.ts`: an MCP connector (Vercel function) so an agent can create lessons from FENs;
-  see DEPLOY.md, "Letting an agent add lessons"
+- `api/mcp.js`: an MCP connector (Vercel function, plain JavaScript) so an agent can create
+  lessons from FENs with a bearer key; see DEPLOY.md, "Letting an agent add lessons"
 
 ## 1. Local setup
 

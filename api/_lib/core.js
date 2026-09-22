@@ -37,8 +37,16 @@ const POSITION_SCHEMA = {
     },
     source_url: { type: 'string', description: 'Where it came from (a Lichess study, an article...). Shown as the source link.' },
     label: { type: 'string', description: 'Short name, e.g. the key move. Defaults to the first answer move.' },
-    question: { type: 'string', description: 'What to ask the student. Blank uses the default prompt.' },
-    note: { type: 'string', description: "The coach's explanation, in the words used at the board." },
+    question: {
+      type: 'string',
+      description:
+        'What to ask the student, in plain coaching words ("White to move. What is Black threatening, and how do you stop it?"). Always fill this in; a blank falls back to a generic prompt.',
+    },
+    note: {
+      type: 'string',
+      description:
+        "The coach's explanation: why the answer works and what the alternatives lose, two to four sentences in the words used at the board. Always fill this in so the coach only has to review, not write.",
+    },
     answer: {
       type: 'string',
       description: 'The answer line as SAN moves separated by spaces, e.g. "Rf8 Bxh4 b4". Move numbers are ignored. Validated against the position.',
@@ -60,7 +68,7 @@ export const TOOLS = [
   {
     name: 'create_lesson',
     description:
-      'Create the next lesson for a student from a list of positions (FENs). Returns the lesson id and the link to open it in the app; anything left blank is finished by the coach in the annotation workbench.',
+      'Create the next lesson for a student from a list of positions (FENs). Fill every position completely: fen, answer (the line), question, note, label and source_url. The coach reviews each one in the annotation workbench and stamps it done, so complete positions make that a quick pass. Returns the lesson id and the link to open it in the app.',
     inputSchema: {
       type: 'object',
       required: ['student_id', 'positions'],
@@ -73,7 +81,7 @@ export const TOOLS = [
   },
   {
     name: 'add_positions',
-    description: 'Append positions to an existing lesson.',
+    description: 'Append positions to an existing lesson. Fill each position completely, as for create_lesson.',
     inputSchema: {
       type: 'object',
       required: ['lesson_id', 'positions'],
@@ -252,7 +260,7 @@ function positions(v) {
 // ---------------------------------------------------------------------------
 
 export const PROTOCOL_VERSION = '2025-03-26'
-export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.0.3' }
+export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.0.4' }
 
 /**
  * One JSON-RPC message in, one response out; notifications (no id) return null.

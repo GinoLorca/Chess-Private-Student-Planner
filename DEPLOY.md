@@ -170,9 +170,12 @@ is saved.
 you do. Each row takes a FEN, and moves typed after the FEN on the same line ("… w KQ - 0 8
 8. O-O dxc4 9. Bxc4") become the answer line automatically.
 
-A one-line brief for the agent: *"Use the lesson planner connector. Call list_students to find
-the student, then create_lesson with the FENs I give you, each with its source link, the
-question to ask, the answer line and a short note. Reply with the lesson link."*
+A brief for the agent: *"Use the lesson planner connector. Call list_students to find the
+student, then create_lesson with the FENs I give you. Fill every position completely: the
+answer line, a question in plain coaching words, a two-to-four-sentence note on why the answer
+works and what the alternatives lose, a short label, and the source link. Reply with the lesson
+link."* With every field filled, the workbench is a review pass: open each position, check it,
+tap Save, done.
 
 Opening `https://<your-app>.vercel.app/api/mcp` in a browser shows the same information.
 

@@ -111,4 +111,49 @@ re-run, so if you're not sure which you've done, run `supabase/setup_all.sql` ag
 
 ---
 
+## Letting an agent add lessons (the connector)
+
+The app serves its own connector at **`https://<your-app>.vercel.app/api/mcp`**. It's an MCP
+server (the standard agents use for tools) and also answers plain JSON, so any agent that can
+call a URL can use it. Nothing to deploy or configure: it's part of the app and uses the same
+Supabase settings Vercel already has.
+
+**Sign-in.** The agent signs in as you with your planner email and password, sent as HTTP
+Basic auth. It runs under the same row security as the app, so it can only see your students.
+Nothing is stored on the server; every call signs in afresh. Give the agent the credentials the
+same way you'd give it any login, never in a URL.
+
+**Giving it to the agent.** Add a custom MCP connector (or tool server) with:
+
+- URL: `https://<your-app>.vercel.app/api/mcp`
+- Auth: HTTP Basic, username = your planner email, password = your planner password
+
+If the agent can't do MCP, tell it to POST JSON to the same URL with the same Basic auth:
+
+```bash
+curl -u 'you@example.com:yourpassword' https://<your-app>.vercel.app/api/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"tool":"create_lesson","args":{"student_id":"<id>","positions":[
+        {"fen":"6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1","answer":"Rd8#","note":"Back rank.","source_url":"https://lichess.org/study/..."}
+      ]}}'
+```
+
+**The tools.** `list_students` (ids and names), `list_lessons(student_id)` (each lesson with
+positions done / total and its link), `create_lesson(student_id, positions, title?)` (makes
+Lesson N and returns its link and the annotate link), `add_positions(lesson_id, positions)`.
+
+**A position** is `{ fen, source_url?, label?, question?, note?, answer? }`. Only `fen` is
+required; the placement alone is fine. `answer` is the line as moves ("Rf8 Bxh4 b4"), checked
+against the position, so an impossible line is rejected instead of saved. Whatever the agent
+leaves blank you finish in the workbench: the lesson shows **Annotate · n** until every position
+is saved.
+
+A one-line brief for the agent: *"Use the lesson planner connector. Call list_students to find
+the student, then create_lesson with the FENs I give you, each with its source link, the
+question to ask, the answer line and a short note. Reply with the lesson link."*
+
+Opening `https://<your-app>.vercel.app/api/mcp` in a browser shows the same information.
+
+---
+
 **Stuck anywhere?** Tell Claude which step and paste what the screen says.

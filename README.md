@@ -27,6 +27,10 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   next position; the back button reverses it; Escape returns to the folder. `]` and `[` jump a
   whole position, and so does a sideways swipe anywhere on the screen, as in Photos.
 - **Lesson sheet** — the whole lesson in document form, printable to PDF.
+- **School logos and colours** — a student's folder can carry their school badge (⋯ on the
+  folder → *School logo…*: a built-in badge with its school colour in one tap, or any picture
+  from the iPad) and a deep school colour such as navy or black; the folder, tabs, stamp and
+  Rolodex card switch to light ink on their own.
 - **Position library and links** — every position across every student in one searchable
   page (Library, from the Students screen), each with *Copy link* and *Present*. A link opens the
   position in Present mode on its own: no student name, no lesson number, no other positions to
@@ -76,6 +80,7 @@ browser's localStorage). The AI helpers return sample responses in demo mode.
    | `supabase/migrations/0004_lesson_flow.sql` | lesson status + taught date, saved lesson templates |
    | `supabase/migrations/0005_skins.sql` | the chosen skin |
    | `supabase/migrations/0006_puzzle_done.sql` | the done flag on positions (annotation queue) |
+   | `supabase/migrations/0007_student_logo.sql` | a school logo on each student folder |
 
 3. In **Project Settings → API**, copy the **Project URL** and **anon public key** into
    `.env.local`:

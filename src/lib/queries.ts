@@ -51,7 +51,7 @@ export function useStudentMutations() {
     onSuccess: invalidate,
   })
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<Student, 'name' | 'color' | 'sort_order'>> }) =>
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<Student, 'name' | 'color' | 'logo' | 'sort_order'>> }) =>
       api.updateStudent(id, patch),
     onMutate: async ({ id, patch }) => {
       await qc.cancelQueries({ queryKey: keys.students })

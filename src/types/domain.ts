@@ -13,6 +13,8 @@ export interface Student {
   user_id: string
   name: string
   color: string
+  /** A school badge: a built-in /logos path or a small data URL. */
+  logo?: string | null
   sort_order: number
   created_at: string
 }

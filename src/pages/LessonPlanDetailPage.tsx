@@ -14,7 +14,7 @@ import {
 import { agendaOptions, sectionOptions, themeOptions } from '../lib/lessonDefaults'
 import { PickSheet } from '../components/lesson/PickSheet'
 import { DividerPaper, DividerTabs, FolderBody, FolderTab, IndexCard, StatusStamp, StickyNote } from '../components/lesson/Folder'
-import { FOLDER_COLORS } from '../lib/colors'
+import { FOLDER_COLORS, onColor } from '../lib/colors'
 import { nextStatus } from '../lib/lessonStatus'
 import { useSessionSet } from '../hooks/useSessionSet'
 import { Page, LoadingPage } from '../components/ui/Page'
@@ -96,6 +96,7 @@ export function LessonPlanDetailPage() {
   }
 
   const folderColor = student?.color ?? FOLDER_COLORS[0]
+  const ink = onColor(folderColor)
   // Divider colours: the palette in order, skipping the folder's own colour.
   const dividerPalette = FOLDER_COLORS.filter((c) => c !== folderColor)
   const dividerColor = (i: number) => dividerPalette[i % dividerPalette.length]
@@ -144,15 +145,19 @@ export function LessonPlanDetailPage() {
         </>
       }
     >
-      <FolderTab color={folderColor} name={student?.name ?? 'Student'} aside={`Lesson ${plan.number}`} />
+      <FolderTab color={folderColor} name={student?.name ?? 'Student'} aside={`Lesson ${plan.number}`} logo={student?.logo} />
       <FolderBody color={folderColor}>
         {/* Header: the lesson number, its stamp, title and theme block; the agenda sticky beside it. */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-4">
               <div className="flex items-baseline gap-2.5">
-                <span className="text-[12px] font-bold tracking-[0.14em] text-black/50 uppercase sm:text-[14px]">Lesson</span>
-                <span className="folder-number font-display text-[60px] leading-[0.9] font-bold tracking-[-0.02em] text-[#1a1a19] sm:text-[76px]">{plan.number}</span>
+                <span className="text-[12px] font-bold tracking-[0.14em] uppercase sm:text-[14px]" style={{ color: ink.inkFaint }}>
+                  Lesson
+                </span>
+                <span className="folder-number font-display text-[60px] leading-[0.9] font-bold tracking-[-0.02em] sm:text-[76px]" style={{ color: ink.ink }}>
+                  {plan.number}
+                </span>
               </div>
               <div className="ml-1 flex min-w-0 flex-col gap-2 pt-1">
                 <div className="flex items-center gap-3">
@@ -162,15 +167,17 @@ export function LessonPlanDetailPage() {
                     value={plan.title}
                     placeholder="Add a title…"
                     onCommit={(title) => title !== plan.title && planMutations.update.mutate({ id: plan.id, patch: { title } })}
+                    ink={ink.ink}
+                    placeholderInk={ink.inkFaint}
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => setPickingTheme(true)}
                   className={clsx(
-                    'inline-flex h-8 max-w-full items-center gap-2 self-start rounded-full bg-white/55 pr-3 pl-2.5 text-[14px] font-semibold transition active:bg-white/80',
-                    plan.theme ? 'text-[#1a1a19]' : 'text-black/45',
+                    'inline-flex h-8 max-w-full items-center gap-2 self-start rounded-full pr-3 pl-2.5 text-[14px] font-semibold transition',
                   )}
+                  style={{ background: ink.chip, color: plan.theme ? ink.ink : ink.inkFaint }}
                 >
                   <span className={clsx('block h-2 w-2 rounded-full', plan.theme ? 'bg-[#2e7d5b]' : 'bg-black/25')} />
                   <span className="truncate">{plan.theme || 'Theme block'}</span>
@@ -394,7 +401,19 @@ export function LessonPlanDetailPage() {
 }
 
 // Keyed on the saved value by its parent, so a fresh server value resets the draft.
-function TitleField({ value, placeholder, onCommit }: { value: string; placeholder: string; onCommit: (v: string) => void }) {
+function TitleField({
+  value,
+  placeholder,
+  onCommit,
+  ink,
+  placeholderInk,
+}: {
+  value: string
+  placeholder: string
+  onCommit: (v: string) => void
+  ink: string
+  placeholderInk: string
+}) {
   const [draft, setDraft] = useState(value)
   return (
     <input
@@ -402,7 +421,8 @@ function TitleField({ value, placeholder, onCommit }: { value: string; placehold
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => onCommit(draft.trim())}
       placeholder={placeholder}
-      className="block min-w-0 flex-1 bg-transparent text-[17px] text-[#1a1a19] outline-none placeholder:text-black/45"
+      className="block min-w-0 flex-1 bg-transparent text-[17px] outline-none placeholder:text-(--ph)"
+      style={{ color: ink, '--ph': placeholderInk } as React.CSSProperties}
 
     />
   )

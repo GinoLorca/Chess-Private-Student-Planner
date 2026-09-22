@@ -8,6 +8,7 @@ import { answerProblem } from '../../lib/solution'
 import { Board } from '../board/Board'
 import { Trash, Warning } from '../ui/Icons'
 import { IconButton } from '../ui/Button'
+import { onColor } from '../../lib/colors'
 import { CopyLinkButton } from '../ui/CopyLink'
 
 /**
@@ -16,15 +17,30 @@ import { CopyLinkButton } from '../ui/CopyLink'
  * positions and a sticky note for the agenda. Stationery, not software.
  */
 
-export function FolderTab({ color, name, aside }: { color: string; name: string; aside?: ReactNode }) {
+/** A school badge: the logo on a white disc, so it reads on any folder colour. */
+export function LogoBadge({ logo, size = 24, className }: { logo: string; size?: number; className?: string }) {
+  return (
+    <span
+      className={clsx('grid shrink-0 place-items-center overflow-hidden rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.25)]', className)}
+      style={{ width: size, height: size }}
+    >
+      <img src={logo} alt="" className="h-[82%] w-[82%] object-contain" draggable={false} />
+    </span>
+  )
+}
+
+export function FolderTab({ color, name, aside, logo }: { color: string; name: string; aside?: ReactNode; logo?: string | null }) {
+  const ink = onColor(color)
   return (
     <div className="flex items-end gap-3 pl-4 sm:pl-6">
       <div
         className="folder-tab flex h-8 items-center gap-2.5 rounded-t-xl px-4 shadow-[inset_0_-2px_0_rgba(0,0,0,0.06)] sm:h-9"
         style={{ background: color }}
       >
-        <span className="block h-2.5 w-2.5 rounded-[3px] bg-black/35" />
-        <span className="text-[12px] font-bold tracking-[0.08em] text-black/60 uppercase sm:text-[13px]">{name}</span>
+        {logo ? <LogoBadge logo={logo} size={22} /> : <span className="block h-2.5 w-2.5 rounded-[3px]" style={{ background: ink.dot }} />}
+        <span className="text-[12px] font-bold tracking-[0.08em] uppercase sm:text-[13px]" style={{ color: ink.inkSoft }}>
+          {name}
+        </span>
       </div>
       {aside && <span className="pb-2 text-[13px] text-on-bg-2">{aside}</span>}
     </div>
@@ -266,11 +282,12 @@ export function HangingFile({
   icon?: ReactNode
 }) {
   const body = count === undefined ? '\u00a0' : count === 0 ? 'Empty' : `${count} ${count === 1 ? 'item' : 'items'}`
+  const ink = onColor(color)
   return (
     <Link to={to} className="hanging-file block transition active:scale-[0.99]">
       <span
-        className="folder-tab ml-4 flex h-7 w-fit max-w-[70%] items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] text-black/60 uppercase sm:ml-6"
-        style={{ background: color }}
+        className="folder-tab ml-4 flex h-7 w-fit max-w-[70%] items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] uppercase sm:ml-6"
+        style={{ background: color, color: ink.inkSoft }}
       >
         {icon}
         <span className="truncate">{label}</span>
@@ -279,8 +296,12 @@ export function HangingFile({
         className="hanging-body flex h-[52px] items-center justify-between rounded-r-xl rounded-bl-xl px-4 shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)] sm:px-5"
         style={{ background: color }}
       >
-        <span className="text-[15px] font-semibold text-black/70">{body}</span>
-        <span className="rounded-full bg-black/10 px-3 py-1 text-[13px] font-bold text-black/60">Open ›</span>
+        <span className="text-[15px] font-semibold" style={{ color: ink.ink }}>
+          {body}
+        </span>
+        <span className="rounded-full px-3 py-1 text-[13px] font-bold" style={{ background: ink.chip, color: ink.inkSoft }}>
+          Open ›
+        </span>
       </span>
     </Link>
   )

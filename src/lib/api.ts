@@ -46,7 +46,7 @@ export async function createStudent(name: string, color: string): Promise<Studen
   return data as Student
 }
 
-export async function updateStudent(id: string, patch: Partial<Pick<Student, 'name' | 'color' | 'sort_order'>>) {
+export async function updateStudent(id: string, patch: Partial<Pick<Student, 'name' | 'color' | 'logo' | 'sort_order'>>) {
   const { error } = await supabase.from('students').update(patch).eq('id', id)
   if (error) throw error
 }

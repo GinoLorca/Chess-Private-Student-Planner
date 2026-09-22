@@ -20,7 +20,7 @@ export function StudentPage() {
 
   return (
     <Page back="/" className="pt-6">
-      <FolderTab color={student.color} name={student.name} aside="Student folder" />
+      <FolderTab color={student.color} name={student.name} aside="Student folder" logo={student.logo} />
       <FolderBody color={student.color} className="pb-5">
         <div
           className="divider-paper -mx-3 rounded-t-2xl bg-paper px-3 pt-5 pb-6 sm:-mx-5 sm:px-5"

@@ -115,7 +115,7 @@ export async function createStudent(name: string, color: string): Promise<Studen
   return student
 }
 
-export async function updateStudent(id: string, patch: Partial<Pick<Student, 'name' | 'color' | 'sort_order'>>) {
+export async function updateStudent(id: string, patch: Partial<Pick<Student, 'name' | 'color' | 'logo' | 'sort_order'>>) {
   db().students = db().students.map((s) => (s.id === id ? { ...s, ...patch } : s))
   save()
 }

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import { animate, motion, useMotionValue, useTransform, type MotionValue } from 'framer-motion'
 import clsx from 'clsx'
 import type { Student } from '../../types/domain'
+import { LogoBadge } from '../lesson/Folder'
+import { onColor } from '../../lib/colors'
 import { useFolderCounts } from '../../lib/queries'
 import { More } from '../ui/Icons'
 
@@ -217,12 +219,20 @@ function Card({
   const scale = useTransform(offset, (o) => 1 - Math.min(Math.abs(o), 3) * 0.06)
   const opacity = useTransform(offset, (o) => (Math.abs(o) > VISIBLE ? 0 : 1 - Math.min(Math.abs(o), VISIBLE) * 0.2))
   const zIndex = useTransform(offset, (o) => count - Math.round(Math.abs(o) * 10))
-  const shade = useTransform(offset, (o) => Math.min(Math.abs(o), 2) * 0.22)
+  // Lighting: a lamp above and slightly left. Cards curled back (above the
+  // front) fall into shadow faster than cards below; a sheen slides across
+  // the cover as a card turns through the light, and the top edge catches a
+  // rim highlight when it faces you.
+  const shade = useTransform(offset, (o) => (o < 0 ? Math.min(-o, 2) * 0.3 : Math.min(o, 2) * 0.16))
+  const sheenPos = useTransform(offset, (o) => `${55 - Math.max(-1.5, Math.min(1.5, o)) * 70}% 0%`)
+  const sheenOpacity = useTransform(offset, (o) => Math.max(0, 0.55 - Math.abs(o) * 0.45))
+  const rim = useTransform(offset, (o) => Math.max(0, 0.45 - Math.abs(o) * 0.4))
   const pointerEvents = useTransform(offset, (o) => (Math.abs(o) > VISIBLE ? 'none' : 'auto'))
 
   const { data: counts } = useFolderCounts(isFront ? student.id : undefined)
   const lessons = counts?.lesson_plan
-  const dark = useMemo(() => luminance(student.color) < 0.55, [student.color])
+  const ink = useMemo(() => onColor(student.color), [student.color])
+  const dark = ink.dark
 
   return (
     <motion.div
@@ -259,32 +269,55 @@ function Card({
             borderColor: 'rgba(0,0,0,0.12)',
           }}
         >
-          <span className="pointer-events-none absolute inset-x-0 top-0 h-2/5 bg-white/25" />
+          {/* Rim light along the top edge, brightest when the card faces you. */}
+          <motion.span
+            className="pointer-events-none absolute inset-x-0 top-0 h-2/5"
+            style={{ opacity: rim, background: 'linear-gradient(to bottom, rgba(255,255,255,0.7), rgba(255,255,255,0))' }}
+          />
+          {/* The sheen that travels across the cover as the card turns. */}
+          <motion.span
+            className="pointer-events-none absolute inset-0"
+            style={{
+              opacity: sheenOpacity,
+              backgroundImage: 'linear-gradient(105deg, rgba(255,255,255,0) 35%, rgba(255,255,255,0.32) 50%, rgba(255,255,255,0) 65%)',
+              backgroundSize: '220% 100%',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: sheenPos,
+            }}
+          />
           <div className="relative flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-bold tracking-widest text-black/45 uppercase">Student</p>
-              <h2 className="mt-1 text-balance text-[26px] leading-tight font-bold text-black/80 sm:text-[30px]">
+              <p className="text-[11px] font-bold tracking-widest uppercase" style={{ color: ink.inkFaint }}>
+                Student
+              </p>
+              <h2 className="mt-1 text-balance text-[26px] leading-tight font-bold sm:text-[30px]" style={{ color: ink.ink }}>
                 {student.name}
               </h2>
             </div>
-            <button
-              type="button"
-              data-menu
-              aria-label={`Options for ${student.name}`}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-black/50 hover:bg-black/10"
-            >
-              <More size={20} />
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              {student.logo && <LogoBadge logo={student.logo} size={48} />}
+              <button
+                type="button"
+                data-menu
+                aria-label={`Options for ${student.name}`}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full"
+                style={{ color: ink.inkSoft }}
+              >
+                <More size={20} />
+              </button>
+            </div>
           </div>
           <div className="relative flex items-end justify-between">
-            <p className="text-[14px] font-semibold text-black/60">
+            <p className="text-[14px] font-semibold" style={{ color: ink.inkSoft }}>
               {isFront && lessons !== undefined ? `${lessons} lesson${lessons === 1 ? '' : 's'}` : ' '}
             </p>
             <span
-              className={clsx(
-                'rounded-full px-3 py-1.5 text-[13px] font-bold transition',
-                isFront ? 'bg-black/75 text-white' : 'bg-black/10 text-black/50',
-              )}
+              className="rounded-full px-3 py-1.5 text-[13px] font-bold transition"
+              style={
+                isFront
+                  ? { background: dark ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.75)', color: dark ? '#1a1a19' : '#fff' }
+                  : { background: ink.chip, color: ink.inkSoft }
+              }
             >
               {isFront ? 'Open' : ''}
             </span>
@@ -313,15 +346,6 @@ function shortName(name: string): string {
   return nick ?? name.split(/\s+/)[0]
 }
 
-function luminance(hex: string): number {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex)
-  if (!m) return 1
-  const n = parseInt(m[1], 16)
-  const r = (n >> 16) & 255
-  const g = (n >> 8) & 255
-  const b = n & 255
-  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
-}
 
 /** A slightly deeper version of the folder colour for the bottom edge. */
 function mix(hex: string): string {

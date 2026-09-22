@@ -278,3 +278,11 @@ alter table user_settings add column if not exists skin text not null default 'f
 -- A position is "done" once the coach has saved its annotation in the
 -- workbench; the queue shows what's left.
 alter table puzzles add column if not exists done boolean not null default false;
+
+-- ===================== 0007_student_logo.sql =====================
+-- Chess Private Student Planner — school logos
+-- Run this after 0006_puzzle_done.sql. Additive; safe to re-run.
+
+-- A student's school badge: a path to a built-in logo (/logos/buckley.png)
+-- or a small image the coach uploaded, stored as a data URL.
+alter table students add column if not exists logo text;

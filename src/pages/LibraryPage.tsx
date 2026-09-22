@@ -4,6 +4,7 @@ import type { LibraryEntry } from '../lib/data'
 import { useLibrary } from '../lib/queries'
 import { normalizeFen } from '../lib/fen'
 import { copyText, puzzleLink } from '../lib/links'
+import { onColor } from '../lib/colors'
 import { Board } from '../components/board/Board'
 import { CopyLinkButton } from '../components/ui/CopyLink'
 import { Button } from '../components/ui/Button'
@@ -57,8 +58,11 @@ export function LibraryPage() {
           {groups.map((group) => (
             <section key={group.key}>
               <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 pl-1">
-                <span className="folder-tab inline-flex h-7 items-center gap-2 rounded-t-xl px-3 text-[12px] font-bold tracking-[0.08em] text-black/60 uppercase" style={{ background: group.studentColor }}>
-                  <span className="block h-2 w-2 rounded-[2px] bg-black/35" />
+                <span
+                  className="folder-tab inline-flex h-7 items-center gap-2 rounded-t-xl px-3 text-[12px] font-bold tracking-[0.08em] uppercase"
+                  style={{ background: group.studentColor, color: onColor(group.studentColor).inkSoft }}
+                >
+                  <span className="block h-2 w-2 rounded-[2px]" style={{ background: onColor(group.studentColor).dot }} />
                   {group.studentName}
                 </span>
                 <Link to={`/students/${group.studentId}/lessons/${group.lessonPlanId}`} className="text-[14px] font-semibold text-on-bg hover:underline">

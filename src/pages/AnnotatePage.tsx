@@ -6,7 +6,7 @@ import type { PuzzlePatch } from '../lib/data'
 import { useLesson, usePuzzleMutations, useStudent } from '../lib/queries'
 import { normalizeFen } from '../lib/fen'
 import { defaultQuizPrompt } from '../lib/prompts'
-import { FOLDER_COLORS } from '../lib/colors'
+import { FOLDER_COLORS, onColor } from '../lib/colors'
 import { Board } from '../components/board/Board'
 import { MoveBoard } from '../components/board/MoveBoard'
 import { PaperCard } from '../components/lesson/Folder'
@@ -190,10 +190,10 @@ function Bench({
       <div className="mx-auto w-full max-w-[560px] md:mx-0">
         <div className="flex items-end justify-between gap-3 pl-3">
           <p
-            className="folder-tab flex h-8 min-w-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] text-black/60 uppercase"
-            style={{ background: color }}
+            className="folder-tab flex h-8 min-w-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] uppercase"
+            style={{ background: color, color: onColor(color).inkSoft }}
           >
-            <span className="block h-2 w-2 shrink-0 rounded-[2px] bg-black/35" />
+            <span className="block h-2 w-2 shrink-0 rounded-[2px]" style={{ background: onColor(color).dot }} />
             <span className="truncate">
               #{position} · {sectionTitle}
             </span>

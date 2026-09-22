@@ -15,7 +15,7 @@ import { effectiveQuizPrompt } from '../lib/prompts'
 import { Button, IconButton } from '../components/ui/Button'
 import { LoadingPage, Page, SectionLabel } from '../components/ui/Page'
 import { PaperCard, StickyNote } from '../components/lesson/Folder'
-import { FOLDER_COLORS } from '../lib/colors'
+import { FOLDER_COLORS, onColor } from '../lib/colors'
 import { Check, ChevronLeft, ChevronRight, Close, Document, Eye } from '../components/ui/Icons'
 
 type Mode = 'coach' | 'present'
@@ -262,10 +262,10 @@ function PuzzleView({
       <div className="mx-auto w-full" style={{ maxWidth: 'min(640px, calc(100svh - 236px))' }}>
         <div className="flex items-end justify-between gap-3 pl-3">
           <p
-            className="folder-tab flex h-8 min-w-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] text-black/60 uppercase"
-            style={{ background: color }}
+            className="folder-tab flex h-8 min-w-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] uppercase"
+            style={{ background: color, color: onColor(color).inkSoft }}
           >
-            <span className="block h-2 w-2 shrink-0 rounded-[2px] bg-black/35" />
+            <span className="block h-2 w-2 shrink-0 rounded-[2px]" style={{ background: onColor(color).dot }} />
             <span className="truncate">{sectionTitle}</span>
           </p>
           <button onClick={() => setFlipped((f) => !f)} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg">

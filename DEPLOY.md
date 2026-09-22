@@ -108,6 +108,7 @@ re-run, so if you're not sure which you've done, run `supabase/setup_all.sql` ag
 | `0004_lesson_flow.sql` | lesson status (planned / in progress / taught) and saved lesson templates |
 | `0005_skins.sql` | the chosen skin (Folder or a Chess Arcade skin) |
 | `0006_puzzle_done.sql` | the done flag on positions, for the annotation queue |
+| `0007_student_logo.sql` | a school logo on each student folder |
 
 ---
 

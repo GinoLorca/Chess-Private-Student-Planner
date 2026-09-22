@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Rolodex } from '../components/students/Rolodex'
 import type { Student } from '../types/domain'
@@ -9,7 +9,10 @@ import { InputModal } from '../components/ui/InputModal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { ActionSheet } from '../components/ui/ActionSheet'
 import { More, Pencil, Plus, Settings, Trash, Library } from '../components/ui/Icons'
-import { FOLDER_COLORS } from '../lib/colors'
+import { FOLDER_COLORS, SCHOOL_COLORS } from '../lib/colors'
+import { BUILTIN_LOGOS, logoFromFile } from '../lib/logos'
+import { LogoBadge } from '../components/lesson/Folder'
+import { Modal } from '../components/ui/Modal'
 
 export function DashboardPage() {
   const navigate = useNavigate()
@@ -19,6 +22,8 @@ export function DashboardPage() {
   const [menuFor, setMenuFor] = useState<Student | null>(null)
   const [renaming, setRenaming] = useState<Student | null>(null)
   const [recoloring, setRecoloring] = useState<Student | null>(null)
+  const [logoFor, setLogoFor] = useState<Student | null>(null)
+  const [customColorFor, setCustomColorFor] = useState<Student | null>(null)
   const [deleting, setDeleting] = useState<Student | null>(null)
 
   if (isLoading && !students) return <LoadingPage />
@@ -78,6 +83,7 @@ export function DashboardPage() {
         items={[
           { label: 'Rename', icon: <Pencil />, onSelect: () => setRenaming(menuFor) },
           { label: 'Change folder colour', icon: <More />, onSelect: () => setRecoloring(menuFor) },
+          { label: 'School logo…', icon: <Library />, onSelect: () => setLogoFor(menuFor) },
           { label: 'Delete student', icon: <Trash />, danger: true, onSelect: () => setDeleting(menuFor) },
         ]}
       />
@@ -111,8 +117,100 @@ export function DashboardPage() {
           if (recoloring) update.mutate({ id: recoloring.id, patch: { color } })
           setRecoloring(null)
         }}
+        onCustom={() => {
+          setCustomColorFor(recoloring)
+          setRecoloring(null)
+        }}
+      />
+      <InputModal
+        open={Boolean(customColorFor)}
+        title="Custom colour"
+        label="Hex colour, e.g. #1b3a6b"
+        placeholder="#1b3a6b"
+        initialValue={customColorFor?.color ?? ''}
+        submitLabel="Use colour"
+        onClose={() => setCustomColorFor(null)}
+        onSubmit={async (value) => {
+          const hex = value.trim().startsWith('#') ? value.trim() : `#${value.trim()}`
+          if (customColorFor && /^#[0-9a-f]{6}$/i.test(hex)) await update.mutateAsync({ id: customColorFor.id, patch: { color: hex.toLowerCase() } })
+        }}
+      />
+      <LogoPicker
+        student={logoFor}
+        onClose={() => setLogoFor(null)}
+        onPick={(logo, color) => {
+          if (logoFor) update.mutate({ id: logoFor.id, patch: color ? { logo, color } : { logo } })
+          setLogoFor(null)
+        }}
       />
     </Page>
+  )
+}
+
+/**
+ * The school badge for a folder: a built-in logo (which also offers the
+ * school's colour), a picture from the iPad, or none.
+ */
+function LogoPicker({
+  student,
+  onClose,
+  onPick,
+}: {
+  student: Student | null
+  onClose: () => void
+  onPick: (logo: string | null, color?: string) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [error, setError] = useState<string | null>(null)
+  return (
+    <Modal open={Boolean(student)} onClose={onClose} title="School logo">
+      <div className="space-y-2">
+        {BUILTIN_LOGOS.map((l) => (
+          <div key={l.id} className="flex items-center gap-3 rounded-xl border border-line bg-surface p-2.5">
+            <LogoBadge logo={l.src} size={44} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-semibold text-ink">{l.label}</p>
+              <p className="text-[12px] text-ink-3">{student?.logo === l.src ? 'Current logo' : 'Built in'}</p>
+            </div>
+            <Button size="sm" variant="secondary" onClick={() => onPick(l.src)}>
+              Logo only
+            </Button>
+            <Button size="sm" variant="primary" onClick={() => onPick(l.src, l.color)}>
+              <span className="mr-1.5 inline-block h-3.5 w-3.5 rounded-sm" style={{ background: l.color }} />
+              Logo + colour
+            </Button>
+          </div>
+        ))}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (!file) return
+            try {
+              onPick(await logoFromFile(file))
+            } catch (err) {
+              setError(err instanceof Error ? err.message : String(err))
+            }
+          }}
+        />
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button variant="soft" onClick={() => inputRef.current?.click()}>
+            Choose a picture…
+          </Button>
+          {student?.logo && (
+            <Button variant="ghost" onClick={() => onPick(null)}>
+              Remove logo
+            </Button>
+          )}
+        </div>
+        {error && <p className="text-[13px] text-danger">{error}</p>}
+        <p className="text-[12.5px] text-ink-3">A picture is shrunk to a small badge and kept with the student, so no upload service is needed.</p>
+      </div>
+    </Modal>
   )
 }
 
@@ -120,21 +218,23 @@ function ColorPicker({
   student,
   onClose,
   onPick,
+  onCustom,
 }: {
   student: Student | null
   onClose: () => void
   onPick: (color: string) => void
+  onCustom: () => void
 }) {
   return (
     <ActionSheet
       open={Boolean(student)}
       onClose={onClose}
       title="Folder colour"
-      items={FOLDER_COLORS.map((c) => ({
-        label: c === student?.color ? 'Current colour' : 'Use this colour',
+      items={[...FOLDER_COLORS.map((c) => ({ color: c, label: c === student?.color ? 'Current colour' : 'Use this colour' })), ...SCHOOL_COLORS.map((s) => ({ color: s.color, label: s.color === student?.color ? `${s.label} (current)` : s.label }))].map(({ color: c, label }) => ({
+        label,
         icon: <span className="block h-6 w-6 rounded-md" style={{ background: c }} />,
         onSelect: () => onPick(c),
-      }))}
+      })).concat([{ label: 'Custom colour…', icon: <Pencil />, onSelect: onCustom }])}
     />
   )
 }

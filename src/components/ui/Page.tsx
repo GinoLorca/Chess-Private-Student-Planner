@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Home } from './Icons'
+import { useOnline } from '../../lib/offline'
 
 interface PageProps {
   title?: ReactNode
@@ -116,10 +117,17 @@ export function Spinner({ className }: { className?: string }) {
   )
 }
 
+/** Offline with nothing cached for this screen, the spinner would never end; say so instead. */
 export function LoadingPage() {
+  const online = useOnline()
   return (
-    <div className="flex min-h-svh items-center justify-center">
+    <div className="flex min-h-svh flex-col items-center justify-center gap-4 px-6 text-center">
       <Spinner />
+      {!online && (
+        <p className="max-w-xs text-[14px] text-on-bg-2">
+          You're offline and this screen hasn't been saved to the device yet. It will load when the connection returns.
+        </p>
+      )}
     </div>
   )
 }

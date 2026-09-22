@@ -21,10 +21,10 @@ import { CopyLinkButton } from '../ui/CopyLink'
 export function LogoBadge({ logo, size = 24, className }: { logo: string; size?: number; className?: string }) {
   return (
     <span
-      className={clsx('grid shrink-0 place-items-center overflow-hidden rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.25)]', className)}
+      className={clsx('block shrink-0 overflow-hidden rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.25)]', className)}
       style={{ width: size, height: size }}
     >
-      <img src={logo} alt="" className="h-[82%] w-[82%] object-contain" draggable={false} />
+      <img src={logo} alt="" className="h-full w-full object-cover" draggable={false} />
     </span>
   )
 }

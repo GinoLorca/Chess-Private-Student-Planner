@@ -39,7 +39,12 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   on every index card, the position page, the workbench and the lesson's ⋯ menu (*Copy links to
   all positions*). Paste a link into the ICN Chess Club Planner's *Puzzle / exercise links* row
   with a label, and the class lesson opens it straight at the board.
-- Installable PWA, works offline for lessons already opened, light and dark.
+- **Works without a connection.** Every student's lessons are pulled onto the device while
+  online, so the whole cabinet opens on a plane or in a dead Wi-Fi room. Anything changed
+  offline (a stamp, a note, an annotation) waits in a queue, shown in a bar at the top, and
+  syncs when the connection returns. Sign-in survives offline, the display fonts are cached,
+  and a new version of the app installs itself on the next launch.
+- Installable PWA, light and dark.
 
 ## Stack
 

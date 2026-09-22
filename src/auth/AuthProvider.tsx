@@ -27,7 +27,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isDemo) return
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
+      // Offline with an expired token, the refresh can't run and the client
+      // reports no session. The one saved on the device still identifies the
+      // coach, and every read comes from the cache anyway, so keep them in.
+      setSession(data.session ?? (navigator.onLine ? null : storedSession()))
       setLoading(false)
     })
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
@@ -49,6 +52,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{ session, loading, signInWithPassword, signOut }}>{children}</AuthContext.Provider>
   )
+}
+
+/** The session Supabase keeps in localStorage, for the offline case above. */
+function storedSession(): Session | null {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key || !/^sb-.*-auth-token$/.test(key)) continue
+      const parsed = JSON.parse(localStorage.getItem(key) ?? 'null')
+      if (parsed && typeof parsed === 'object' && parsed.access_token && parsed.user) return parsed as Session
+    }
+  } catch {
+    // no usable saved session
+  }
+  return null
 }
 
 export function useAuth() {

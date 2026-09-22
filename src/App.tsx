@@ -5,6 +5,8 @@ import { ProtectedRoute } from './auth/ProtectedRoute'
 import { PieceSetProvider } from './state/PieceSetContext'
 import { AppearanceProvider, QueryProvider } from './app/providers'
 import { LoadingPage } from './components/ui/Page'
+import { OfflineBar } from './components/ui/OfflineBar'
+import { Prefetcher } from './app/Prefetcher'
 
 // Each screen loads on demand so the first paint on an iPad only pulls the
 // student list, not the editor and its drag-and-drop machinery.
@@ -36,6 +38,8 @@ function App() {
           <ProtectedRoute>
             <PieceSetProvider>
               <HashRouter>
+                <OfflineBar />
+                <Prefetcher />
                 <Suspense fallback={<LoadingPage />}>
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />

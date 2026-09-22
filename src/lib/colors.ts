@@ -4,7 +4,7 @@ export const FOLDER_COLORS = ['#e9c98e', '#a9bfd9', '#d9a5a0', '#a7c4b5', '#c9b3
 // School colours: deep, so the folder takes light ink (see onColor).
 export const SCHOOL_COLORS: { label: string; color: string }[] = [
   { label: 'Buckley navy', color: '#1b3a6b' },
-  { label: 'Chessmates black', color: '#1f1f1f' },
+  { label: 'PS 11 royal blue', color: '#2b4fc4' },
   { label: 'Forest', color: '#2f5d3a' },
   { label: 'Maroon', color: '#6b1f2a' },
 ]

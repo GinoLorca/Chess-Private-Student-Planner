@@ -295,7 +295,6 @@ function Card({
               </h2>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {student.logo && <LogoBadge logo={student.logo} size={48} />}
               <button
                 type="button"
                 data-menu
@@ -307,6 +306,16 @@ function Card({
               </button>
             </div>
           </div>
+          {/* The school badge, stamped big in the middle of the cover. */}
+          {student.logo && (
+            <div className="pointer-events-none absolute inset-0 grid place-items-center">
+              <LogoBadge
+                logo={student.logo}
+                size={132}
+                className="-rotate-3 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.5),inset_0_0_0_3px_rgba(0,0,0,0.08)]"
+              />
+            </div>
+          )}
           <div className="relative flex items-end justify-between">
             <p className="text-[14px] font-semibold" style={{ color: ink.inkSoft }}>
               {isFront && lessons !== undefined ? `${lessons} lesson${lessons === 1 ? '' : 's'}` : ' '}

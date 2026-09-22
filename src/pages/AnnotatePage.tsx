@@ -240,7 +240,7 @@ function Bench({
                 step === i + 1 ? 'bg-accent text-accent-ink' : 'bg-surface-2 text-ink hover:bg-surface-3',
               )}
             >
-              <span className="mr-1 text-[11px] font-normal opacity-70">{moveNumber(puzzle.side_to_move, i)}</span>
+              <span className="mr-1 text-[11px] font-normal opacity-70">{moveNumber(puzzle.side_to_move, i, fen)}</span>
               {m.san}
             </button>
           ))}
@@ -412,8 +412,10 @@ function QueueCard({ item, first, done, onClick }: { item: QueueItem; first?: bo
   )
 }
 
-function moveNumber(side: 'w' | 'b', i: number): string {
-  const n = Math.floor(i / 2) + 1
+/** "8." / "8…" style numbering, counting from the position's own move number. */
+function moveNumber(side: 'w' | 'b', i: number, fen: string): string {
+  const start = Number(fen.split(' ')[5]) || 1
+  const n = start + Math.floor(i / 2)
   return side === 'w' ? (i % 2 === 0 ? `${n}.` : '') : i % 2 === 0 ? `${n}…` : `${n + 1}.`
 }
 

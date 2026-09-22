@@ -29,6 +29,17 @@ export function Page({ title, eyebrow, back, actions, width = 'reading', childre
     <div className="min-h-svh">
       <header className="page-header pt-safe sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
         <div className={clsx('mx-auto flex h-12 items-center gap-1 px-2', container)}>
+          {/* Home first, in the corner where a thumb lands; Back beside it. */}
+          {back !== undefined && back !== '/' && (
+            <Link
+              to="/"
+              aria-label="Students"
+              title="Students"
+              className="grid h-11 w-11 place-items-center rounded-xl text-accent-on-bg active:opacity-60"
+            >
+              <Home size={21} />
+            </Link>
+          )}
           {back !== undefined ? (
             back === -1 ? (
               <button
@@ -49,16 +60,6 @@ export function Page({ title, eyebrow, back, actions, width = 'reading', childre
             )
           ) : (
             <div className="w-2" />
-          )}
-          {back !== undefined && back !== '/' && (
-            <Link
-              to="/"
-              aria-label="Students"
-              title="Students"
-              className="grid h-11 w-11 place-items-center rounded-xl text-accent-on-bg active:opacity-60"
-            >
-              <Home size={21} />
-            </Link>
           )}
           <div className="flex-1" />
           <div className="flex items-center gap-1">{actions}</div>

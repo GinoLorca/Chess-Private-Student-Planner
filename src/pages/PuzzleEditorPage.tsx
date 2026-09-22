@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import clsx from 'clsx'
 import type { Puzzle, SolutionMove } from '../types/domain'
@@ -17,6 +17,7 @@ import { ImportSheet } from '../components/import/ImportSheet'
 import { EngineCheck } from '../components/import/EngineCheck'
 import { draftExplanation } from '../lib/ai'
 import { answerProblem } from '../lib/solution'
+import { useClicker } from '../hooks/useClicker'
 import { Check, ChevronDown, ChevronRight, Plus, Sparkle, Warning } from '../components/ui/Icons'
 import { Chip, ChipRow } from '../components/ui/Chip'
 import { defaultQuizPrompt, explanationStarters, quizPromptChips } from '../lib/prompts'
@@ -146,15 +147,26 @@ function Editor({
     [],
   )
 
-  // The answer board sits at the end of the recorded line.
-  const answerFen = puzzle.solution.length ? puzzle.solution[puzzle.solution.length - 1].fen : fen
+  // The answer board sits at the end of the recorded line unless a move in
+  // the list is being viewed (click a move, or the clicker / arrow keys);
+  // a move played while viewing mid-line replaces the rest of the line.
+  const [view, setView] = useState<number | null>(null)
+  const shown = view === null ? puzzle.solution.length : Math.min(view, puzzle.solution.length)
+  const answerFen = shown > 0 ? puzzle.solution[shown - 1].fen : fen
   const answerWarning = useMemo(() => answerProblem(puzzle), [puzzle])
   const lastMove = useMemo(() => {
-    const last = puzzle.solution[puzzle.solution.length - 1]
-    if (!last) return null
-    const m = /([a-h][1-8])[^a-h]*$/.exec(last.san.replace(/[+#]/g, ''))
+    const move = puzzle.solution[shown - 1]
+    if (!move) return null
+    const m = /([a-h][1-8])[^a-h]*$/.exec(move.san.replace(/[+#]/g, ''))
     return m ? { from: '', to: m[1] } : null
-  }, [puzzle.solution])
+  }, [puzzle.solution, shown])
+  const stepNext = useCallback(() => {
+    if (tab === 'answer') setView((v) => Math.min(puzzle.solution.length, (v ?? puzzle.solution.length) + 1))
+  }, [tab, puzzle.solution.length])
+  const stepPrev = useCallback(() => {
+    if (tab === 'answer') setView((v) => Math.max(0, (v ?? puzzle.solution.length) - 1))
+  }, [tab, puzzle.solution.length])
+  useClicker({ next: stepNext, prev: stepPrev })
 
   function setPosition(nextFen: string, side: 'w' | 'b') {
     // A different position (or side to move) invalidates the recorded line.
@@ -167,7 +179,8 @@ function Editor({
     puzzle.label && !/^#\d+$/.test(puzzle.label) ? puzzle.label : line[0]?.san || puzzle.label
 
   function addMove(san: string, resultFen: string) {
-    const solution = [...puzzle.solution, { san, fen: resultFen }]
+    const solution = [...puzzle.solution.slice(0, shown), { san, fen: resultFen }]
+    setView(null)
     apply({ solution, label: autoLabel(solution) })
   }
 
@@ -283,17 +296,34 @@ function Editor({
                 <MoveBoard
                   fen={answerFen}
                   orientation={orientation}
-                  arrows={puzzle.solution.length === 0 ? puzzle.arrows : undefined}
-                  highlights={puzzle.solution.length === 0 ? puzzle.highlights : undefined}
+                  arrows={shown === 0 ? puzzle.arrows : undefined}
+                  highlights={shown === 0 ? puzzle.highlights : undefined}
                   lastMove={lastMove}
                   onMove={addMove}
                   // Right-drag annotates while the board still shows the starting position.
-                  onArrowsChange={puzzle.solution.length === 0 ? (arrows) => apply({ arrows }) : undefined}
-                  onHighlightsChange={puzzle.solution.length === 0 ? (highlights) => apply({ highlights }) : undefined}
+                  onArrowsChange={shown === 0 ? (arrows) => apply({ arrows }) : undefined}
+                  onHighlightsChange={shown === 0 ? (highlights) => apply({ highlights }) : undefined}
                 />
               </div>
+              {puzzle.solution.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" size="sm" onClick={stepPrev} disabled={shown === 0}>
+                    Back
+                  </Button>
+                  <p className="flex-1 text-center font-mono text-[14px] font-semibold text-ink">
+                    {shown === 0 ? 'Start' : `${shown}. ${puzzle.solution[shown - 1].san}`}
+                    <span className="ml-2 font-sans text-[12px] font-medium text-ink-3 tabular-nums">
+                      {shown} / {puzzle.solution.length}
+                    </span>
+                  </p>
+                  <Button variant="soft" size="sm" onClick={stepNext} disabled={shown >= puzzle.solution.length}>
+                    Next
+                  </Button>
+                </div>
+              )}
               <p className="text-[13px] text-ink-3">
                 Play the answer on the board — tap a piece, then where it goes. Each move is added to the line below.
+                {puzzle.solution.length > 0 && ' Click a move (or use the clicker / arrow keys) to step back through the line; a move played from there replaces the rest.'}
               </p>
             </div>
           )}
@@ -307,10 +337,24 @@ function Editor({
                   <SectionLabel className="mb-0">Answer line</SectionLabel>
                   {puzzle.solution.length > 0 && (
                     <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => apply({ solution: puzzle.solution.slice(0, -1) })}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setView(null)
+                          apply({ solution: puzzle.solution.slice(0, -1) })
+                        }}
+                      >
                         Undo move
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => apply({ solution: [] })}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setView(null)
+                          apply({ solution: [] })
+                        }}
+                      >
                         Clear
                       </Button>
                     </div>
@@ -327,8 +371,17 @@ function Editor({
                   <ol className="mt-2 space-y-1.5">
                     {puzzle.solution.map((m, i) => (
                       <li key={i} className="flex items-center gap-2">
-                        <span className="w-6 shrink-0 text-right font-mono text-[12px] text-ink-3 tabular-nums">{i + 1}.</span>
-                        <span className="w-14 shrink-0 font-mono text-[16px] font-semibold text-ink">{m.san}</span>
+                        <button
+                          onClick={() => setView(i + 1)}
+                          aria-current={shown === i + 1 ? 'step' : undefined}
+                          className={clsx(
+                            'flex h-9 shrink-0 items-center gap-2 rounded-lg px-1.5 transition',
+                            shown === i + 1 ? 'bg-accent-soft' : 'hover:bg-surface-2',
+                          )}
+                        >
+                          <span className="w-6 shrink-0 text-right font-mono text-[12px] text-ink-3 tabular-nums">{i + 1}.</span>
+                          <span className="w-14 shrink-0 text-left font-mono text-[16px] font-semibold text-ink">{m.san}</span>
+                        </button>
                         <input
                           defaultValue={m.comment ?? ''}
                           onBlur={(e) => e.target.value !== (m.comment ?? '') && setComment(i, e.target.value)}

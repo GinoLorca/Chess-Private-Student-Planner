@@ -1,18 +1,23 @@
+import { useCallback, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import clsx from 'clsx'
 import { useLesson, usePuzzle, usePuzzleMutations, useStudent } from '../lib/queries'
 import { normalizeFen } from '../lib/fen'
+import { lineSteps, stepLabel } from '../lib/solution'
+import { useClicker } from '../hooks/useClicker'
 import { Page, Card, LoadingPage, SectionLabel } from '../components/ui/Page'
 import { effectiveQuizPrompt } from '../lib/prompts'
 import { penHint } from '../lib/pens'
 import { CopyLinkButton } from '../components/ui/CopyLink'
 import { Button } from '../components/ui/Button'
 import { DrawableBoard } from '../components/board/DrawableBoard'
-import { Pencil, Play } from '../components/ui/Icons'
+import { ChevronLeft, ChevronRight, Pencil, Play } from '../components/ui/Icons'
 
 /**
  * The read view of one position: what the coach glances at right before a
  * lesson. Everything is visible at once — no reveal step — because this is
- * for the coach's eyes, not the student's.
+ * for the coach's eyes, not the student's. The board steps through the
+ * answer: click it, click a move, or use the clicker / arrow keys.
  */
 export function PuzzlePage() {
   const { studentId = '', lessonPlanId = '', puzzleId = '' } = useParams()
@@ -21,6 +26,13 @@ export function PuzzlePage() {
   const { data: puzzle, isLoading } = usePuzzle(puzzleId)
   const { update } = usePuzzleMutations(puzzleId, lessonPlanId)
 
+  const steps = useMemo(() => (puzzle ? lineSteps(puzzle) : []), [puzzle])
+  const [step, setStep] = useState(0)
+  const last = Math.max(0, steps.length - 1)
+  const next = useCallback(() => setStep((s) => Math.min(last, s + 1)), [last])
+  const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
+  useClicker({ next, prev })
+
   if (isLoading && !puzzle) return <LoadingPage />
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
   if (!puzzle) return <Page back={base}>Position not found.</Page>
@@ -28,6 +40,9 @@ export function PuzzlePage() {
   const section = lesson?.sections.find((s) => s.id === puzzle.section_id)
   const fen = normalizeFen(puzzle.starting_fen, puzzle.side_to_move)
   const toMove = puzzle.side_to_move === 'w' ? 'White' : 'Black'
+  const current = steps[Math.min(step, last)]
+  const atStart = step === 0
+  const lastMove = !atStart && current?.from && current?.to ? { from: current.from, to: current.to } : null
 
   return (
     <Page
@@ -58,15 +73,37 @@ export function PuzzlePage() {
             <h1 className="min-w-0 truncate text-[24px] font-bold tracking-tight text-ink">{puzzle.label || 'Untitled position'}</h1>
             <span className="shrink-0 text-[14px] font-semibold text-ink-2">{toMove} to play</span>
           </div>
+          {/* The starting position carries the saved annotations; each answer
+              move shows its own arrow. Drawings are saved only on the start. */}
           <DrawableBoard
-            fen={fen}
-            arrows={puzzle.arrows}
-            highlights={puzzle.highlights}
+            fen={atStart || !current ? fen : current.fen}
+            arrows={atStart ? puzzle.arrows : current?.arrow ? [current.arrow] : []}
+            highlights={atStart ? puzzle.highlights : []}
+            lastMove={lastMove}
             orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'}
-            onArrowsChange={(arrows) => update.mutate({ arrows })}
-            onHighlightsChange={(highlights) => update.mutate({ highlights })}
+            onArrowsChange={(arrows) => atStart && update.mutate({ arrows })}
+            onHighlightsChange={(highlights) => atStart && update.mutate({ highlights })}
+            onClick={last > 0 ? next : undefined}
           />
+          {last > 0 && (
+            <div className="mt-3 flex items-center gap-2">
+              <Button variant="secondary" size="md" icon={<ChevronLeft size={18} />} onClick={prev} disabled={atStart}>
+                Back
+              </Button>
+              <p className="flex-1 text-center font-mono text-[15px] font-semibold text-on-bg">
+                {atStart ? 'Start' : `${stepLabel(puzzle, step)} ${current?.san ?? ''}`}
+                <span className="ml-2 font-sans text-[12px] font-medium text-on-bg-2 tabular-nums">
+                  {step} / {last}
+                </span>
+              </p>
+              <Button variant="soft" size="md" onClick={next} disabled={step >= last}>
+                {atStart ? 'Play first move' : step >= last ? 'End of line' : 'Next move'}
+                <ChevronRight size={18} />
+              </Button>
+            </div>
+          )}
           <p className="mt-2 text-[12.5px] text-on-bg-2">
+            {last > 0 ? 'Click the board, a move, or the clicker (arrow keys) to step through the answer. ' : ''}
             Right-drag for an arrow, right-click a square to highlight it, left-click to clear. Hold {penHint()}.
           </p>
         </div>
@@ -82,12 +119,21 @@ export function PuzzlePage() {
             {puzzle.solution.length === 0 ? (
               <p className="text-[15px] text-ink-3">No solution recorded yet.</p>
             ) : (
-              <ol className="space-y-1.5">
+              <ol className="-mx-2 space-y-0.5">
                 {puzzle.solution.map((move, i) => (
-                  <li key={i} className="flex items-baseline gap-3">
-                    <span className="w-6 shrink-0 text-right font-mono text-[13px] text-ink-3 tabular-nums">{i + 1}.</span>
-                    <span className="font-mono text-[17px] font-semibold text-ink">{move.san}</span>
-                    {move.comment && <span className="text-[14px] text-ink-2">{move.comment}</span>}
+                  <li key={i}>
+                    <button
+                      onClick={() => setStep(i + 1)}
+                      aria-current={step === i + 1 ? 'step' : undefined}
+                      className={clsx(
+                        'flex w-full items-baseline gap-3 rounded-lg px-2 py-1 text-left transition',
+                        step === i + 1 ? 'bg-accent-soft' : 'hover:bg-surface-2',
+                      )}
+                    >
+                      <span className="w-8 shrink-0 text-right font-mono text-[13px] text-ink-3 tabular-nums">{stepLabel(puzzle, i + 1)}</span>
+                      <span className="font-mono text-[17px] font-semibold text-ink">{move.san}</span>
+                      {move.comment && <span className="text-[14px] text-ink-2">{move.comment}</span>}
+                    </button>
                   </li>
                 ))}
               </ol>

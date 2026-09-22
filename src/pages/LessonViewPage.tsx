@@ -255,17 +255,18 @@ function PuzzleView({
   const toMove = puzzle.side_to_move === 'w' ? 'White' : 'Black'
 
   // Answer annotations are hints; the student only sees them once revealed.
-  const showAnnotations = revealed && atStart
+  // The eye closed = the quiz alone, whatever the step: start position, no arrows, no moves.
+  const showAnnotations = revealed && atStart && !notesHidden
   const sketchHere = sketch && sketch.step === step ? sketch : null
   const boardArrows = showAnnotations
     ? puzzle.arrows
-    : [...(current.arrow && revealed ? [current.arrow] : []), ...(sketchHere?.arrows ?? [])]
+    : [...(current.arrow && revealed && !notesHidden ? [current.arrow] : []), ...(sketchHere?.arrows ?? [])]
   const boardHighlights = showAnnotations ? puzzle.highlights : (sketchHere?.highlights ?? [])
   const setArrows = (arrows: BoardArrow[]) =>
     atStart ? update.mutate({ arrows }) : setSketch({ step, arrows, highlights: sketchHere?.highlights ?? [] })
   const setHighlights = (highlights: BoardHighlight[]) =>
     atStart ? update.mutate({ highlights }) : setSketch({ step, highlights, arrows: sketchHere?.arrows ?? [] })
-  const lastMove = !atStart && current.from && current.to ? { from: current.from, to: current.to } : null
+  const lastMove = !atStart && !notesHidden && current.from && current.to ? { from: current.from, to: current.to } : null
 
   const last = steps.length - 1
   const finish = (kind: 'solved' | 'shown') => {
@@ -372,7 +373,7 @@ function PuzzleView({
           data-swipe-own
         >
           <DrawableBoard
-            fen={current.fen}
+            fen={notesHidden ? steps[0].fen : current.fen}
             orientation={orientation}
             arrows={boardArrows}
             highlights={boardHighlights}
@@ -387,7 +388,7 @@ function PuzzleView({
         <div className="mt-2 flex items-center justify-between">
           <p className="text-[15px] font-semibold text-on-bg">
             <span className="text-on-bg-2">#{position}</span>{' '}
-            <span className="font-display text-[19px]">{revealed ? puzzle.label : ''}</span>
+            <span className="font-display text-[19px]">{revealed && !notesHidden ? puzzle.label : ''}</span>
           </p>
           <p className="text-[12px] font-semibold tracking-[0.1em] text-on-bg-2 uppercase">{toMove} to play</p>
         </div>
@@ -458,6 +459,16 @@ function PuzzleView({
           <Button variant="primary" size="lg" block icon={<Eye size={20} />} onClick={() => setRevealed(true)}>
             Reveal answer
           </Button>
+        ) : notesHidden ? (
+          <PaperCard className="p-4" tilt={0.4}>
+            <div className="flex items-center justify-between">
+              <SectionLabel className="mb-0">Answer</SectionLabel>
+              <IconButton label="Show answer and explanation" onClick={onToggleNotes} className="-mr-2">
+                <EyeOff />
+              </IconButton>
+            </div>
+            <p className="text-[14px] text-ink-3">Answer and explanation hidden. Tap the eye, or the clicker's third button, to show them.</p>
+          </PaperCard>
         ) : (
           <PaperCard className="p-4" tilt={0.4}>
             <div className="flex items-center justify-between">
@@ -512,8 +523,8 @@ function PuzzleView({
           </PaperCard>
         )}
 
-        {revealed && puzzle.summary && (
-          <PaperCard className="p-4" ruled={!notesHidden} tilt={-0.4}>
+        {revealed && puzzle.summary && !notesHidden && (
+          <PaperCard className="p-4" ruled tilt={-0.4}>
             <div className="flex items-center justify-between">
               <SectionLabel className="mb-0">{mode === 'coach' ? 'Your notes' : 'Explanation'}</SectionLabel>
               <IconButton label={notesHidden ? 'Show explanation' : 'Hide explanation'} onClick={onToggleNotes} className="-mr-2">

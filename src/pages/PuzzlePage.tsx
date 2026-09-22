@@ -43,8 +43,10 @@ export function PuzzlePage() {
   const section = lesson?.sections.find((s) => s.id === puzzle.section_id)
   const fen = normalizeFen(puzzle.starting_fen, puzzle.side_to_move)
   const toMove = puzzle.side_to_move === 'w' ? 'White' : 'Black'
-  const current = steps[Math.min(step, last)]
-  const atStart = step === 0
+  // Hidden = the quiz alone: the start position, no answer arrows, no moves, no label.
+  const shownStep = hidden ? 0 : step
+  const current = steps[Math.min(shownStep, last)]
+  const atStart = shownStep === 0
   const lastMove = !atStart && current?.from && current?.to ? { from: current.from, to: current.to } : null
 
   return (
@@ -73,34 +75,34 @@ export function PuzzlePage() {
         <div className="mx-auto w-full max-w-[560px] pointer-fine:min-[1280px]:max-w-[665px]">
           {/* The title sits on its own paper strip so it reads on any skin's background. */}
           <div className="mb-2 flex items-baseline justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-2.5 shadow-card">
-            <h1 className="min-w-0 truncate text-[24px] font-bold tracking-tight text-ink">{puzzle.label || 'Untitled position'}</h1>
+            <h1 className="min-w-0 truncate text-[24px] font-bold tracking-tight text-ink">{hidden ? 'Position' : puzzle.label || 'Untitled position'}</h1>
             <span className="shrink-0 text-[14px] font-semibold text-ink-2">{toMove} to play</span>
           </div>
           {/* The starting position carries the saved annotations; each answer
               move shows its own arrow. Drawings are saved only on the start. */}
           <DrawableBoard
             fen={atStart || !current ? fen : current.fen}
-            arrows={atStart ? puzzle.arrows : current?.arrow ? [current.arrow] : []}
-            highlights={atStart ? puzzle.highlights : []}
+            arrows={hidden ? [] : atStart ? puzzle.arrows : current?.arrow ? [current.arrow] : []}
+            highlights={hidden || !atStart ? [] : puzzle.highlights}
             lastMove={lastMove}
             orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'}
-            onArrowsChange={(arrows) => atStart && update.mutate({ arrows })}
-            onHighlightsChange={(highlights) => atStart && update.mutate({ highlights })}
-            onClick={last > 0 ? next : undefined}
+            onArrowsChange={(arrows) => atStart && !hidden && update.mutate({ arrows })}
+            onHighlightsChange={(highlights) => atStart && !hidden && update.mutate({ highlights })}
+            onClick={last > 0 && !hidden ? next : undefined}
           />
-          {last > 0 && (
+          {last > 0 && !hidden && (
             <div className="mt-3 flex items-center gap-2">
               <Button variant="secondary" size="md" icon={<ChevronLeft size={18} />} onClick={prev} disabled={atStart}>
                 Back
               </Button>
               <p className="flex-1 text-center font-mono text-[15px] font-semibold text-on-bg">
-                {atStart ? 'Start' : `${stepLabel(puzzle, step)} ${current?.san ?? ''}`}
+                {atStart ? 'Start' : `${stepLabel(puzzle, shownStep)} ${current?.san ?? ''}`}
                 <span className="ml-2 font-sans text-[12px] font-medium text-on-bg-2 tabular-nums">
-                  {step} / {last}
+                  {shownStep} / {last}
                 </span>
               </p>
-              <Button variant="soft" size="md" onClick={next} disabled={step >= last}>
-                {atStart ? 'Play first move' : step >= last ? 'End of line' : 'Next move'}
+              <Button variant="soft" size="md" onClick={next} disabled={shownStep >= last}>
+                {atStart ? 'Play first move' : shownStep >= last ? 'End of line' : 'Next move'}
                 <ChevronRight size={18} />
               </Button>
             </div>
@@ -119,7 +121,9 @@ export function PuzzlePage() {
 
           <Card className="p-4">
             <SectionLabel>Answer</SectionLabel>
-            {puzzle.solution.length === 0 ? (
+            {hidden ? (
+              <p className="text-[14px] text-ink-3">Hidden with the explanation.</p>
+            ) : puzzle.solution.length === 0 ? (
               <p className="text-[15px] text-ink-3">No solution recorded yet.</p>
             ) : (
               <ol className="-mx-2 space-y-0.5">
@@ -143,7 +147,7 @@ export function PuzzlePage() {
             )}
           </Card>
 
-          {(puzzle.summary || puzzle.solution.some((m) => m.comment)) && (
+          {(hidden || puzzle.summary || puzzle.solution.some((m) => m.comment)) && (
             <Card className="p-4">
               <div className="flex items-center justify-between">
                 <SectionLabel className="mb-0">Explanation</SectionLabel>
@@ -152,7 +156,7 @@ export function PuzzlePage() {
                 </IconButton>
               </div>
               {hidden ? (
-                <p className="mt-1 text-[14px] text-ink-3">Hidden. Tap the eye, or the clicker's third button, to show it.</p>
+                <p className="mt-1 text-[14px] text-ink-3">Answer and explanation hidden. Tap the eye, or the clicker's third button, to show them.</p>
               ) : (
                 puzzle.summary && <p className="mt-2 text-[16px] leading-relaxed whitespace-pre-wrap text-ink">{puzzle.summary}</p>
               )}

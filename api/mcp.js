@@ -20,6 +20,8 @@ export async function GET(req) {
   const origin = new URL(req.url).origin
   return json(200, {
     ...SERVER_INFO,
+    // Which commit is live, so a fix can be confirmed as deployed (Vercel sets this).
+    build: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'local',
     endpoint: `${origin}/api/mcp`,
     auth: {
       bearer: process.env.MCP_API_KEY ? 'Authorization: Bearer <MCP_API_KEY>' : 'not configured (set MCP_API_KEY, MCP_USER_EMAIL, MCP_USER_PASSWORD on Vercel)',

@@ -38,31 +38,50 @@ function supabaseDb(sb) {
     },
 
     async listLessons(studentId) {
-      // puzzles.done arrives with migration 0006; before it, count positions only.
-      let { data, error } = await sb
+      // Three flat queries rather than a nested join: plans, their sections, their positions.
+      const { data: plans, error: e1 } = await sb
         .from('lesson_plans')
-        .select('id, number, title, status, lesson_sections(puzzles(done))')
+        .select('id, number, title, status')
         .eq('student_id', studentId)
         .order('number', { ascending: false })
-      if (error && /done/.test(error.message)) {
-        ;({ data, error } = await sb
-          .from('lesson_plans')
-          .select('id, number, title, status, lesson_sections(puzzles(id))')
-          .eq('student_id', studentId)
-          .order('number', { ascending: false }))
-      }
-      if (error) throw describe(error, 'Listing lessons')
-      return data.map((r) => {
-        const puzzles = (r.lesson_sections ?? []).flatMap((s) => s.puzzles ?? [])
-        return {
-          id: r.id,
-          number: r.number,
-          title: r.title,
-          status: r.status ?? 'planned',
-          total: puzzles.length,
-          done: puzzles.filter((p) => p.done).length,
+      if (e1) throw describe(e1, 'Listing lessons')
+      if (!plans || plans.length === 0) return []
+
+      const { data: sections, error: e2 } = await sb
+        .from('lesson_sections')
+        .select('id, lesson_plan_id')
+        .in('lesson_plan_id', plans.map((p) => p.id))
+      if (e2) throw describe(e2, 'Listing sections')
+      const planOfSection = new Map((sections ?? []).map((s) => [s.id, s.lesson_plan_id]))
+
+      // puzzles.done arrives with migration 0006; before it, count positions only.
+      let puzzles = []
+      if (planOfSection.size > 0) {
+        const sectionIds = [...planOfSection.keys()]
+        let { data, error } = await sb.from('puzzles').select('section_id, done').in('section_id', sectionIds)
+        if (error && /done/.test(error.message)) {
+          ;({ data, error } = await sb.from('puzzles').select('section_id').in('section_id', sectionIds))
         }
-      })
+        if (error) throw describe(error, 'Counting positions')
+        puzzles = data ?? []
+      }
+
+      const totals = new Map()
+      for (const p of puzzles) {
+        const planId = planOfSection.get(p.section_id)
+        const t = totals.get(planId) ?? { total: 0, done: 0 }
+        t.total++
+        if (p.done) t.done++
+        totals.set(planId, t)
+      }
+      return plans.map((r) => ({
+        id: r.id,
+        number: r.number,
+        title: r.title,
+        status: r.status ?? 'planned',
+        total: totals.get(r.id)?.total ?? 0,
+        done: totals.get(r.id)?.done ?? 0,
+      }))
     },
 
     async createLesson(studentId, title) {

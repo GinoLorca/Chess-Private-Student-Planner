@@ -252,7 +252,7 @@ function positions(v) {
 // ---------------------------------------------------------------------------
 
 export const PROTOCOL_VERSION = '2025-03-26'
-export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.0.1' }
+export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.0.3' }
 
 /**
  * One JSON-RPC message in, one response out; notifications (no id) return null.

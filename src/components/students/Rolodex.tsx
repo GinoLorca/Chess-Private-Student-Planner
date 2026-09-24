@@ -11,6 +11,8 @@ interface RolodexProps {
   students: Student[]
   onOpen: (student: Student) => void
   onMenu: (student: Student) => void
+  /** A tap on a card's info pill (the USCF lookup's error, say) with its message. */
+  onInfo?: (message: string) => void
 }
 
 /** How far apart neighbouring cards sit on the wheel, and how much a flick moves it. */
@@ -25,7 +27,7 @@ const VISIBLE = 4
  * use the arrow keys) to turn it; tap the front folder and it pops out
  * toward you before opening. The strip underneath jumps straight to a name.
  */
-export function Rolodex({ students, onOpen, onMenu }: RolodexProps) {
+export function Rolodex({ students, onOpen, onMenu, onInfo }: RolodexProps) {
   const progress = useMotionValue(0)
   const [current, setCurrent] = useState(0)
   const [popping, setPopping] = useState<string | null>(null)
@@ -90,8 +92,10 @@ export function Rolodex({ students, onOpen, onMenu }: RolodexProps) {
         // work out what was under the finger here instead of via onClick.
         const el = document.elementFromPoint(ev.clientX, ev.clientY)
         const menu = el?.closest?.('[data-menu]') as HTMLElement | null
+        const info = el?.closest?.('[data-info]') as HTMLElement | null
         const card = el?.closest?.('[data-index]') as HTMLElement | null
         if (menu && card) onMenu(students[Number(card.dataset.index)])
+        else if (info && card) onInfo?.(info.dataset.info ?? '')
         else if (card) {
           const i = Number(card.dataset.index)
           tapCard(i, students[i])
@@ -341,7 +345,19 @@ function Card({
                 <span
                   className="rounded-full px-2.5 py-1 text-[12px] font-bold tracking-wide tabular-nums"
                   style={{ background: ink.chip, color: ink.ink }}
-                  title={rating.data?.name ? `USCF ${student.uscf_id} · ${rating.data.name}` : `USCF ${student.uscf_id}`}
+                  title={
+                    rating.isError
+                      ? `USCF lookup failed: ${rating.error instanceof Error ? rating.error.message : String(rating.error)}. Tap for details.`
+                      : rating.data?.name
+                        ? `USCF ${student.uscf_id} · ${rating.data.name}`
+                        : `USCF ${student.uscf_id}`
+                  }
+                  // A failed lookup: a tap hands the message to the page to show.
+                  data-info={
+                    rating.isError
+                      ? `USCF lookup for ${student.name} (ID ${student.uscf_id}) failed: ${rating.error instanceof Error ? rating.error.message : String(rating.error)}`
+                      : undefined
+                  }
                 >
                   {rating.data ? (rating.data.regular ? `USCF ${rating.data.regular}` : 'USCF unrated') : rating.isError ? 'USCF ?' : 'USCF …'}
                 </span>

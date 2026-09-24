@@ -15,10 +15,13 @@
  * Plain JavaScript on purpose: Vercel runs it as-is, with nothing to compile.
  */
 
-const MSA = 'https://www.uschess.org/msa'
-const HEADERS = { 'user-agent': 'Mozilla/5.0 (lesson planner rating lookup)' }
+const MSA_HOSTS = ['https://www.uschess.org/msa', 'http://www.uschess.org/msa']
+const HEADERS = {
+  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+  accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
+}
 /** How many recent events get their crosstable read for the score. */
-const EVENTS_WITH_SCORES = 12
+const EVENTS_WITH_SCORES = 8
 
 /** HTML to plain text, with tag boundaries kept as spaces so numbers don't run into labels. */
 function textOf(html) {
@@ -122,35 +125,66 @@ export function parseCrosstableScore(html, id, name) {
 }
 
 async function fetchText(url) {
-  const res = await fetch(url, { headers: HEADERS })
-  if (!res.ok) throw new Error(`USCF replied ${res.status}`)
-  return res.text()
+  const res = await fetch(url, { headers: HEADERS, redirect: 'follow' })
+  const text = await res.text()
+  if (!res.ok) {
+    const err = new Error(`USCF replied ${res.status}`)
+    err.snippet = textOf(text).slice(0, 160)
+    throw err
+  }
+  return text
 }
 
-async function lookupRatings(id) {
+/** The first URL that answers; the MSA site has been served over plain http for years, so both are tried. */
+async function fetchMsa(path, attempts) {
   let lastError = null
-  for (const url of [`${MSA}/MbrDtlMain.php?${id}`, `${MSA}/thin3.php?${id}`]) {
+  for (const host of MSA_HOSTS) {
+    const url = `${host}/${path}`
     try {
-      const parsed = parseMemberPage(await fetchText(url), id)
-      if (parsed) return parsed
-      lastError = new Error('No member with that ID on the USCF page')
+      const text = await fetchText(url)
+      attempts.push({ url, ok: true, snippet: textOf(text).slice(0, 120) })
+      return text
     } catch (e) {
+      attempts.push({ url, ok: false, error: e instanceof Error ? e.message : String(e), snippet: e?.snippet })
       lastError = e
     }
   }
-  throw lastError ?? new Error('USCF lookup failed')
+  throw lastError ?? new Error('USCF unreachable')
+}
+
+/**
+ * The member's ratings. When every route fails, the error says what each
+ * one returned, so a parser or network problem can be seen from the app.
+ */
+async function lookupRatings(id) {
+  const attempts = []
+  for (const path of [`MbrDtlMain.php?${id}`, `thin3.php?${id}`]) {
+    let text
+    try {
+      text = await fetchMsa(path, attempts)
+    } catch {
+      continue
+    }
+    const parsed = parseMemberPage(text, id)
+    if (parsed) return parsed
+    attempts[attempts.length - 1].error = 'page fetched, but no member data found on it'
+  }
+  const detail = attempts
+    .map((a) => `${a.url}: ${a.ok ? 'fetched' : a.error}${a.snippet ? ` — "${a.snippet}"` : ''}`)
+    .join(' | ')
+  throw new Error(`Could not read the USCF member page. ${detail}`)
 }
 
 async function lookupEvents(id, name) {
-  const events = parseHistoryPage(await fetchText(`${MSA}/MbrDtlTnmtHst.php?${id}`))
+  const events = parseHistoryPage(await fetchMsa(`MbrDtlTnmtHst.php?${id}`, []))
   // Scores live on each event's crosstable; read the recent ones, a few at a time.
   const recent = events.slice(0, EVENTS_WITH_SCORES)
-  for (let i = 0; i < recent.length; i += 4) {
+  for (let i = 0; i < recent.length; i += 8) {
     await Promise.all(
-      recent.slice(i, i + 4).map(async (ev) => {
+      recent.slice(i, i + 8).map(async (ev) => {
         if (!ev.crosstable) return
         try {
-          const score = parseCrosstableScore(await fetchText(`${MSA}/XtblMain.php?${ev.crosstable}`), id, name)
+          const score = parseCrosstableScore(await fetchMsa(`XtblMain.php?${ev.crosstable}`, []), id, name)
           if (score) {
             ev.points = score.points
             ev.games = score.games
@@ -164,13 +198,18 @@ async function lookupEvents(id, name) {
   return events.map(({ crosstable: _c, ...ev }) => ev)
 }
 
-export default async function handler(req, res) {
-  const id = String(req.query?.id ?? '').trim()
-  if (!/^\d{5,10}$/.test(id)) {
-    res.status(400).json({ error: 'id must be a USCF member number (digits only)' })
-    return
-  }
-  const withEvents = String(req.query?.events ?? '') === '1'
+function json(status, body, cache) {
+  const headers = { 'content-type': 'application/json; charset=utf-8' }
+  if (cache) headers['cache-control'] = cache
+  return new Response(JSON.stringify(body), { status, headers })
+}
+
+/** @param {Request} req */
+export async function GET(req) {
+  const url = new URL(req.url)
+  const id = (url.searchParams.get('id') ?? '').trim()
+  if (!/^\d{5,10}$/.test(id)) return json(400, { error: 'id must be a USCF member number (digits only)' })
+  const withEvents = url.searchParams.get('events') === '1'
   try {
     const rating = await lookupRatings(id)
     const body = { ...rating, fetchedAt: new Date().toISOString() }
@@ -182,9 +221,8 @@ export default async function handler(req, res) {
         body.eventsError = e instanceof Error ? e.message : String(e)
       }
     }
-    res.setHeader('cache-control', withEvents ? 's-maxage=21600, stale-while-revalidate=86400' : 's-maxage=3600, stale-while-revalidate=86400')
-    res.status(200).json(body)
+    return json(200, body, withEvents ? 's-maxage=21600, stale-while-revalidate=86400' : 's-maxage=3600, stale-while-revalidate=86400')
   } catch (e) {
-    res.status(502).json({ error: e instanceof Error ? e.message : String(e) })
+    return json(502, { error: e instanceof Error ? e.message : String(e) })
   }
 }

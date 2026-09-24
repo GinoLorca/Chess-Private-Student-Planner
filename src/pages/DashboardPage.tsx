@@ -116,7 +116,7 @@ export function DashboardPage() {
           }
         />
       ) : (
-        <Rolodex students={students ?? []} onOpen={(s) => navigate(`/students/${s.id}`)} onMenu={setMenuFor} />
+        <Rolodex students={students ?? []} onOpen={(s) => navigate(`/students/${s.id}`)} onMenu={setMenuFor} onInfo={setSaveError} />
       )}
 
       <InputModal

@@ -118,25 +118,29 @@ re-run, so if you're not sure which you've done, run `supabase/setup_all.sql` ag
 ## USCF ratings on the folders
 
 A student's USCF ID (⋯ on the folder → **USCF ID…**) puts their live rating on the folder and
-a Player tracker on their folder page. The app reads the USCF member pages through its own
-function at `/api/uscf`; nothing to configure for that part.
+a Player tracker on their folder page. The app asks its own function at `/api/uscf`, which reads
+the US Chess ratings API (the service behind ratings.uschess.org): the member's ratings, their
+rated events with the rating before and after, and each event's score from its standings.
+Nothing to configure. That API is public but unofficial, so US Chess may change it without
+notice; if it stops answering, the function falls back to the old member pages.
 
-The catch: the USCF site sits behind Cloudflare's bot check, which lets browsers in and turns
-plain server requests away, so the folder shows **USCF ?** until the function has a way past
-it. The dependable way is a scraping service built for exactly this (≈5 min, once):
+Tap **USCF ?** on a folder to see why a lookup failed. The message names each route and what
+it said.
 
-1. Sign up for one. **ScrapingBee** (scrapingbee.com) and **ScraperAPI** (scraperapi.com)
-   both have a free allowance that covers a couple of students easily, since the app caches
-   each lookup for hours.
+**Optional backup route: a scraping service.** If the message says the ratings API turned the
+request away ("bot check"), a scraping service gets through (≈5 min, once):
+
+1. Sign up for **ScrapingBee** (scrapingbee.com) or **ScraperAPI** (scraperapi.com). Their free
+   allowance covers a couple of students, since the app caches each lookup for hours.
 2. Copy your API key from its dashboard.
-3. In Vercel: your project → **Settings → Environment Variables** → add `USCF_FETCH_URL`,
-   for all environments, with the key pasted in and `{url}` left exactly as written:
+3. In Vercel: your project → **Settings → Environment Variables** → add `USCF_FETCH_URL` with
+   the key pasted in and `{url}` left exactly as written. **Production** is enough.
    - ScrapingBee: `https://app.scrapingbee.com/api/v1/?api_key=YOUR_KEY&render_js=true&premium_proxy=true&url={url}`
    - ScraperAPI: `https://api.scraperapi.com/?api_key=YOUR_KEY&render=true&premium=true&url={url}`
 4. **Deployments → ⋯ on the latest → Redeploy**, then pull down to refresh in the app.
 
-Without it, the function still tries the site directly and through a free page reader on
-every lookup; if the bot check ever relaxes, the ratings appear on their own.
+The service is only used when the direct route fails, and ratings API calls go through it
+without page rendering, which costs fewer credits.
 
 ---
 

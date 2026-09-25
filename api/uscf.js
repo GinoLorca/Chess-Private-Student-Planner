@@ -16,12 +16,22 @@
  */
 
 const MSA_HOSTS = ['https://www.uschess.org/msa', 'http://www.uschess.org/msa']
+/**
+ * The USCF site sits behind Cloudflare's bot check, which lets browsers in
+ * and turns plain server requests away ("Just a moment… Enable JavaScript
+ * and cookies"). When the direct fetch is challenged, the page is read
+ * through a rendering reader that loads it in a real browser and hands the
+ * HTML back. Every page fetch is also given a deadline so the history
+ * lookup can't run the function out of time.
+ */
+const READER = 'https://r.jina.ai/'
+const FETCH_TIMEOUT_MS = 9000
 const HEADERS = {
   'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
   accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
 }
 /** How many recent events get their crosstable read for the score. */
-const EVENTS_WITH_SCORES = 8
+const EVENTS_WITH_SCORES = 6
 
 /** HTML to plain text, with tag boundaries kept as spaces so numbers don't run into labels. */
 function textOf(html) {
@@ -124,20 +134,40 @@ export function parseCrosstableScore(html, id, name) {
   return { points: pts ? Number(pts[1]) : null, games: results.length || null }
 }
 
-async function fetchText(url) {
-  const res = await fetch(url, { headers: HEADERS, redirect: 'follow' })
+/** Cloudflare's interstitial rather than the page itself. */
+function isChallenge(status, text) {
+  return status === 403 || status === 503 || /just a moment|enable javascript and cookies|cf-chl|challenge-platform/i.test(text)
+}
+
+async function fetchText(url, extraHeaders = {}) {
+  const res = await fetch(url, {
+    headers: { ...HEADERS, ...extraHeaders },
+    redirect: 'follow',
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
   const text = await res.text()
-  if (!res.ok) {
-    const err = new Error(`USCF replied ${res.status}`)
-    err.snippet = textOf(text).slice(0, 160)
+  if (!res.ok || isChallenge(res.status, text)) {
+    const err = new Error(isChallenge(res.status, text) ? `USCF's bot check turned the request away (${res.status})` : `USCF replied ${res.status}`)
+    err.snippet = textOf(text).slice(0, 120)
+    err.challenged = isChallenge(res.status, text)
     throw err
   }
   return text
 }
 
-/** The first URL that answers; the MSA site has been served over plain http for years, so both are tried. */
+/** The page through the rendering reader, as raw HTML, so the same parsers apply. */
+async function fetchViaReader(url) {
+  return fetchText(`${READER}${url}`, { 'x-return-format': 'html', 'x-no-cache': 'true', accept: 'text/html,*/*' })
+}
+
+/**
+ * The first route that answers: the MSA site directly over https, then
+ * http (it was plain http for years), then through the reader when the
+ * site's bot check is in the way.
+ */
 async function fetchMsa(path, attempts) {
   let lastError = null
+  let challenged = false
   for (const host of MSA_HOSTS) {
     const url = `${host}/${path}`
     try {
@@ -146,6 +176,18 @@ async function fetchMsa(path, attempts) {
       return text
     } catch (e) {
       attempts.push({ url, ok: false, error: e instanceof Error ? e.message : String(e), snippet: e?.snippet })
+      lastError = e
+      if (e?.challenged) challenged = true
+    }
+  }
+  if (challenged || lastError) {
+    const url = `${MSA_HOSTS[0]}/${path}`
+    try {
+      const text = await fetchViaReader(url)
+      attempts.push({ url: `${READER}${url}`, ok: true, snippet: textOf(text).slice(0, 120) })
+      return text
+    } catch (e) {
+      attempts.push({ url: `${READER}${url}`, ok: false, error: e instanceof Error ? e.message : String(e), snippet: e?.snippet })
       lastError = e
     }
   }
@@ -179,9 +221,9 @@ async function lookupEvents(id, name) {
   const events = parseHistoryPage(await fetchMsa(`MbrDtlTnmtHst.php?${id}`, []))
   // Scores live on each event's crosstable; read the recent ones, a few at a time.
   const recent = events.slice(0, EVENTS_WITH_SCORES)
-  for (let i = 0; i < recent.length; i += 8) {
+  for (let i = 0; i < recent.length; i += 6) {
     await Promise.all(
-      recent.slice(i, i + 8).map(async (ev) => {
+      recent.slice(i, i + 6).map(async (ev) => {
         if (!ev.crosstable) return
         try {
           const score = parseCrosstableScore(await fetchMsa(`XtblMain.php?${ev.crosstable}`, []), id, name)
@@ -203,6 +245,9 @@ function json(status, body, cache) {
   if (cache) headers['cache-control'] = cache
   return new Response(JSON.stringify(body), { status, headers })
 }
+
+/** Room for the reader route, which is slower than a direct fetch (the history call makes several). */
+export const config = { maxDuration: 60 }
 
 /** @param {Request} req */
 export async function GET(req) {

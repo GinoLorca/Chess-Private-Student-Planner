@@ -25,6 +25,13 @@ const MSA_HOSTS = ['https://www.uschess.org/msa', 'http://www.uschess.org/msa']
  * lookup can't run the function out of time.
  */
 const READER = 'https://r.jina.ai/'
+/**
+ * A scraping service that solves the bot check, as a URL template with
+ * {url} where the page address goes, set on Vercel as USCF_FETCH_URL. The
+ * free routes are tried first; this one only when it is configured. See
+ * DEPLOY.md, "USCF ratings on the folders".
+ */
+const SERVICE = process.env.USCF_FETCH_URL || ''
 const FETCH_TIMEOUT_MS = 9000
 const HEADERS = {
   'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
@@ -182,13 +189,19 @@ async function fetchMsa(path, attempts) {
   }
   if (challenged || lastError) {
     const url = `${MSA_HOSTS[0]}/${path}`
-    try {
-      const text = await fetchViaReader(url)
-      attempts.push({ url: `${READER}${url}`, ok: true, snippet: textOf(text).slice(0, 120) })
-      return text
-    } catch (e) {
-      attempts.push({ url: `${READER}${url}`, ok: false, error: e instanceof Error ? e.message : String(e), snippet: e?.snippet })
-      lastError = e
+    const routes = [
+      SERVICE ? { label: 'scraping service', run: () => fetchText(SERVICE.replace('{url}', encodeURIComponent(url))) } : null,
+      { label: 'reader', run: () => fetchViaReader(url) },
+    ].filter(Boolean)
+    for (const route of routes) {
+      try {
+        const text = await route.run()
+        attempts.push({ url: `${route.label} → ${url}`, ok: true, snippet: textOf(text).slice(0, 120) })
+        return text
+      } catch (e) {
+        attempts.push({ url: `${route.label} → ${url}`, ok: false, error: e instanceof Error ? e.message : String(e), snippet: e?.snippet, challenged: !!e?.challenged })
+        lastError = e
+      }
     }
   }
   throw lastError ?? new Error('USCF unreachable')
@@ -214,7 +227,15 @@ async function lookupRatings(id) {
   const detail = attempts
     .map((a) => `${a.url}: ${a.ok ? 'fetched' : a.error}${a.snippet ? ` — "${a.snippet}"` : ''}`)
     .join(' | ')
-  throw new Error(`Could not read the USCF member page. ${detail}`)
+  // One readable line for the app; the full account rides along for anyone debugging.
+  const allChallenged = attempts.length > 0 && attempts.every((a) => a.challenged || /bot check/.test(a.error ?? ''))
+  const err = new Error(
+    allChallenged
+      ? `The USCF site's bot check turned away every route (${attempts.length} tried${SERVICE ? ', including the scraping service' : ''}).${SERVICE ? '' : ' A scraping service key on Vercel gets past it: see DEPLOY.md, "USCF ratings on the folders".'}`
+      : `Could not read the USCF member page (${attempts.length} routes tried).`,
+  )
+  err.detail = detail
+  throw err
 }
 
 async function lookupEvents(id, name) {
@@ -268,6 +289,6 @@ export async function GET(req) {
     }
     return json(200, body, withEvents ? 's-maxage=21600, stale-while-revalidate=86400' : 's-maxage=3600, stale-while-revalidate=86400')
   } catch (e) {
-    return json(502, { error: e instanceof Error ? e.message : String(e) })
+    return json(502, { error: e instanceof Error ? e.message : String(e), detail: e?.detail })
   }
 }

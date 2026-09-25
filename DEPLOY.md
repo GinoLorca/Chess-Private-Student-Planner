@@ -115,6 +115,31 @@ re-run, so if you're not sure which you've done, run `supabase/setup_all.sql` ag
 
 ---
 
+## USCF ratings on the folders
+
+A student's USCF ID (⋯ on the folder → **USCF ID…**) puts their live rating on the folder and
+a Player tracker on their folder page. The app reads the USCF member pages through its own
+function at `/api/uscf`; nothing to configure for that part.
+
+The catch: the USCF site sits behind Cloudflare's bot check, which lets browsers in and turns
+plain server requests away, so the folder shows **USCF ?** until the function has a way past
+it. The dependable way is a scraping service built for exactly this (≈5 min, once):
+
+1. Sign up for one. **ScrapingBee** (scrapingbee.com) and **ScraperAPI** (scraperapi.com)
+   both have a free allowance that covers a couple of students easily, since the app caches
+   each lookup for hours.
+2. Copy your API key from its dashboard.
+3. In Vercel: your project → **Settings → Environment Variables** → add `USCF_FETCH_URL`,
+   for all environments, with the key pasted in and `{url}` left exactly as written:
+   - ScrapingBee: `https://app.scrapingbee.com/api/v1/?api_key=YOUR_KEY&render_js=true&premium_proxy=true&url={url}`
+   - ScraperAPI: `https://api.scraperapi.com/?api_key=YOUR_KEY&render=true&premium=true&url={url}`
+4. **Deployments → ⋯ on the latest → Redeploy**, then pull down to refresh in the app.
+
+Without it, the function still tries the site directly and through a free page reader on
+every lookup; if the bot check ever relaxes, the ratings appear on their own.
+
+---
+
 ## Letting an agent add lessons (the connector)
 
 The app serves its own connector at **`https://<your-app>.vercel.app/api/mcp`**. It's an MCP

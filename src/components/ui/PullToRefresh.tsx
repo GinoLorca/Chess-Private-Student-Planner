@@ -33,13 +33,14 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
     let active = false
     let pulling = false
 
-    const begin = (target: EventTarget | null, clientY: number) => {
-      if (phaseRef.current === 'refreshing' || phaseRef.current === 'done') return
-      if (window.scrollY > 0) return
-      if (target instanceof Element && target.closest(OWN_DRAG)) return
+    const begin = (target: EventTarget | null, clientY: number): boolean => {
+      if (phaseRef.current === 'refreshing' || phaseRef.current === 'done') return false
+      if (window.scrollY > 0) return false
+      if (target instanceof Element && target.closest(OWN_DRAG)) return false
       active = true
       pulling = false
       startY = clientY
+      return true
     }
     const move = (clientY: number): boolean => {
       if (!active) return false
@@ -90,7 +91,8 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
       if (move(e.touches[0].clientY)) e.preventDefault()
     }
     const onMouseDown = (e: MouseEvent) => {
-      if (e.button === 0) begin(e.target, e.clientY)
+      // Claiming the press stops the drag from selecting text on the way down.
+      if (e.button === 0 && begin(e.target, e.clientY)) e.preventDefault()
     }
     const onMouseMove = (e: MouseEvent) => {
       if (move(e.clientY)) e.preventDefault()

@@ -110,6 +110,7 @@ export const Board = memo(function Board({
   return (
     <div
       {...rest}
+      data-no-pull
       className={clsx(
         'relative grid aspect-square w-full grid-cols-8 grid-rows-8 overflow-hidden rounded-sm shadow-card select-none',
         interactive && 'touch-none',

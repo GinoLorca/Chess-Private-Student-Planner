@@ -167,6 +167,12 @@ export const EyeOff = (p: IconProps) => (
     <path d="M6.6 6.6C4.6 8 3.2 9.9 2.5 12c1 3 4.5 7 9.5 7 1.6 0 3-.4 4.3-1" />
   </svg>
 )
+export const Refresh = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M20 12a8 8 0 1 1-2.3-5.7" />
+    <path d="M20 4v5h-5" />
+  </svg>
+)
 export const Target = (p: IconProps) => (
   <svg {...base(p)}>
     <circle cx="12" cy="12" r="8.5" />

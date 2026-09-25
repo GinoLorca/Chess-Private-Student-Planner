@@ -7,6 +7,7 @@ import { AppearanceProvider, QueryProvider } from './app/providers'
 import { LoadingPage } from './components/ui/Page'
 import { OfflineBar } from './components/ui/OfflineBar'
 import { Prefetcher } from './app/Prefetcher'
+import { PullToRefresh } from './components/ui/PullToRefresh'
 
 // Each screen loads on demand so the first paint on an iPad only pulls the
 // student list, not the editor and its drag-and-drop machinery.
@@ -40,6 +41,7 @@ function App() {
               <HashRouter>
                 <OfflineBar />
                 <Prefetcher />
+                <PullToRefresh>
                 <Suspense fallback={<LoadingPage />}>
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
@@ -59,6 +61,7 @@ function App() {
                     <Route path={`${lesson}/sheet`} element={<LessonSheetPage />} />
                   </Routes>
                 </Suspense>
+                </PullToRefresh>
               </HashRouter>
             </PieceSetProvider>
           </ProtectedRoute>

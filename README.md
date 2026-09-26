@@ -40,6 +40,9 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
 - **USCF rating on the folder** — ⋯ on a folder → *USCF ID…*; the app looks the member's
   current rating up (through its own `/api/uscf` function, since the USCF site blocks browsers)
   and shows it on the folder front, refreshed every few hours and kept for offline.
+- **Player tracker and Rated Games** — inside the folder, the ratings, event count and score
+  sit at the top; the first file, *Rated Games*, opens in place to list every rated event
+  with the points taken, the rating change, and a button to its crosstable on the USCF site.
 - **Lesson sheet** — the whole lesson in document form, printable to PDF.
 - **School logos and colours** — a student's folder can carry their school badge (⋯ on the
   folder → *School logo…*: a built-in badge with its school colour in one tap, or any picture

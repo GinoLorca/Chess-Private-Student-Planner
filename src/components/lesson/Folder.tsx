@@ -1,12 +1,13 @@
 import clsx from 'clsx'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import type { LessonStatus, Puzzle } from '../../types/domain'
 import { normalizeFen } from '../../lib/fen'
 import { statusLabel, nextStatus } from '../../lib/lessonStatus'
 import { answerProblem } from '../../lib/solution'
 import { Board } from '../board/Board'
-import { Trash, Warning } from '../ui/Icons'
+import { ChevronDown, Trash, Warning } from '../ui/Icons'
 import { IconButton } from '../ui/Button'
 import { onColor } from '../../lib/colors'
 import { CopyLinkButton } from '../ui/CopyLink'
@@ -282,9 +283,89 @@ export function HangingFile({
   icon?: ReactNode
 }) {
   const body = count === undefined ? '\u00a0' : count === 0 ? 'Empty' : `${count} ${count === 1 ? 'item' : 'items'}`
-  const ink = onColor(color)
   return (
     <Link to={to} className="hanging-file block transition active:scale-[0.99]">
+      <FileFace color={color} label={label} icon={icon} body={body} chip="Open ›" />
+    </Link>
+  )
+}
+
+/**
+ * A hanging file that opens in place: tapping it slides its contents out
+ * below, like pulling the sheets up out of the file, instead of going to
+ * another page.
+ */
+export function ExpandingFile({
+  color,
+  label,
+  body,
+  icon,
+  open,
+  onToggle,
+  children,
+  id,
+}: {
+  color: string
+  label: string
+  body: ReactNode
+  icon?: ReactNode
+  open: boolean
+  onToggle: () => void
+  children: ReactNode
+  id: string
+}) {
+  const ink = onColor(color)
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={id}
+        className="hanging-file block w-full text-left transition active:scale-[0.99]"
+      >
+        <FileFace
+          color={color}
+          label={label}
+          icon={icon}
+          body={body}
+          chip={
+            <span className="flex items-center gap-1">
+              {open ? 'Hide' : 'Show'}
+              <ChevronDown size={14} className={clsx('transition-transform duration-300', open && 'rotate-180')} />
+            </span>
+          }
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            id={id}
+            key="sheets"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 32 }}
+            className="overflow-hidden"
+          >
+            <div
+              className="mx-2 rounded-b-xl border border-t-0 bg-surface px-3 pt-2 pb-3 sm:mx-3 sm:px-4"
+              style={{ borderColor: color, boxShadow: `inset 0 8px 10px -8px ${ink.dot}, 0 10px 22px -16px rgba(0,0,0,0.5)` }}
+            >
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+/** The tab and body of a hanging file, shared by the linked and the expanding kind. */
+function FileFace({ color, label, icon, body, chip }: { color: string; label: string; icon?: ReactNode; body: ReactNode; chip: ReactNode }) {
+  const ink = onColor(color)
+  return (
+    <>
       <span
         className="folder-tab ml-4 flex h-7 w-fit max-w-[70%] items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] uppercase sm:ml-6"
         style={{ background: color, color: ink.inkSoft }}
@@ -296,14 +377,14 @@ export function HangingFile({
         className="hanging-body flex h-[52px] items-center justify-between rounded-r-xl rounded-bl-xl px-4 shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)] sm:px-5"
         style={{ background: color }}
       >
-        <span className="text-[15px] font-semibold" style={{ color: ink.ink }}>
+        <span className="min-w-0 truncate text-[15px] font-semibold" style={{ color: ink.ink }}>
           {body}
         </span>
-        <span className="rounded-full px-3 py-1 text-[13px] font-bold" style={{ background: ink.chip, color: ink.inkSoft }}>
-          Open ›
+        <span className="shrink-0 rounded-full px-3 py-1 text-[13px] font-bold" style={{ background: ink.chip, color: ink.inkSoft }}>
+          {chip}
         </span>
       </span>
-    </Link>
+    </>
   )
 }
 

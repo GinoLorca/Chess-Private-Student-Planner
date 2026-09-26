@@ -159,6 +159,14 @@ export const LinkIcon = (p: IconProps) => (
     <path d="M14 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5" />
   </svg>
 )
+/** A box with an arrow leaving it: opens on another site. */
+export const ExternalLink = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M14 4h6v6" />
+    <path d="M20 4l-9 9" />
+    <path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" />
+  </svg>
+)
 export const EyeOff = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M3 3l18 18" />

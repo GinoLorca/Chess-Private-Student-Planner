@@ -172,7 +172,7 @@ function RatedGamesFile({ memberId }: { memberId: string }) {
           </thead>
           <tbody>
             {events.map((e) => (
-              <EventRow key={`${e.eventId}-${e.section ?? ''}-${e.date}`} event={e} memberId={memberId} />
+              <EventRow key={`${e.eventId}-${e.section ?? ''}-${e.date}`} event={e} />
             ))}
           </tbody>
         </table>
@@ -182,21 +182,21 @@ function RatedGamesFile({ memberId }: { memberId: string }) {
 }
 
 /**
- * The event's crosstable on the USCF site: the student's section, with their
- * row picked out and every round's pairings, and links on to the other
- * sections. Built from the event id and the section number ("5: 500-1000").
+ * The event on US Chess's ratings site, opened on the student's section
+ * (standings and every round's pairings), e.g.
+ * https://ratings.uschess.org/event/202609200233?section=5. Built from the
+ * event id and the section number ("5: 500-1000").
  */
-function crosstableUrl(e: UscfEvent, memberId: string): string | null {
+function eventUrl(e: UscfEvent): string | null {
   if (!/^\d{12}$/.test(e.eventId)) return null
   const section = /^(\d{1,3})\s*:/.exec(e.section ?? '')?.[1]
-  return section
-    ? `https://www.uschess.org/msa/XtblMain.php?${e.eventId}.${section}-${memberId}`
-    : `https://www.uschess.org/msa/XtblMain.php?${e.eventId}.0`
+  const base = `https://ratings.uschess.org/event/${e.eventId}`
+  return section ? `${base}?section=${section}` : base
 }
 
-function EventRow({ event: e, memberId }: { event: UscfEvent; memberId: string }) {
+function EventRow({ event: e }: { event: UscfEvent }) {
   const delta = e.before != null && e.after != null ? e.after - e.before : null
-  const url = crosstableUrl(e, memberId)
+  const url = eventUrl(e)
   const name = titleCase(e.name)
   return (
     <tr className="border-t border-line align-top">
@@ -209,8 +209,8 @@ function EventRow({ event: e, memberId }: { event: UscfEvent; memberId: string }
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`Open ${name} on the USCF site`}
-              title="Crosstable and pairings on the USCF site"
+              aria-label={`Open ${name} on US Chess`}
+              title="Standings and pairings on US Chess"
               className="-my-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line bg-surface-2 text-ink-2 transition hover:text-accent active:scale-95"
             >
               <ExternalLink size={14} />

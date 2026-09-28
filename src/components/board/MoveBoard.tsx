@@ -43,13 +43,19 @@ export function MoveBoard({
   const [selected, setSelected] = useState<string | null>(null)
   const [drag, setDrag] = useState<{ code: string; x: number; y: number; from: string } | null>(null)
   const [promotion, setPromotion] = useState<{ from: string; to: string } | null>(null)
+  // Drawing works on every move board: saved through the handlers when
+  // given, otherwise a sketch that goes when the position moves on.
   const draw = useRightClickDraw({
     boardRef,
     arrows: arrows ?? [],
     highlights: highlights ?? [],
-    onArrowsChange: onArrowsChange ?? (() => {}),
-    onHighlightsChange: onHighlightsChange ?? (() => {}),
-    enabled: Boolean(onArrowsChange),
+    onArrowsChange,
+    onHighlightsChange,
+    resetKey: fen,
+    onHold: () => {
+      setSelected(null)
+      setDrag(null)
+    },
   })
 
   const chess = useMemo(() => {
@@ -106,6 +112,8 @@ export function MoveBoard({
     const startY = e.clientY
     let dragging = false
     const onMove = (ev: PointerEvent) => {
+      // A finger that rested has become a pen; the piece stays put.
+      if (draw.claimed()) return
       if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return
       dragging = true
       setDrag({ code, x: ev.clientX, y: ev.clientY, from: square })
@@ -115,7 +123,7 @@ export function MoveBoard({
       target.removeEventListener('pointerup', onUp)
       target.removeEventListener('pointercancel', onUp)
       setDrag(null)
-      if (!dragging) return
+      if (!dragging || draw.claimed()) return
       const to = squareAtPoint(ev.clientX, ev.clientY, boardRef.current)
       if (to && to !== square && tryMove(square, to)) return
       setSelected(square)
@@ -134,8 +142,8 @@ export function MoveBoard({
         ref={boardRef}
         fen={fen}
         orientation={orientation}
-        arrows={onArrowsChange ? draw.arrows : arrows}
-        highlights={highlights}
+        arrows={draw.arrows}
+        highlights={draw.highlights}
         lastMove={lastMove}
         selected={draw.from ?? selected}
         hiddenSquares={drag ? [drag.from] : undefined}

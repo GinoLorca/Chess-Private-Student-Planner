@@ -34,9 +34,13 @@ export function PuzzlePage() {
   const next = useCallback(() => setStep((s) => Math.min(last, s + 1)), [last])
   const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
   // The eye hides the answer and explanation: tap it, long-press a clicker button, or press B.
-  const [hidden, toggleHidden] = useHideToggle()
-  // With the answer hidden the board is live, to play the line out.
-  const solve = useSolve(steps, puzzleId)
+  const [hidden, toggleHidden, setHidden] = useHideToggle()
+  // With the answer hidden the board is live, to play the line out; solving
+  // it brings the answer back, at the move the line was played to.
+  const solve = useSolve(steps, puzzleId, (at) => {
+    setStep(at)
+    setHidden(false)
+  })
   useClicker({ next, prev, hold: toggleHidden })
 
   if (isLoading && !puzzle) return <LoadingPage />

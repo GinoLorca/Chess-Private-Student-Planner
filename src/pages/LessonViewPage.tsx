@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import clsx from 'clsx'
@@ -246,12 +246,28 @@ function PuzzleView({
   const canSolve = mode === 'learn' && canSolveLine(steps)
   const solving = canSolve && !revealed
   // The eye closed on a revealed position: the board goes live so the line can still be played.
-  const solve = useSolve(steps, puzzle.id)
+  const hiddenNow = useRef(notesHidden)
+  useEffect(() => {
+    hiddenNow.current = notesHidden
+  })
+  const solve = useSolve(steps, puzzle.id, (at) => {
+    // Solved with the eye closed: open it on the move the line was played to.
+    setStep(at)
+    if (hiddenNow.current) onToggleNotes()
+  })
   const liveHidden = notesHidden && !solving
   const [outcome, setOutcome] = useState<'solved' | 'shown' | null>(null)
   const [wrong, setWrong] = useState<string | null>(null)
   const [misses, setMisses] = useState(0)
   const [flipped, setFlipped] = useState(false)
+  // A finger drawing on the board mustn't also swipe to the next position:
+  // the drag holds off while it draws, and a press that drew never turns the page.
+  const [boardDrawing, setBoardDrawing] = useState(false)
+  const drewThisPress = useRef(false)
+  const onDrawingChange = (drawing: boolean) => {
+    if (drawing) drewThisPress.current = true
+    setBoardDrawing(drawing)
+  }
   const sideOrientation: Orientation = puzzle.side_to_move === 'b' ? 'black' : 'white'
   const orientation: Orientation = flipped ? (sideOrientation === 'white' ? 'black' : 'white') : sideOrientation
   const current = steps[step]
@@ -376,10 +392,12 @@ function PuzzleView({
           <SolveBoardView solve={solve} orientation={orientation} className="shadow-float" />
         ) : (
         <motion.div
-          drag="x"
+          drag={boardDrawing ? false : 'x'}
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.15}
+          onPointerDownCapture={() => (drewThisPress.current = false)}
           onDragEnd={(_, info) => {
+            if (drewThisPress.current) return
             if (info.offset.x < -70 || info.velocity.x < -500) onSwipe(1)
             else if (info.offset.x > 70 || info.velocity.x > 500) onSwipe(-1)
           }}
@@ -395,6 +413,7 @@ function PuzzleView({
             onArrowsChange={setArrows}
             onHighlightsChange={setHighlights}
             onClick={() => (revealed ? next() : undefined)}
+            onDrawingChange={onDrawingChange}
             className="shadow-float"
           />
         </motion.div>

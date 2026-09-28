@@ -6,7 +6,7 @@ import { isTextTarget, isToggleKey, isToggleMouse, loadToggle } from '../lib/cli
  * button or by the clicker's taught third button (see src/lib/clicker.ts).
  * Starts shown, since the coach opens these pages to read.
  */
-export function useHideToggle(): [boolean, () => void] {
+export function useHideToggle(): [boolean, () => void, (hidden: boolean) => void] {
   const [hidden, setHidden] = useState(false)
   const toggle = useCallback(() => setHidden((h) => !h), [])
   useEffect(() => {
@@ -42,5 +42,5 @@ export function useHideToggle(): [boolean, () => void] {
       window.removeEventListener('auxclick', onMouse)
     }
   }, [toggle])
-  return [hidden, toggle]
+  return [hidden, toggle, setHidden]
 }

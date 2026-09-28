@@ -49,9 +49,9 @@ export function SetupBoard({ fen, side, onChange, arrows, highlights, onArrowsCh
     boardRef,
     arrows: arrows ?? [],
     highlights: highlights ?? [],
-    onArrowsChange: onArrowsChange ?? (() => {}),
-    onHighlightsChange: onHighlightsChange ?? (() => {}),
-    enabled: Boolean(onArrowsChange),
+    onArrowsChange,
+    onHighlightsChange,
+    resetKey: fen,
   })
 
   function commit(next: Placement, nextSide = side) {
@@ -99,6 +99,8 @@ export function SetupBoard({ fen, side, onChange, arrows, highlights, onArrowsCh
     target.setPointerCapture(e.pointerId)
 
     const onMove = (ev: PointerEvent) => {
+      // A finger that rested on the board has become a pen; the piece stays put.
+      if (draw.claimed()) return
       if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return
       dragging = true
       setDrag({ code, x: ev.clientX, y: ev.clientY })
@@ -108,6 +110,7 @@ export function SetupBoard({ fen, side, onChange, arrows, highlights, onArrowsCh
       target.removeEventListener('pointerup', onUp)
       target.removeEventListener('pointercancel', onUp)
       setDrag(null)
+      if (draw.claimed()) return
       if (!dragging) {
         if (from === 'tray') setHeld(held?.from === 'tray' && held.code === code ? null : { code, from: 'tray' })
         else tapSquare(from)

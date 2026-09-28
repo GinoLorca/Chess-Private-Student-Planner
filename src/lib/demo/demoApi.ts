@@ -1,5 +1,5 @@
 import fixtures from './fixtures.json'
-import { sortLibrary, type LessonBundle, type LessonPlanPatch, type LibraryEntry, type PuzzleLocation, type PuzzlePatch, type SettingsPatch, type UscfEvent, type UscfHistory, type UscfRating } from '../api'
+import { sortLibrary, type ChangeInput, type PlacePatch, type ReminderInput, type ReminderPatch, type SlotInput, type LessonBundle, type LessonPlanPatch, type LibraryEntry, type PuzzleLocation, type PuzzlePatch, type SettingsPatch, type UscfEvent, type UscfHistory, type UscfRating } from '../api'
 import { rankByUse } from '../rank'
 import type {
   CustomPieceSet,
@@ -12,9 +12,14 @@ import type {
   Note,
   PieceImages,
   Puzzle,
+  Reminder,
+  ScheduleChange,
+  ScheduleSlot,
   Student,
+  StudentPlace,
   UserSettings,
 } from '../../types/domain'
+import { addDays, reminderFor, todayIso, weekStart } from '../schedule'
 
 /**
  * In-memory stand-in for the Supabase API, seeded with the real imported
@@ -31,6 +36,10 @@ interface Store {
   settings: UserSettings | null
   pieceSets?: CustomPieceSet[]
   templates?: LessonTemplate[]
+  slots?: ScheduleSlot[]
+  changes?: ScheduleChange[]
+  reminders?: Reminder[]
+  places?: StudentPlace[]
 }
 
 const KEY = 'lesson-planner-demo-store-v1'
@@ -164,6 +173,14 @@ export async function deleteStudent(id: string) {
   db().sections = db().sections.filter((s) => !sectionIds.has(s.id))
   db().puzzles = db().puzzles.filter((p) => !sectionIds.has(p.section_id))
   db().notes = db().notes.filter((n) => n.student_id !== id)
+  // The database cascades a student's schedule away with them; so does the demo.
+  const store = db()
+  if (store.slots) {
+    store.slots = store.slots.filter((s) => s.student_id !== id)
+    store.changes = (store.changes ?? []).filter((c) => c.student_id !== id)
+    store.reminders = (store.reminders ?? []).filter((r) => r.student_id !== id)
+    store.places = (store.places ?? []).filter((p) => p.student_id !== id)
+  }
   save()
 }
 
@@ -460,3 +477,167 @@ export async function deleteCustomPieceSet(id: string) {
 
 // Shared with the real API; the data layer expects the same surface from both.
 export { sortLibrary }
+
+// schedule ----------------------------------------------------------------------
+
+/**
+ * A believable week for the demo: Jojo on Tuesdays, Parker on Thursdays, and
+ * this week Parker's lesson moved to Tuesday, so Tuesday holds two.
+ */
+function seedSchedule(store: Store) {
+  if (store.slots) return
+  const created = now()
+  const mon = weekStart(todayIso())
+  store.slots = [
+    { id: 'slot_jojo', user_id: 'demo', student_id: 'stu_jojo', weekday: 2, start_time: '16:00', duration_min: 60, created_at: created },
+    { id: 'slot_parker', user_id: 'demo', student_id: 'stu_parker', weekday: 4, start_time: '16:30', duration_min: 60, created_at: created },
+    { id: 'slot_aria', user_id: 'demo', student_id: 'stu_aria', weekday: 1, start_time: '15:45', duration_min: 45, created_at: created },
+  ]
+  const moved: ScheduleChange = {
+    id: 'chg_parker',
+    user_id: 'demo',
+    slot_id: 'slot_parker',
+    student_id: 'stu_parker',
+    kind: 'moved',
+    original_date: addDays(mon, 3),
+    new_date: addDays(mon, 1),
+    new_time: '17:30',
+    duration_min: null,
+    note: 'School trip on Thursday',
+    created_at: created,
+  }
+  store.changes = [moved]
+  store.reminders = [
+    { id: 'rem_parker', user_id: 'demo', change_id: moved.id, done: false, shared_at: null, created_at: created, ...reminderFor(moved, 'Parker Downing', store.slots[1]) },
+  ]
+  store.places = [
+    {
+      student_id: 'stu_jojo',
+      user_id: 'demo',
+      address: '245 E 63rd St, New York, NY',
+      door_code: '4417#',
+      bathroom_code: '',
+      bathroom_note: '',
+      notes: 'Doorman building; ask for the Liu family.',
+      updated_at: created,
+    },
+    {
+      student_id: 'stu_parker',
+      user_id: 'demo',
+      address: 'Chelsea Chessmates, 180 8th Ave, New York, NY',
+      door_code: '2580',
+      bathroom_code: '1357',
+      bathroom_note: "McDonald's next door",
+      notes: '',
+      updated_at: created,
+    },
+  ]
+  save()
+}
+function sched() {
+  const store = db()
+  seedSchedule(store)
+  return store as Store & Required<Pick<Store, 'slots' | 'changes' | 'reminders' | 'places'>>
+}
+
+export { SCHEDULE_MIGRATION, SCHEDULE_TABLES } from '../api'
+
+export async function missingScheduleTables(): Promise<string[]> {
+  return []
+}
+
+export async function listScheduleSlots(): Promise<ScheduleSlot[]> {
+  await delay()
+  return [...sched().slots].sort((a, b) => a.weekday - b.weekday || a.start_time.localeCompare(b.start_time))
+}
+
+export async function createScheduleSlot(input: SlotInput): Promise<ScheduleSlot> {
+  const slot: ScheduleSlot = { id: uid('slot'), user_id: 'demo', created_at: now(), ...input }
+  sched().slots.push(slot)
+  save()
+  return slot
+}
+
+export async function updateScheduleSlot(id: string, patch: Partial<SlotInput>) {
+  const store = sched()
+  store.slots = store.slots.map((s) => (s.id === id ? { ...s, ...patch } : s))
+  save()
+}
+
+export async function deleteScheduleSlot(id: string) {
+  const store = sched()
+  const gone = new Set(store.changes.filter((c) => c.slot_id === id).map((c) => c.id))
+  store.slots = store.slots.filter((s) => s.id !== id)
+  store.changes = store.changes.filter((c) => !gone.has(c.id))
+  store.reminders = store.reminders.filter((r) => !r.change_id || !gone.has(r.change_id))
+  save()
+}
+
+export async function listScheduleChanges(): Promise<ScheduleChange[]> {
+  await delay()
+  return [...sched().changes]
+}
+
+export async function saveScheduleChange(input: ChangeInput, id?: string): Promise<ScheduleChange> {
+  const store = sched()
+  const existing = id
+    ? store.changes.find((c) => c.id === id)
+    : input.slot_id
+      ? store.changes.find((c) => c.slot_id === input.slot_id && c.original_date === input.original_date)
+      : undefined
+  if (existing) {
+    const next = { ...existing, ...input }
+    store.changes = store.changes.map((c) => (c.id === existing.id ? next : c))
+    save()
+    return next
+  }
+  const change: ScheduleChange = { id: uid('chg'), user_id: 'demo', created_at: now(), ...input }
+  store.changes.push(change)
+  save()
+  return change
+}
+
+export async function deleteScheduleChange(id: string) {
+  const store = sched()
+  store.changes = store.changes.filter((c) => c.id !== id)
+  store.reminders = store.reminders.filter((r) => r.change_id !== id)
+  save()
+}
+
+export async function listReminders(): Promise<Reminder[]> {
+  await delay()
+  return [...sched().reminders].sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+export async function createReminder(input: ReminderInput): Promise<Reminder> {
+  const reminder: Reminder = { id: uid('rem'), user_id: 'demo', done: false, shared_at: null, created_at: now(), ...input }
+  sched().reminders.push(reminder)
+  save()
+  return reminder
+}
+
+export async function updateReminder(id: string, patch: ReminderPatch) {
+  const store = sched()
+  store.reminders = store.reminders.map((r) => (r.id === id ? { ...r, ...patch } : r))
+  save()
+}
+
+export async function deleteReminder(id: string) {
+  const store = sched()
+  store.reminders = store.reminders.filter((r) => r.id !== id)
+  save()
+}
+
+export async function listStudentPlaces(): Promise<StudentPlace[]> {
+  await delay()
+  return [...sched().places]
+}
+
+export async function saveStudentPlace(studentId: string, patch: PlacePatch) {
+  const store = sched()
+  const blank = { address: '', door_code: '', bathroom_code: '', bathroom_note: '', notes: '' }
+  const prev = store.places.find((p) => p.student_id === studentId)
+  const next: StudentPlace = { ...blank, ...prev, ...patch, student_id: studentId, user_id: 'demo', updated_at: now() }
+  store.places = [...store.places.filter((p) => p.student_id !== studentId), next]
+  save()
+}

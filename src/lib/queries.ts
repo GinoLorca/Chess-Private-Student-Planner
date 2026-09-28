@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as api from './data'
-import type { FolderKind, LessonSection, LessonTemplate, NewLessonInit, Note, Puzzle, Student } from '../types/domain'
+import type { FolderKind, LessonSection, LessonTemplate, NewLessonInit, Note, Puzzle, Reminder, ScheduleChange, ScheduleSlot, Student } from '../types/domain'
+import { reminderFor } from './schedule'
 
 export const keys = {
   students: ['students'] as const,
@@ -16,6 +17,11 @@ export const keys = {
   library: ['library'] as const,
   uscf: (memberId: string) => ['uscf', memberId] as const,
   uscfHistory: (memberId: string) => ['uscfHistory', memberId] as const,
+  scheduleMissing: ['scheduleMissing'] as const,
+  scheduleSlots: ['scheduleSlots'] as const,
+  scheduleChanges: ['scheduleChanges'] as const,
+  reminders: ['reminders'] as const,
+  places: ['places'] as const,
 }
 
 /** A student's live USCF rating, kept for six hours (and offline, from the persisted cache). */
@@ -294,6 +300,100 @@ export function useNoteMutations(studentId: string, kind: Note['folder_kind']) {
   })
   const remove = useMutation({ mutationFn: (id: string) => api.deleteNote(id), onSuccess: invalidate })
   return { create, update, remove }
+}
+
+
+// ---------------------------------------------------------------------------
+// schedule
+// ---------------------------------------------------------------------------
+
+/** Schedule tables the database still lacks (the 0009 migration not yet run). */
+export function useScheduleMissing() {
+  return useQuery({ queryKey: keys.scheduleMissing, queryFn: api.missingScheduleTables, staleTime: 60 * 60_000 })
+}
+
+export function useScheduleSlots(enabled = true) {
+  return useQuery({ queryKey: keys.scheduleSlots, queryFn: api.listScheduleSlots, enabled, retry: 1 })
+}
+
+export function useScheduleChanges(enabled = true) {
+  return useQuery({ queryKey: keys.scheduleChanges, queryFn: api.listScheduleChanges, enabled, retry: 1 })
+}
+
+export function useReminders(enabled = true) {
+  return useQuery({ queryKey: keys.reminders, queryFn: api.listReminders, enabled, retry: 1 })
+}
+
+export function useStudentPlaces(enabled = true) {
+  return useQuery({ queryKey: keys.places, queryFn: api.listStudentPlaces, enabled, retry: 1 })
+}
+
+export function useScheduleMutations() {
+  const qc = useQueryClient()
+  const refresh = (...which: (keyof typeof keys)[]) => () =>
+    Promise.all(which.map((k) => qc.invalidateQueries({ queryKey: keys[k] as readonly unknown[] })))
+
+  const addSlot = useMutation({ mutationFn: (input: api.SlotInput) => api.createScheduleSlot(input), onSuccess: refresh('scheduleSlots') })
+  const updateSlot = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<api.SlotInput> }) => api.updateScheduleSlot(id, patch),
+    onSuccess: refresh('scheduleSlots'),
+  })
+  const removeSlot = useMutation({
+    mutationFn: (id: string) => api.deleteScheduleSlot(id),
+    onSuccess: refresh('scheduleSlots', 'scheduleChanges', 'reminders'),
+  })
+
+  /**
+   * A week's change and the reminder it writes, together. A lesson has one
+   * change per date, so an earlier change to it is replaced, and that
+   * change's open reminder goes (the new one says where things stand).
+   */
+  const change = useMutation({
+    mutationFn: async ({ input, id, studentName, slot }: { input: api.ChangeInput; id?: string; studentName: string; slot: ScheduleSlot | null }) => {
+      const known = qc.getQueryData<ScheduleChange[]>(keys.scheduleChanges) ?? []
+      const replaced = id
+        ? known.find((c) => c.id === id)
+        : input.slot_id
+          ? known.find((c) => c.slot_id === input.slot_id && c.original_date === input.original_date)
+          : undefined
+      const saved = await api.saveScheduleChange(input, replaced?.id ?? id)
+      const stale = (qc.getQueryData<Reminder[]>(keys.reminders) ?? []).filter((r) => r.change_id === saved.id && !r.done)
+      await Promise.all(stale.map((r) => api.deleteReminder(r.id)))
+      const reminder = await api.createReminder({ ...reminderFor(saved, studentName, slot), change_id: saved.id })
+      return { saved, reminder }
+    },
+    onSettled: refresh('scheduleChanges', 'reminders'),
+  })
+  /** Put the week back as usual; the change's reminders go with it. */
+  const undo = useMutation({ mutationFn: (id: string) => api.deleteScheduleChange(id), onSettled: refresh('scheduleChanges', 'reminders') })
+
+  const updateReminder = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: api.ReminderPatch }) => api.updateReminder(id, patch),
+    onMutate: async ({ id, patch }) => {
+      await qc.cancelQueries({ queryKey: keys.reminders })
+      const prev = qc.getQueryData<Reminder[]>(keys.reminders)
+      qc.setQueryData<Reminder[]>(keys.reminders, (old) => old?.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => ctx?.prev && qc.setQueryData(keys.reminders, ctx.prev),
+    onSettled: refresh('reminders'),
+  })
+  const removeReminder = useMutation({ mutationFn: (id: string) => api.deleteReminder(id), onSettled: refresh('reminders') })
+
+  const savePlace = useMutation({
+    mutationFn: ({ studentId, patch }: { studentId: string; patch: api.PlacePatch }) => api.saveStudentPlace(studentId, patch),
+    onSettled: refresh('places'),
+  })
+
+  return { addSlot, updateSlot, removeSlot, change, undo, updateReminder, removeReminder, savePlace }
+}
+
+/** Open reminders, for the badge on the Schedule button. 0 before the schedule migration has run. */
+export function useOpenReminderCount(): number {
+  const missing = useScheduleMissing()
+  const ready = Boolean(missing.data && missing.data.length === 0)
+  const reminders = useReminders(ready)
+  return (reminders.data ?? []).filter((r) => !r.done).length
 }
 
 export type { FolderKind }

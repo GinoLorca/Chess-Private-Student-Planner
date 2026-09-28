@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Rolodex } from '../components/students/Rolodex'
 import type { Student } from '../types/domain'
-import { useStudentMutations, useStudents } from '../lib/queries'
+import { useOpenReminderCount, useStudentMutations, useStudents } from '../lib/queries'
 import { missingStudentColumns, STUDENT_MIGRATION_COLUMNS } from '../lib/data'
 import { copyText } from '../lib/links'
 import { Page, EmptyState, LoadingPage } from '../components/ui/Page'
@@ -10,7 +10,8 @@ import { Button, IconButton } from '../components/ui/Button'
 import { InputModal } from '../components/ui/InputModal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { ActionSheet } from '../components/ui/ActionSheet'
-import { More, Pencil, Plus, Settings, Trash, Library } from '../components/ui/Icons'
+import { More, Pencil, Plus, Settings, Trash, Library, Calendar } from '../components/ui/Icons'
+import { TodayStrip } from '../components/schedule/Today'
 import { FOLDER_COLORS, SCHOOL_COLORS } from '../lib/colors'
 import { BUILTIN_LOGOS, logoFromFile } from '../lib/logos'
 import { LogoBadge } from '../components/lesson/Folder'
@@ -46,6 +47,8 @@ export function DashboardPage() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const report = { onError: (e: unknown) => setSaveError(explainSaveError(e)) }
 
+  const openReminders = useOpenReminderCount()
+
   if (isLoading && !students) return <LoadingPage />
 
   return (
@@ -53,6 +56,16 @@ export function DashboardPage() {
       title="Students"
       actions={
         <>
+          <Link to="/schedule" className="relative">
+            <IconButton label={openReminders ? `Schedule, ${openReminders} open reminders` : 'Schedule'}>
+              <Calendar />
+            </IconButton>
+            {openReminders > 0 && (
+              <span className="pointer-events-none absolute top-1 right-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-accent-ink">
+                {openReminders}
+              </span>
+            )}
+          </Link>
           <Link to="/library">
             <IconButton label="Position library">
               <Library />
@@ -116,7 +129,10 @@ export function DashboardPage() {
           }
         />
       ) : (
+        <>
+        <TodayStrip students={students ?? []} />
         <Rolodex students={students ?? []} onOpen={(s) => navigate(`/students/${s.id}`)} onMenu={setMenuFor} onInfo={setSaveError} />
+        </>
       )}
 
       <InputModal

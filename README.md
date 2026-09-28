@@ -40,6 +40,16 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
 - **USCF rating on the folder** — ⋯ on a folder → *USCF ID…*; the app looks the member's
   current rating up (through its own `/api/uscf` function, since the USCF site blocks browsers)
   and shows it on the folder front, refreshed every few hours and kept for offline.
+- **Schedule** — the calendar button on the Students page. Set each student's regular day and
+  time once and every week fills itself in, Monday to Sunday. Tap a lesson to cancel or
+  reschedule it for that week only: the week shows it struck through, or a dashed gap where it
+  was and the lesson marked where it went, and a day that picks up a second lesson says so.
+  One-off lessons (make-ups) too. Each student's lesson address, front door code and bathroom
+  code (and which bathroom) sit on the lesson and below the week, with Directions to Apple Maps.
+- **Reminders** — cancelling or moving a lesson writes a reminder in the app (the Schedule's
+  Reminders card, and a count on the calendar button). *Add to Reminders* sends it to Apple
+  Reminders through the share sheet, or through a shortcut that fills in the due date too
+  (Settings → Apple Reminders).
 - **Player tracker and Rated Games** — inside the folder, the ratings, event count and score
   sit at the top; the first file, *Rated Games*, opens in place to list every rated event
   with the points taken, the rating change, and a button to the event on ratings.uschess.org.
@@ -106,6 +116,7 @@ browser's localStorage). The AI helpers return sample responses in demo mode.
    | `supabase/migrations/0006_puzzle_done.sql` | the done flag on positions (annotation queue) |
    | `supabase/migrations/0007_student_logo.sql` | a school logo on each student folder |
    | `supabase/migrations/0008_student_uscf.sql` | a USCF ID on each student, for the live rating on the folder |
+   | `supabase/migrations/0009_schedule.sql` | the weekly schedule, its reminders, and each student's address and door codes |
 
 3. In **Project Settings → API**, copy the **Project URL** and **anon public key** into
    `.env.local`:

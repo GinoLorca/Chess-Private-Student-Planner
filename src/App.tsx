@@ -27,6 +27,7 @@ const LibraryPage = lazy(() => import('./pages/LibraryPage').then((m) => ({ defa
 const PuzzleLinkPage = lazy(() => import('./pages/PuzzleLinkPage').then((m) => ({ default: m.PuzzleLinkPage })))
 const LessonViewPage = lazy(() => import('./pages/LessonViewPage').then((m) => ({ default: m.LessonViewPage })))
 const LessonSheetPage = lazy(() => import('./pages/LessonSheetPage').then((m) => ({ default: m.LessonSheetPage })))
+const SchedulePage = lazy(() => import('./pages/SchedulePage').then((m) => ({ default: m.SchedulePage })))
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 
 const lesson = '/students/:studentId/lessons/:lessonPlanId'
@@ -46,6 +47,7 @@ function App() {
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/schedule" element={<SchedulePage />} />
                     <Route path="/library" element={<LibraryPage />} />
                     <Route path="/p/:puzzleId" element={<PuzzleLinkPage />} />
                     <Route path="/students/:studentId" element={<StudentPage />} />

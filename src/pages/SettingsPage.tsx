@@ -18,6 +18,7 @@ import { Board } from '../components/board/Board'
 import { StatusStamp } from '../components/lesson/Folder'
 import { FOLDER_COLORS } from '../lib/colors'
 import { describeTrigger, keyLabel, loadToggle, saveToggle, type Trigger } from '../lib/clicker'
+import { DEFAULT_SHORTCUT_NAME, loadShortcutName, saveShortcutName } from '../lib/schedule'
 import { Check, Moon, Sun, Trash, Upload } from '../components/ui/Icons'
 
 const APPEARANCES: { id: Appearance; label: string }[] = [
@@ -189,6 +190,12 @@ export function SettingsPage() {
           />
         </label>
       </Card>
+
+      <SectionLabel tone="page">Apple Reminders</SectionLabel>
+      <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">
+        Cancelling or moving a lesson on the Schedule writes a reminder. Its Add to Reminders button sends it on.
+      </p>
+      <RemindersCard />
 
       <SectionLabel tone="page">Account</SectionLabel>
       <Card className="flex items-center justify-between gap-3 p-4">
@@ -607,5 +614,70 @@ function KeyMonitor() {
         </pre>
       )}
     </div>
+  )
+}
+
+/**
+ * How a reminder reaches Apple Reminders: the share sheet by default (no
+ * set-up; the due date is set in Reminders), or the coach's own shortcut,
+ * which files it with the due date already in. Kept per device, since the
+ * shortcut lives in that device's Shortcuts app.
+ */
+function RemindersCard() {
+  const [name, setName] = useState(loadShortcutName)
+  const [draft, setDraft] = useState(name || DEFAULT_SHORTCUT_NAME)
+  const on = Boolean(name)
+  const field = 'h-11 w-full rounded-xl border border-line-strong bg-surface-2 px-3.5 text-[15px] outline-none focus:border-accent'
+  return (
+    <Card className="mb-8 p-4">
+      <p className="text-[15px] font-semibold text-ink">{on ? `Using the shortcut "${name}"` : 'Using the share sheet'}</p>
+      <p className="mt-1 text-[14px] leading-relaxed text-ink-2">
+        {on
+          ? 'Add to Reminders runs your shortcut, which files the reminder with its due date.'
+          : 'Add to Reminders opens the share sheet: pick Reminders and the reminder is added. Set a due date there if you want an alert.'}
+      </p>
+      <details className="mt-3 rounded-xl border border-line bg-surface-2 px-3.5 py-2.5 text-[14px] text-ink-2">
+        <summary className="cursor-pointer font-semibold text-ink">Fill in due dates automatically (a shortcut, 5 minutes, once)</summary>
+        <ol className="mt-2 list-decimal space-y-1.5 pl-5 leading-relaxed">
+          <li>Open the Shortcuts app, tap +, and name the shortcut "{DEFAULT_SHORTCUT_NAME}".</li>
+          <li>Add "Get Dictionary from Input" and set its input to Shortcut Input.</li>
+          <li>Add "Get Dictionary Value" three times, for the keys title, notes and due.</li>
+          <li>Add "Get Dates from Input" with the due value as its input.</li>
+          <li>
+            Add "Add New Reminder": use the title value as the reminder, then tap the arrow and set Notes to the notes value and the due
+            date (with an alert) to Dates. Pick the list you want, such as Chess lessons.
+          </li>
+          <li>Tap Done, then switch it on below with the same name.</li>
+        </ol>
+      </details>
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <label className="block min-w-[200px] flex-1">
+          <span className="mb-1 block text-[13px] font-medium text-ink-2">Shortcut name</span>
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} autoCapitalize="words" className={field} />
+        </label>
+        {on ? (
+          <Button
+            variant="secondary"
+            onClick={() => {
+              saveShortcutName('')
+              setName('')
+            }}
+          >
+            Use the share sheet instead
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            disabled={!draft.trim()}
+            onClick={() => {
+              saveShortcutName(draft)
+              setName(draft.trim())
+            }}
+          >
+            Use this shortcut
+          </Button>
+        )}
+      </div>
+    </Card>
   )
 }

@@ -112,6 +112,25 @@ re-run, so if you're not sure which you've done, run `supabase/setup_all.sql` ag
 | `0006_puzzle_done.sql` | the done flag on positions, for the annotation queue |
 | `0007_student_logo.sql` | a school logo on each student folder |
 | `0008_student_uscf.sql` | a USCF ID on each student, for the live rating on the folder |
+| `0009_schedule.sql` | the weekly schedule, its reminders, and each student's address and door codes |
+
+---
+
+## The schedule and Apple Reminders
+
+The Schedule (calendar button on the Students page) needs `0009_schedule.sql` run once in the
+Supabase SQL Editor. Until then the Schedule page says so and has a **Copy the SQL** button.
+
+Reminders reach Apple Reminders one of two ways, chosen in **Settings → Apple Reminders**:
+
+- **The share sheet** (no set-up): *Add to Reminders* opens it; pick Reminders. The reminder
+  arrives with its text; set a due date in Reminders if you want an alert.
+- **A shortcut** (5 minutes, once, per device): build "Add Lesson Reminder" in the Shortcuts
+  app as Settings describes, then switch it on there. *Add to Reminders* then runs it and the
+  reminder arrives with its due date already set.
+
+A cancellation's reminder is due the morning of the lesson that's off; a moved or one-off
+lesson's is due an hour before it starts.
 
 ---
 

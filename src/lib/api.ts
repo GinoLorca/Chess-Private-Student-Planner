@@ -16,6 +16,10 @@ import type {
   LessonHistory,
   LessonTemplate,
   NewLessonInit,
+  Reminder,
+  ScheduleChange,
+  ScheduleSlot,
+  StudentPlace,
 } from '../types/domain'
 import { rankByUse } from './rank'
 
@@ -607,5 +611,118 @@ export async function createCustomPieceSet(name: string, images: PieceImages): P
 
 export async function deleteCustomPieceSet(id: string) {
   const { error } = await supabase.from('custom_piece_sets').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------------------------------------------------------------------------
+// schedule: regular slots, one-week changes, reminders, places
+// ---------------------------------------------------------------------------
+
+/** The tables 0009_schedule.sql adds. */
+export const SCHEDULE_TABLES = ['schedule_slots', 'schedule_changes', 'reminders', 'student_places'] as const
+export const SCHEDULE_MIGRATION = '0009_schedule.sql'
+
+/** Which schedule tables this database doesn't have yet; empty once the migration has run. */
+export async function missingScheduleTables(): Promise<string[]> {
+  const missing: string[] = []
+  for (const table of SCHEDULE_TABLES) {
+    const { error } = await supabase.from(table).select('*').limit(1)
+    if (error && (error.code === 'PGRST205' || error.code === '42P01' || /does not exist|schema cache|could not find the table/i.test(error.message)))
+      missing.push(table)
+  }
+  return missing
+}
+
+export type SlotInput = Pick<ScheduleSlot, 'student_id' | 'weekday' | 'start_time' | 'duration_min'>
+
+export async function listScheduleSlots(): Promise<ScheduleSlot[]> {
+  const { data, error } = await supabase.from('schedule_slots').select('*').order('weekday').order('start_time')
+  if (error) throw error
+  return data as ScheduleSlot[]
+}
+
+export async function createScheduleSlot(input: SlotInput): Promise<ScheduleSlot> {
+  const { data, error } = await supabase.from('schedule_slots').insert(input).select().single()
+  if (error) throw error
+  return data as ScheduleSlot
+}
+
+export async function updateScheduleSlot(id: string, patch: Partial<SlotInput>) {
+  const { error } = await supabase.from('schedule_slots').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteScheduleSlot(id: string) {
+  const { error } = await supabase.from('schedule_slots').delete().eq('id', id)
+  if (error) throw error
+}
+
+export type ChangeInput = Pick<ScheduleChange, 'slot_id' | 'student_id' | 'kind' | 'original_date' | 'new_date' | 'new_time' | 'duration_min' | 'note'>
+
+export async function listScheduleChanges(): Promise<ScheduleChange[]> {
+  const { data, error } = await supabase.from('schedule_changes').select('*').order('created_at')
+  if (error) throw error
+  return data as ScheduleChange[]
+}
+
+/**
+ * Save a week's change. A regular lesson has at most one change per date, so
+ * cancelling a lesson that was moved (or moving one that was cancelled)
+ * replaces the earlier change instead of stacking a second.
+ */
+export async function saveScheduleChange(input: ChangeInput, id?: string): Promise<ScheduleChange> {
+  const query = id
+    ? supabase.from('schedule_changes').update(input).eq('id', id)
+    : input.slot_id
+      ? supabase.from('schedule_changes').upsert(input, { onConflict: 'slot_id,original_date' })
+      : supabase.from('schedule_changes').insert(input)
+  const { data, error } = await query.select().single()
+  if (error) throw error
+  return data as ScheduleChange
+}
+
+/** Undo a change; its reminders go with it. */
+export async function deleteScheduleChange(id: string) {
+  const { error } = await supabase.from('schedule_changes').delete().eq('id', id)
+  if (error) throw error
+}
+
+export type ReminderInput = Pick<Reminder, 'title' | 'notes' | 'due_at' | 'student_id' | 'change_id'>
+export type ReminderPatch = Partial<Pick<Reminder, 'title' | 'notes' | 'due_at' | 'done' | 'shared_at'>>
+
+export async function listReminders(): Promise<Reminder[]> {
+  const { data, error } = await supabase.from('reminders').select('*').order('created_at', { ascending: false })
+  if (error) throw error
+  return data as Reminder[]
+}
+
+export async function createReminder(input: ReminderInput): Promise<Reminder> {
+  const { data, error } = await supabase.from('reminders').insert(input).select().single()
+  if (error) throw error
+  return data as Reminder
+}
+
+export async function updateReminder(id: string, patch: ReminderPatch) {
+  const { error } = await supabase.from('reminders').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteReminder(id: string) {
+  const { error } = await supabase.from('reminders').delete().eq('id', id)
+  if (error) throw error
+}
+
+export type PlacePatch = Partial<Pick<StudentPlace, 'address' | 'door_code' | 'bathroom_code' | 'bathroom_note' | 'notes'>>
+
+export async function listStudentPlaces(): Promise<StudentPlace[]> {
+  const { data, error } = await supabase.from('student_places').select('*')
+  if (error) throw error
+  return data as StudentPlace[]
+}
+
+export async function saveStudentPlace(studentId: string, patch: PlacePatch) {
+  const { error } = await supabase
+    .from('student_places')
+    .upsert({ student_id: studentId, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'student_id' })
   if (error) throw error
 }

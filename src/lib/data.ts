@@ -49,5 +49,21 @@ export const updateUserSettings = impl.updateUserSettings
 export const listCustomPieceSets = impl.listCustomPieceSets
 export const createCustomPieceSet = impl.createCustomPieceSet
 export const deleteCustomPieceSet = impl.deleteCustomPieceSet
+export const missingScheduleTables = impl.missingScheduleTables
+export const listScheduleSlots = impl.listScheduleSlots
+export const createScheduleSlot = impl.createScheduleSlot
+export const updateScheduleSlot = impl.updateScheduleSlot
+export const deleteScheduleSlot = impl.deleteScheduleSlot
+export const listScheduleChanges = impl.listScheduleChanges
+export const saveScheduleChange = impl.saveScheduleChange
+export const deleteScheduleChange = impl.deleteScheduleChange
+export const listReminders = impl.listReminders
+export const createReminder = impl.createReminder
+export const updateReminder = impl.updateReminder
+export const deleteReminder = impl.deleteReminder
+export const listStudentPlaces = impl.listStudentPlaces
+export const saveStudentPlace = impl.saveStudentPlace
+export { SCHEDULE_MIGRATION, SCHEDULE_TABLES } from './api'
+export type { ChangeInput, PlacePatch, ReminderInput, ReminderPatch, SlotInput } from './api'
 
 export type { LessonBundle, LessonPlanPatch, LibraryEntry, PuzzleLocation, PuzzlePatch, SettingsPatch } from './api'

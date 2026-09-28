@@ -203,3 +203,39 @@ export const Library = (p: IconProps) => (
     <path d="m16.5 6.5 3.5-.8 3 13.6-3.5.8z" />
   </svg>
 )
+export const Calendar = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
+    <path d="M3.5 10h17" />
+    <path d="M8 3v4" />
+    <path d="M16 3v4" />
+  </svg>
+)
+export const Bell = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />
+    <path d="M10 20.5a2.2 2.2 0 0 0 4 0" />
+  </svg>
+)
+/** The iOS share glyph: a box with an arrow leaving the top. */
+export const Share = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 3v12" />
+    <path d="M8 7l4-4 4 4" />
+    <path d="M8 11H6.5A1.5 1.5 0 0 0 5 12.5v7A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H16" />
+  </svg>
+)
+export const MapPin = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z" />
+    <circle cx="12" cy="10" r="2.3" />
+  </svg>
+)
+export const Key = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="8" cy="15" r="4" />
+    <path d="M11 12l8.5-8.5" />
+    <path d="M16.5 6.5l2.5 2.5" />
+    <path d="M14.5 8.5l2 2" />
+  </svg>
+)

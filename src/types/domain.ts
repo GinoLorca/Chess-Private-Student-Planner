@@ -173,3 +173,72 @@ export interface Note {
   created_at: string
   updated_at: string
 }
+
+// ---------------------------------------------------------------------------
+// schedule
+// ---------------------------------------------------------------------------
+
+/** A student's regular weekly lesson: every <weekday> at <start_time>. */
+export interface ScheduleSlot {
+  id: string
+  user_id: string
+  student_id: string
+  /** 0 = Sunday … 6 = Saturday, as JavaScript's getDay(). */
+  weekday: number
+  /** Local wall-clock time, "HH:MM" (24-hour). */
+  start_time: string
+  duration_min: number
+  created_at: string
+}
+
+export type ScheduleChangeKind = 'cancelled' | 'moved' | 'extra'
+
+/**
+ * A change to one week only: a regular lesson cancelled or moved on a given
+ * date, or a one-off extra lesson. The regular slot itself never changes.
+ */
+export interface ScheduleChange {
+  id: string
+  user_id: string
+  /** The regular slot this changes; null for a one-off extra lesson. */
+  slot_id: string | null
+  student_id: string
+  kind: ScheduleChangeKind
+  /** The date the regular lesson would have been ("YYYY-MM-DD"); null for an extra. */
+  original_date: string | null
+  /** Where it happens instead (moved, extra). */
+  new_date: string | null
+  new_time: string | null
+  duration_min: number | null
+  note: string
+  created_at: string
+}
+
+/** A to-do the app writes when the week changes, to hand on to Apple Reminders. */
+export interface Reminder {
+  id: string
+  user_id: string
+  student_id: string | null
+  change_id: string | null
+  title: string
+  notes: string
+  /** When it's due, as an ISO timestamp; null for no due date. */
+  due_at: string | null
+  done: boolean
+  /** When it was last sent to Apple Reminders. */
+  shared_at: string | null
+  created_at: string
+}
+
+/** Where a student's lessons happen, and the codes to get in. */
+export interface StudentPlace {
+  student_id: string
+  user_id: string
+  address: string
+  door_code: string
+  bathroom_code: string
+  /** Where that bathroom is, e.g. "McDonald's next door". */
+  bathroom_note: string
+  notes: string
+  updated_at: string
+}

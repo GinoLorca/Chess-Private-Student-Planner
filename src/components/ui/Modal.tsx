@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import clsx from 'clsx'
 
@@ -33,7 +34,11 @@ export function Modal({ open, onClose, title, children, variant = 'sheet' }: Mod
     }
   }, [open, onClose])
 
-  return (
+  // Drawn at the top of the page, not where it was opened: inside a tilted
+  // card (the agenda's sticky note) a fixed panel would be pinned to, and
+  // clipped by, that card instead of covering the screen.
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal>
@@ -66,6 +71,7 @@ export function Modal({ open, onClose, title, children, variant = 'sheet' }: Mod
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }

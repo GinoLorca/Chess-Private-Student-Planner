@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import type { Student, StudentPlace } from '../../types/domain'
 import { addMinutes, clashes, fmtDay, fmtTime, isOn, parseDate, shortName, weekDates, whereLabel, type Occurrence } from '../../lib/schedule'
 import { MapPin } from '../ui/Icons'
@@ -17,6 +17,7 @@ export function WeekView({
   places,
   today,
   onOpen,
+  onMenu,
 }: {
   start: string
   occurrences: Occurrence[]
@@ -24,6 +25,8 @@ export function WeekView({
   places: Map<string, StudentPlace>
   today: string
   onOpen: (o: Occurrence) => void
+  /** Right-click or long-press: the quick menu (reschedule, cancel…). */
+  onMenu: (o: Occurrence) => void
 }) {
   const clash = clashes(occurrences)
   return (
@@ -68,6 +71,7 @@ export function WeekView({
                     place={places.get(o.studentId)}
                     clash={clash.has(o.key)}
                     onOpen={() => onOpen(o)}
+                    onMenu={() => onMenu(o)}
                   />
                 ))
               )}
@@ -85,13 +89,24 @@ function LessonChip({
   place,
   clash,
   onOpen,
+  onMenu,
 }: {
   occurrence: Occurrence
   student: Student
   place?: StudentPlace
   clash: boolean
   onOpen: () => void
+  onMenu: () => void
 }) {
+  // A finger held still for half a second opens the quick menu; moving it
+  // (scrolling the week) or lifting it sooner is an ordinary tap or scroll.
+  const timer = useRef<number | null>(null)
+  const origin = useRef<{ x: number; y: number } | null>(null)
+  const held = useRef(false)
+  const stop = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current)
+    timer.current = null
+  }
   const off = !isOn(o)
   let badge: ReactNode = null
   if (o.state === 'cancelled') badge = <Badge tone="danger">Cancelled</Badge>
@@ -104,7 +119,40 @@ function LessonChip({
   return (
     <button
       type="button"
-      onClick={onOpen}
+      onClick={(e) => {
+        // The lift after a long press isn't a tap.
+        if (held.current) {
+          held.current = false
+          e.preventDefault()
+          return
+        }
+        onOpen()
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        if (held.current) return
+        onMenu()
+      }}
+      onPointerDown={(e) => {
+        if (e.pointerType === 'mouse') return
+        held.current = false
+        origin.current = { x: e.clientX, y: e.clientY }
+        stop()
+        timer.current = window.setTimeout(() => {
+          held.current = true
+          navigator.vibrate?.(12)
+          onMenu()
+        }, 500)
+      }}
+      onPointerMove={(e) => {
+        const o = origin.current
+        if (o && Math.hypot(e.clientX - o.x, e.clientY - o.y) > 10) stop()
+      }}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      onPointerLeave={stop}
+      style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+      title="Tap for details · right-click or hold to reschedule or cancel"
       aria-label={`${student.name}, ${fmtTime(o.time)}${o.state === 'regular' ? '' : `, ${o.state.replace('-', ' ')}`}`}
       className={clsx(
         'relative w-full min-w-0 rounded-xl border py-2 pr-2.5 pl-4 text-left transition active:scale-[0.98] sm:w-[calc(50%-4px)] lg:w-full',

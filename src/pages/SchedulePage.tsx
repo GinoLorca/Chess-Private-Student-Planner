@@ -33,7 +33,8 @@ import { Page, Card, SectionLabel, EmptyState, LoadingPage } from '../components
 import { Button, IconButton } from '../components/ui/Button'
 import { ActionSheet } from '../components/ui/ActionSheet'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
-import { Calendar, ChevronLeft, ChevronRight, Plus } from '../components/ui/Icons'
+import { Calendar, ChevronLeft, ChevronRight, Close, MapPin, Plus, Refresh, Trash } from '../components/ui/Icons'
+import type { ActionItem } from '../components/ui/ActionSheet'
 import { WeekView } from '../components/schedule/Week'
 import { CancelModal, LessonSheet, LessonTimeModal, SlotModal, type LessonTimeValues, type SlotValues } from '../components/schedule/Sheets'
 import { RemindersCard, ReminderToast } from '../components/schedule/Reminders'
@@ -67,6 +68,7 @@ export function SchedulePage() {
   const occurrences = weekOccurrences(start, slots.data ?? [], changes.data ?? [])
 
   const [opened, setOpened] = useState<Occurrence | null>(null)
+  const [quick, setQuick] = useState<Occurrence | null>(null)
   const [moving, setMoving] = useState<Occurrence | null>(null)
   const [cancelling, setCancelling] = useState<Occurrence | null>(null)
   const [undoing, setUndoing] = useState<Occurrence | null>(null)
@@ -210,6 +212,39 @@ export function SchedulePage() {
     note: o.change?.note ?? '',
   })
 
+  /** The right-click / long-press menu: this week's changes, as the lesson's state allows. */
+  const quickItems = (o: Occurrence): ActionItem[] => {
+    const details: ActionItem = { label: 'Details, address and codes', icon: <MapPin />, onSelect: () => setOpened(o) }
+    switch (o.state) {
+      case 'regular':
+        return [
+          { label: "Reschedule this week's lesson", icon: <Calendar />, onSelect: () => setMoving(o) },
+          { label: "Cancel this week's lesson", icon: <Close />, danger: true, onSelect: () => setCancelling(o) },
+          details,
+        ]
+      case 'cancelled':
+        return [
+          { label: "It's back on: undo the cancellation", icon: <Refresh />, onSelect: () => setUndoing(o) },
+          { label: 'Reschedule it instead', icon: <Calendar />, onSelect: () => setMoving(o) },
+          details,
+        ]
+      case 'moved-away':
+      case 'moved-here':
+        return [
+          { label: 'Change the new day or time', icon: <Calendar />, onSelect: () => setMoving(o) },
+          { label: 'Undo: back to the regular time', icon: <Refresh />, onSelect: () => setUndoing(o) },
+          { label: 'Cancel it altogether', icon: <Close />, danger: true, onSelect: () => setCancelling(o) },
+          details,
+        ]
+      case 'extra':
+        return [
+          { label: 'Change the day or time', icon: <Calendar />, onSelect: () => setMoving(o) },
+          { label: 'Remove this one-off lesson', icon: <Trash />, danger: true, onSelect: () => setUndoing(o) },
+          details,
+        ]
+    }
+  }
+
   const openSlot = (slot: ScheduleSlot | null, preset?: Partial<SlotValues>) =>
     setSlotEdit({
       slot,
@@ -289,9 +324,11 @@ export function SchedulePage() {
           }
         />
       ) : (
-        <WeekView start={start} occurrences={occurrences} students={students} places={places} today={today} onOpen={setOpened} />
+        <WeekView start={start} occurrences={occurrences} students={students} places={places} today={today} onOpen={setOpened} onMenu={setQuick} />
       )}
-      <p className="mt-2 text-[13px] text-on-bg-2">Tap a lesson to cancel or reschedule it for this week only, or to see the address and door codes.</p>
+      <p className="mt-2 text-[13px] text-on-bg-2">
+        Right-click or press and hold a lesson to reschedule or cancel it for this week only. Tap it for the address and door codes.
+      </p>
 
       {/* The regular week */}
       <div className="mt-10 mb-2 flex items-center justify-between gap-2">
@@ -444,6 +481,13 @@ export function SchedulePage() {
         danger={undoing?.state === 'extra'}
         onConfirm={() => m.undo.mutateAsync(undoing!.change!.id)}
         onClose={() => setUndoing(null)}
+      />
+
+      <ActionSheet
+        open={Boolean(quick)}
+        onClose={() => setQuick(null)}
+        title={quick ? `${shortName(nameOf(quick.studentId))} · ${fmtDay(quick.date)}, ${fmtTime(quick.time)}` : undefined}
+        items={quick ? quickItems(quick) : []}
       />
 
       <ActionSheet

@@ -41,8 +41,8 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   current rating up (through its own `/api/uscf` function, since the USCF site blocks browsers)
   and shows it on the folder front, refreshed every few hours and kept for offline.
 - **Schedule** — the calendar button on the Students page. Set each student's regular day and
-  time once and every week fills itself in, Monday to Sunday. Tap a lesson to cancel or
-  reschedule it for that week only: the week shows it struck through, or a dashed gap where it
+  time once and every week fills itself in, Monday to Sunday. Right-click or press and hold a
+  lesson to cancel or reschedule it for that week only (a tap opens its details): the week shows it struck through, or a dashed gap where it
   was and the lesson marked where it went, and a day that picks up a second lesson says so.
   One-off lessons (make-ups) too. Each student's lesson address, front door code and bathroom
   code (and which bathroom) sit on the lesson and below the week, with Directions to Apple Maps.

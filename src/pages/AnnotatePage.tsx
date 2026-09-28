@@ -186,8 +186,8 @@ function Bench({
   const toMove = puzzle.side_to_move === 'w' ? 'White' : 'Black'
 
   return (
-    <div className="grid gap-5 md:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)] md:items-start">
-      <div className="mx-auto w-full max-w-[560px] md:mx-0">
+    <div className="grid gap-5 md:grid-cols-[minmax(0,1.25fr)_minmax(270px,0.75fr)] md:items-start">
+      <div className="mx-auto w-full max-w-[644px] md:mx-0">
         <div className="flex items-end justify-between gap-3 pl-3">
           <p
             className="folder-tab flex h-8 min-w-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] uppercase"
@@ -306,14 +306,14 @@ function Bench({
             className={`${field} h-10 text-[14px]`}
           />
         </div>
-        <div className="flex gap-2 pt-1">
-          <Button variant="secondary" size="lg" onClick={onSkip}>
+        <div className="flex flex-wrap-reverse gap-2 pt-1">
+          <Button variant="secondary" size="lg" className="grow" onClick={onSkip}>
             Skip for now
           </Button>
           <Button
             variant="primary"
             size="lg"
-            className="flex-1"
+            className="grow-[3]"
             icon={<Check size={18} />}
             onClick={() => {
               // Flush the notes if the coach taps straight from the textarea.

@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight, Puzzle } from '../types/domain'
 import { useLesson, usePuzzleMutations, useStudent } from '../lib/queries'
-import { lineSteps, stepLabel } from '../lib/solution'
+import { canSolveLine, lineSteps, sameMove, stepLabel } from '../lib/solution'
 import { pieceList, type Orientation, type SideSetup } from '../lib/fen'
 import { useSessionSet } from '../hooks/useSessionSet'
 import { useWakeLock } from '../hooks/useWakeLock'
@@ -12,6 +12,8 @@ import { useClicker } from '../hooks/useClicker'
 import { useSwipeNav } from '../hooks/useSwipeNav'
 import { DrawableBoard } from '../components/board/DrawableBoard'
 import { MoveBoard } from '../components/board/MoveBoard'
+import { SolveBoardView, SolveStatus } from '../components/board/SolveBoard'
+import { useSolve } from '../hooks/useSolve'
 import { effectiveQuizPrompt } from '../lib/prompts'
 import { Button, IconButton } from '../components/ui/Button'
 import { LoadingPage, Page, SectionLabel } from '../components/ui/Page'
@@ -241,8 +243,11 @@ function PuzzleView({
   const [revealed, setRevealed] = useState(mode === 'coach')
   // Learn view: the answer stays hidden and the board is live until the line
   // is played out (solved) or given up (shown). Needs a legal recorded line.
-  const canSolve = mode === 'learn' && steps.length > 1 && steps.every((s) => s.index === 0 || Boolean(s.from))
+  const canSolve = mode === 'learn' && canSolveLine(steps)
   const solving = canSolve && !revealed
+  // The eye closed on a revealed position: the board goes live so the line can still be played.
+  const solve = useSolve(steps, puzzle.id)
+  const liveHidden = notesHidden && !solving
   const [outcome, setOutcome] = useState<'solved' | 'shown' | null>(null)
   const [wrong, setWrong] = useState<string | null>(null)
   const [misses, setMisses] = useState(0)
@@ -332,11 +337,15 @@ function PuzzleView({
   }, [onSwipe])
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-start">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)] lg:items-start">
       {/* Square board, so cap its width by the viewport height: on an iPad in
-          landscape the whole board plus its caption must fit above the nav. */}
-      <div className="mx-auto w-full" style={{ maxWidth: 'min(640px, calc(100svh - 236px))' }}>
-        <div className="flex items-end justify-between gap-3 pl-3">
+          landscape the whole board must fit above the nav. There the caption
+          moves up beside the section tab, giving the board its height. */}
+      <div
+        className="mx-auto w-full [--board-reserve:236px] lg:[--board-reserve:176px]"
+        style={{ maxWidth: 'min(736px, calc(100svh - var(--board-reserve)))' }}
+      >
+        <div className="flex items-end gap-3 pl-3">
           <p
             className="folder-tab flex h-8 min-w-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] uppercase"
             style={{ background: color, color: onColor(color).inkSoft }}
@@ -344,6 +353,8 @@ function PuzzleView({
             <span className="block h-2 w-2 shrink-0 rounded-[2px]" style={{ background: onColor(color).dot }} />
             <span className="truncate">{sectionTitle}</span>
           </p>
+          <div className="flex-1" />
+          <Caption className="hidden pb-1 lg:flex" position={position} label={revealed && !notesHidden ? puzzle.label : ''} toMove={toMove} />
           <button onClick={() => setFlipped((f) => !f)} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg">
             Flip board
           </button>
@@ -360,6 +371,9 @@ function PuzzleView({
           >
             <MoveBoard fen={current.fen} orientation={orientation} lastMove={lastMove} onMove={tryMove} disabled={Boolean(outcome)} />
           </motion.div>
+        ) : liveHidden ? (
+          // The eye closed, the board is live: play the line out.
+          <SolveBoardView solve={solve} orientation={orientation} className="shadow-float" />
         ) : (
         <motion.div
           drag="x"
@@ -385,13 +399,7 @@ function PuzzleView({
           />
         </motion.div>
         )}
-        <div className="mt-2 flex items-center justify-between">
-          <p className="text-[15px] font-semibold text-on-bg">
-            <span className="text-on-bg-2">#{position}</span>{' '}
-            <span className="font-display text-[19px]">{revealed && !notesHidden ? puzzle.label : ''}</span>
-          </p>
-          <p className="text-[12px] font-semibold tracking-[0.1em] text-on-bg-2 uppercase">{toMove} to play</p>
-        </div>
+        <Caption className="mt-2 flex lg:hidden" position={position} label={revealed && !notesHidden ? puzzle.label : ''} toMove={toMove} />
       </div>
 
       <div className="space-y-3">
@@ -467,7 +475,11 @@ function PuzzleView({
                 <EyeOff />
               </IconButton>
             </div>
-            <p className="text-[14px] text-ink-3">Answer and explanation hidden.</p>
+            {liveHidden && (solve.step > 0 || solve.misses > 0) ? (
+              <SolveStatus solve={solve} label={(i) => stepLabel(puzzle, i)} onReveal={onToggleNotes} />
+            ) : (
+              <p className="text-[14px] text-ink-3">Answer and explanation hidden.</p>
+            )}
           </PaperCard>
         ) : (
           <PaperCard className="p-4" tilt={0.4}>
@@ -554,10 +566,16 @@ function PuzzleView({
   )
 }
 
-/** "Nf4+" and "Nf4" are the same move; so are O-O and 0-0. */
-function sameMove(a: string, b: string) {
-  const norm = (s: string) => s.replace(/[+#!?]/g, '').replace(/0/g, 'O').trim()
-  return norm(a) === norm(b)
+/** "#4 b6+ … White to play": which position this is, its name once shown, and whose move. */
+function Caption({ position, label, toMove, className }: { position: number; label: string; toMove: string; className?: string }) {
+  return (
+    <div className={clsx('min-w-0 items-baseline justify-between gap-3', className)}>
+      <p className="min-w-0 truncate text-[15px] font-semibold text-on-bg">
+        <span className="text-on-bg-2">#{position}</span> <span className="font-display text-[19px]">{label}</span>
+      </p>
+      <p className="shrink-0 text-[12px] font-semibold tracking-[0.1em] text-on-bg-2 uppercase">{toMove} to play</p>
+    </div>
+  )
 }
 
 /** One side's set-up: the pieces on one line, the pawns on the next, so it reads like a real call-out. */

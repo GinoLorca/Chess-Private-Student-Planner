@@ -10,6 +10,8 @@ import { effectiveQuizPrompt } from '../lib/prompts'
 import { CopyLinkButton } from '../components/ui/CopyLink'
 import { Button, IconButton } from '../components/ui/Button'
 import { DrawableBoard } from '../components/board/DrawableBoard'
+import { SolveBoardView, SolveStatus } from '../components/board/SolveBoard'
+import { useSolve } from '../hooks/useSolve'
 import { ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Play } from '../components/ui/Icons'
 import { useHideToggle } from '../hooks/useHideToggle'
 
@@ -33,6 +35,8 @@ export function PuzzlePage() {
   const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
   // The eye hides the answer and explanation: tap it, long-press a clicker button, or press B.
   const [hidden, toggleHidden] = useHideToggle()
+  // With the answer hidden the board is live, to play the line out.
+  const solve = useSolve(steps, puzzleId)
   useClicker({ next, prev, hold: toggleHidden })
 
   if (isLoading && !puzzle) return <LoadingPage />
@@ -73,8 +77,8 @@ export function PuzzlePage() {
       }
     >
       {/* Desktop (a mouse or trackpad, wide window) gets a board about a third larger; iPad and iPhone keep their layout. */}
-      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start pointer-fine:min-[1280px]:max-w-[1300px] pointer-fine:min-[1280px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <div className="mx-auto w-full max-w-[560px] pointer-fine:min-[1280px]:max-w-[665px]">
+      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start pointer-fine:min-[1280px]:max-w-[1300px] pointer-fine:min-[1280px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div className="mx-auto w-full max-w-[644px] pointer-fine:min-[1280px]:max-w-[765px]">
           {/* The title sits on its own paper strip so it reads on any skin's background. */}
           <div className="mb-2 flex items-baseline justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-2.5 shadow-card">
             <h1 className="min-w-0 truncate text-[24px] font-bold tracking-tight text-ink">{hidden ? 'Position' : puzzle.label || 'Untitled position'}</h1>
@@ -82,16 +86,21 @@ export function PuzzlePage() {
           </div>
           {/* The starting position carries the saved annotations; each answer
               move shows its own arrow. Drawings are saved only on the start. */}
-          <DrawableBoard
-            fen={atStart || !current ? fen : current.fen}
-            arrows={hidden ? [] : atStart ? puzzle.arrows : current?.arrow ? [current.arrow] : []}
-            highlights={hidden || !atStart ? [] : puzzle.highlights}
-            lastMove={lastMove}
-            orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'}
-            onArrowsChange={(arrows) => atStart && !hidden && update.mutate({ arrows })}
-            onHighlightsChange={(highlights) => atStart && !hidden && update.mutate({ highlights })}
-            onClick={last > 0 && !hidden ? next : undefined}
-          />
+          {hidden ? (
+            // The answer hidden, the board is live: play the line out.
+            <SolveBoardView solve={solve} orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'} />
+          ) : (
+            <DrawableBoard
+              fen={atStart || !current ? fen : current.fen}
+              arrows={hidden ? [] : atStart ? puzzle.arrows : current?.arrow ? [current.arrow] : []}
+              highlights={hidden || !atStart ? [] : puzzle.highlights}
+              lastMove={lastMove}
+              orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'}
+              onArrowsChange={(arrows) => atStart && !hidden && update.mutate({ arrows })}
+              onHighlightsChange={(highlights) => atStart && !hidden && update.mutate({ highlights })}
+              onClick={last > 0 && !hidden ? next : undefined}
+            />
+          )}
           {last > 0 && !hidden && (
             <div className="mt-3 flex items-center gap-2">
               <Button variant="secondary" size="md" icon={<ChevronLeft size={18} />} onClick={prev} disabled={atStart}>
@@ -120,7 +129,11 @@ export function PuzzlePage() {
           <Card className="p-4">
             <SectionLabel>Answer</SectionLabel>
             {hidden ? (
-              <p className="text-[14px] text-ink-3">Hidden with the explanation.</p>
+              solve.step > 0 || solve.misses > 0 ? (
+                <SolveStatus solve={solve} label={(i) => stepLabel(puzzle, i)} onReveal={toggleHidden} />
+              ) : (
+                <p className="text-[14px] text-ink-3">Hidden with the explanation.</p>
+              )
             ) : puzzle.solution.length === 0 ? (
               <p className="text-[15px] text-ink-3">No solution recorded yet.</p>
             ) : (

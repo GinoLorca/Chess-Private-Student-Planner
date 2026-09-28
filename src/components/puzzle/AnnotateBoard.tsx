@@ -134,7 +134,7 @@ export function AnnotateBoard({
           </Button>
         )}
       </div>
-      <div className="mx-auto w-full max-w-[560px]">
+      <div className="mx-auto w-full max-w-[644px]">
         <Board
           ref={boardRef}
           fen={fen}

@@ -267,7 +267,7 @@ function Editor({
 
         <DividerTabs tabs={tabs} activeId={tab} onPick={(id) => setTab(id as Tab)} />
         <DividerPaper color={tabColor}>
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         <PaperCard className="p-4">
           {tab === 'position' && (
             <SetupBoard
@@ -292,7 +292,7 @@ function Editor({
           )}
           {tab === 'answer' && (
             <div className="space-y-3">
-              <div className="mx-auto w-full max-w-[560px]">
+              <div className="mx-auto w-full max-w-[644px]">
                 <MoveBoard
                   fen={answerFen}
                   orientation={orientation}

@@ -81,3 +81,20 @@ export function stepLabel(puzzle: Puzzle, index: number): string {
   const number = 1 + Math.floor(half / 2)
   return half % 2 === 0 ? `${number}.` : `${number}…`
 }
+
+/** "Nf4+" and "Nf4" are the same move; so are O-O and 0-0. */
+export function sameMove(a: string, b: string) {
+  const norm = (s: string) => s.replace(/[+#!?]/g, '').replace(/0/g, 'O').trim()
+  return norm(a) === norm(b)
+}
+
+/** The line can be played out on a live board: every answer move replays legally. */
+export function canSolveLine(steps: LineStep[]) {
+  return steps.length > 1 && steps.every((s) => s.index === 0 || Boolean(s.from))
+}
+
+/** The steps up to the first answer move that doesn't replay legally: the part that can be played out. */
+export function playableSteps(steps: LineStep[]) {
+  const bad = steps.findIndex((s) => s.index > 0 && !s.from)
+  return bad === -1 ? steps : steps.slice(0, bad)
+}

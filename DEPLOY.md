@@ -207,7 +207,31 @@ A GET on the URL says whether the key is configured yet.
 
 **The tools.** `list_students` (ids and names), `list_lessons(student_id)` (each lesson with
 positions done / total and its link), `create_lesson(student_id, positions, title?)` (makes
-Lesson N and returns its link and the annotate link), `add_positions(lesson_id, positions)`.
+Lesson N and returns its link and the annotate link), `add_positions(lesson_id, positions)`,
+and two for the schedule:
+
+- `next_lesson(travel_minutes?, buffer_minutes?, within_days?, timezone?)`: the next lesson that
+  is on (cancelled and moved-away ones skipped): the student, when it starts (ISO time with the
+  UTC offset, and minutes from now), the address with an Apple Maps directions link, the door
+  and bathroom codes, what changed this week, a lesson already under way, and `say`, one
+  sentence ready to speak. Given `travel_minutes` (from wherever the coach is to the address)
+  it adds `leave_by`, `minutes_until_leave` and `should_leave_now`. `buffer_minutes` (default 10)
+  is how early to arrive.
+- `get_schedule(date?, days?, timezone?)`: every lesson for a day or a run of days, each marked
+  `on`, `cancelled` or `moved_away`, with the same times and place details.
+
+Times are the coach's local times in `COACH_TIMEZONE` (a Vercel environment variable, an IANA
+name such as `America/New_York`, which is also the default); an agent can pass `timezone`
+instead. For the times to mean anything, fill in each student's regular lesson and their
+address on the Schedule page.
+
+A brief for a travel nudge: *"Use the lesson planner connector. When I ask, and every 15
+minutes from two hours before my next lesson, get my current location, work out the travel
+time from there to `place.address` of `next_lesson` (by the way I'm travelling), and call
+`next_lesson` again with `travel_minutes` set to it. When `should_leave_now` is true, or
+`minutes_until_leave` is 10 or less, tell me to get moving and read me its `say` line (it has
+the address and door code). If `lesson` is null there's nothing to go to. Never send me to a
+lesson whose status isn't `on`."*
 
 **A position** is `{ fen, source_url?, label?, question?, note?, answer?, move_notes?, arrows?,
 highlights? }`. Only `fen` is required; the placement alone is fine. `answer` is the line as

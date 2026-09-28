@@ -139,6 +139,22 @@ function supabaseDb(sb) {
       return { studentId: plan.student_id, number: plan.number, sectionId, nextOrder: last && last.length ? last[0].sort_order + 1 : 0 }
     },
 
+    async listSchedule() {
+      const [students, slots, changes, places] = await Promise.all([
+        sb.from('students').select('id, name'),
+        sb.from('schedule_slots').select('id, student_id, weekday, start_time, duration_min'),
+        sb.from('schedule_changes').select('id, slot_id, student_id, kind, original_date, new_date, new_time, duration_min, note'),
+        sb.from('student_places').select('student_id, address, door_code, bathroom_code, bathroom_note, notes'),
+      ])
+      for (const [res, what] of [[students, 'Listing students'], [slots, 'Reading the schedule'], [changes, 'Reading schedule changes'], [places, 'Reading addresses']]) {
+        if (!res.error) continue
+        if (res.error.code === 'PGRST205' || res.error.code === '42P01' || /does not exist|schema cache|could not find the table/i.test(res.error.message))
+          throw new Error('The schedule is not set up yet: run supabase/migrations/0009_schedule.sql in the Supabase SQL Editor, once.')
+        throw describe(res.error, what)
+      }
+      return { students: students.data ?? [], slots: slots.data ?? [], changes: changes.data ?? [], places: places.data ?? [] }
+    },
+
     async insertPuzzles(sectionId, rows) {
       if (rows.length === 0) return
       // `done` is left to the column default so the insert works before migration 0006 too.

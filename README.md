@@ -50,6 +50,9 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   Reminders card, and a count on the calendar button). *Add to Reminders* sends it to Apple
   Reminders through the share sheet, or through a shortcut that fills in the due date too
   (Settings → Apple Reminders).
+- **Schedule for agents** — the connector's `next_lesson` and `get_schedule` tools give an agent
+  (Muse's Hugo) the next lesson that's on, its start time with the time zone, the address and
+  door codes, and, given the travel time from where the coach is, when to leave. See DEPLOY.md.
 - **Player tracker and Rated Games** — inside the folder, the ratings, event count and score
   sit at the top; the first file, *Rated Games*, opens in place to list every rated event
   with the points taken, the rating change, and a button to the event on ratings.uschess.org.

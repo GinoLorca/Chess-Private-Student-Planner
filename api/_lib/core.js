@@ -1,4 +1,5 @@
 import { Chess } from 'chess.js'
+import { DEFAULT_TIMEZONE, addDays, checkTimezone, departure, lessonsBetween, isoInZone, sayNext, todayIn } from './schedule.js'
 
 /**
  * The agent connector, independent of transport and storage: MCP framing
@@ -23,7 +24,8 @@ import { Chess } from 'chess.js'
  *   listLessons(studentId: string): Promise<LessonRow[]>,
  *   createLesson(studentId: string, title: string): Promise<{ id: string, number: number, sectionId: string }>,
  *   targetSection(lessonId: string): Promise<{ studentId: string, number: number, sectionId: string, nextOrder: number }>,
- *   insertPuzzles(sectionId: string, rows: PuzzleRow[]): Promise<void>
+ *   insertPuzzles(sectionId: string, rows: PuzzleRow[]): Promise<void>,
+ *   listSchedule(): Promise<{ students: StudentRow[], slots: any[], changes: any[], places: any[] }>
  * }} Db
  * @typedef {{ from: string, to: string, color?: string }} ArrowInput
  * @typedef {{ square: string, color?: string }} HighlightInput
@@ -31,7 +33,7 @@ import { Chess } from 'chess.js'
  *   fen: string, source_url?: string, label?: string, question?: string, note?: string, answer?: string,
  *   move_notes?: string[], arrows?: ArrowInput[], highlights?: HighlightInput[]
  * }} PositionInput
- * @typedef {{ db: Db, appOrigin: string }} ToolContext
+ * @typedef {{ db: Db, appOrigin: string, now?: Date }} ToolContext
  */
 
 /** The app's four pens (src/lib/pens.ts), by name, so the agent never sends a hex. */
@@ -180,6 +182,33 @@ export const TOOLS = [
         student_id: { type: 'string' },
         title: { type: 'string', description: 'Optional lesson title.' },
         positions: { type: 'array', minItems: 1, items: POSITION_SCHEMA },
+      },
+    },
+  },
+  {
+    name: 'next_lesson',
+    description:
+      "The coach's next private lesson that is on (cancelled and moved-away lessons are skipped), for telling them when to get going. Returns when it starts (ISO time with the coach's UTC offset, and minutes from now), the student, the address with an Apple Maps directions link, the front door and bathroom codes, anything that changed this week, and `say`, one sentence ready to speak. Work out the travel time from the coach's current location to place.address yourself and pass it as travel_minutes: the reply then carries leave_by, minutes_until_leave and should_leave_now (true once it is time to go). Call it again whenever the coach's location or the time changes.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        travel_minutes: { type: 'number', description: "Travel time from the coach's current location to the lesson address, in minutes." },
+        buffer_minutes: { type: 'number', description: 'Minutes to arrive before the start, to settle in. Default 10.' },
+        within_days: { type: 'number', description: 'How far ahead to look, in days. Default 7.' },
+        timezone: { type: 'string', description: "IANA zone the coach is in, e.g. America/New_York. Default: the server's COACH_TIMEZONE." },
+      },
+    },
+  },
+  {
+    name: 'get_schedule',
+    description:
+      "The coach's lessons for a day or a run of days, in time order: the regular weekly lessons with that week's changes applied. status is on, cancelled (don't go) or moved_away (this lesson moved to another day; the moved lesson is listed on its new day with status on). Each lesson has start and end (ISO with the UTC offset), minutes_until_start, what changed and why, and the place: address, Apple Maps links, door code, bathroom code and which bathroom.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: '"today" (default), "tomorrow", or YYYY-MM-DD.' },
+        days: { type: 'number', description: 'How many days from date, 1 to 31. Default 1.' },
+        timezone: { type: 'string', description: "IANA zone, e.g. America/New_York. Default: the server's COACH_TIMEZONE." },
       },
     },
   },
@@ -353,9 +382,59 @@ export async function callTool(name, args, ctx) {
         annotate_url: `${lessonUrl(target.studentId, lessonId)}/annotate`,
       }
     }
+    case 'get_schedule':
+    case 'next_lesson': {
+      const tz = zone(args.timezone)
+      const now = ctx.now ?? new Date()
+      const today = todayIn(now, tz)
+      const data = await db.listSchedule()
+      const scheduleUrl = `${appOrigin}/#/schedule`
+      if (name === 'get_schedule') {
+        const from = args.date === undefined || args.date === 'today' ? today : args.date === 'tomorrow' ? addDays(today, 1) : dateArg(args.date)
+        const days = Math.min(31, Math.max(1, Math.round(num(args.days, 'days') ?? 1)))
+        const to = addDays(from, days - 1)
+        const lessons = lessonsBetween({ from, to, tz, now, ...data })
+        return { timezone: tz, now: isoInZone(now, tz), today, from, to, lessons, schedule_url: scheduleUrl }
+      }
+      const within = Math.min(31, Math.max(1, Math.round(num(args.within_days, 'within_days') ?? 7)))
+      const lessons = lessonsBetween({ from: today, to: addDays(today, within), tz, now, ...data })
+      // The one to head for hasn't started yet; one under way is reported beside it.
+      const current = lessons.find((l) => l.in_progress) ?? null
+      const next = lessons.find((l) => l.status === 'on' && new Date(l.start).getTime() > now.getTime()) ?? null
+      const offToday = lessons.filter((l) => l.date === today && l.status !== 'on')
+      const base = { timezone: tz, now: isoInZone(now, tz), today, schedule_url: scheduleUrl, current_lesson: current, off_today: offToday }
+      if (!next) {
+        const say = `${current ? `Teaching ${current.student} until ${current.time.split(' – ')[1]}. ` : ''}No more lessons in the next ${within} days.`
+        return { ...base, lesson: null, say }
+      }
+      const dep = departure(next, { now, tz, travelMinutes: num(args.travel_minutes, 'travel_minutes'), bufferMinutes: num(args.buffer_minutes, 'buffer_minutes') ?? 10 })
+      const laterToday = lessons.filter((l) => l !== next && l.date === today && l.status === 'on' && l.start > next.start)
+      return { ...base, lesson: next, departure: dep, say: sayNext(next, dep, today, current), later_today: laterToday }
+    }
     default:
       throw new ToolError(`Unknown tool "${name}"`)
   }
+}
+
+/** The zone asked for, else COACH_TIMEZONE, else New York. @param {unknown} v */
+function zone(v) {
+  const tz = typeof v === 'string' && v.trim() ? v.trim() : process.env.COACH_TIMEZONE || DEFAULT_TIMEZONE
+  if (!checkTimezone(tz)) throw new ToolError(`Unknown time zone "${tz}"; use an IANA name such as America/New_York`)
+  return tz
+}
+
+/** @param {unknown} v @param {string} field @returns {number | null} */
+function num(v, field) {
+  if (v === undefined || v === null || v === '') return null
+  const n = typeof v === 'number' ? v : Number(v)
+  if (!Number.isFinite(n) || n < 0) throw new ToolError(`${field} must be a number of minutes or days, 0 or more`)
+  return n
+}
+
+/** @param {unknown} v */
+function dateArg(v) {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new ToolError('date must be "today", "tomorrow" or YYYY-MM-DD')
+  return v
 }
 
 /** @param {unknown} v @param {string} field */
@@ -375,7 +454,7 @@ function positions(v) {
 // ---------------------------------------------------------------------------
 
 export const PROTOCOL_VERSION = '2025-03-26'
-export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.1.0' }
+export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.2.0' }
 
 /**
  * One JSON-RPC message in, one response out; notifications (no id) return null.

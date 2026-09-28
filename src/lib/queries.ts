@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import * as api from './data'
-import type { FolderKind, LessonSection, LessonTemplate, NewLessonInit, Note, Puzzle, Reminder, ScheduleChange, ScheduleSlot, Student } from '../types/domain'
+import type { LessonPayment, FolderKind, LessonSection, LessonTemplate, NewLessonInit, Note, Puzzle, Reminder, ScheduleChange, ScheduleSlot, Student } from '../types/domain'
 import { reminderFor } from './schedule'
 
 export const keys = {
@@ -23,6 +23,8 @@ export const keys = {
   reminders: ['reminders'] as const,
   places: ['places'] as const,
   rateMissing: ['rateMissing'] as const,
+  paymentsMissing: ['paymentsMissing'] as const,
+  payments: ['payments'] as const,
 }
 
 /** A student's live USCF rating, kept for six hours (and offline, from the persisted cache). */
@@ -400,6 +402,45 @@ export function useOpenReminderCount(): number {
   const ready = Boolean(missing.data && missing.data.length === 0)
   const reminders = useReminders(ready)
   return (reminders.data ?? []).filter((r) => !r.done).length
+}
+
+/** Whether the paid-lessons table is still to be added (migration 0011). */
+export function usePaymentsMissing(enabled = true) {
+  return useQuery({ queryKey: keys.paymentsMissing, queryFn: api.paymentsTableMissing, enabled, staleTime: 60 * 60_000 })
+}
+
+export function usePayments(enabled = true) {
+  return useQuery({ queryKey: keys.payments, queryFn: api.listPayments, enabled, retry: 1 })
+}
+
+/** Mark a lesson paid or not; the tick shows at once and rolls back if the save fails. */
+export function usePaymentMutations() {
+  const qc = useQueryClient()
+  const optimistic = async (apply: (list: LessonPayment[]) => LessonPayment[]) => {
+    await qc.cancelQueries({ queryKey: keys.payments })
+    const prev = qc.getQueryData<LessonPayment[]>(keys.payments)
+    qc.setQueryData<LessonPayment[]>(keys.payments, (old) => apply(old ?? []))
+    return { prev }
+  }
+  const rollback = (_e: unknown, _v: unknown, ctx?: { prev?: LessonPayment[] }) => ctx?.prev && qc.setQueryData(keys.payments, ctx.prev)
+  const settle = () => qc.invalidateQueries({ queryKey: keys.payments })
+  const paid = useMutation({
+    mutationFn: (input: api.PaymentInput) => api.markPaid(input),
+    onMutate: (input) =>
+      optimistic((list) => [
+        ...list.filter((p) => p.lesson_key !== input.lesson_key),
+        { id: `pending-${input.lesson_key}`, user_id: '', paid_on: new Date().toISOString().slice(0, 10), created_at: '', ...input },
+      ]),
+    onError: rollback,
+    onSettled: settle,
+  })
+  const unpaid = useMutation({
+    mutationFn: (lessonKey: string) => api.markUnpaid(lessonKey),
+    onMutate: (lessonKey) => optimistic((list) => list.filter((p) => p.lesson_key !== lessonKey)),
+    onError: rollback,
+    onSettled: settle,
+  })
+  return { paid, unpaid }
 }
 
 export type { FolderKind }

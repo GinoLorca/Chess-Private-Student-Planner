@@ -20,6 +20,7 @@ import type {
   ScheduleChange,
   ScheduleSlot,
   StudentPlace,
+  LessonPayment,
 } from '../types/domain'
 import { rankByUse } from './rank'
 
@@ -733,5 +734,35 @@ export async function saveStudentPlace(studentId: string, patch: PlacePatch) {
   const { error } = await supabase
     .from('student_places')
     .upsert({ student_id: studentId, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'student_id' })
+  if (error) throw error
+}
+
+// ---------------------------------------------------------------------------
+// paid lessons
+// ---------------------------------------------------------------------------
+
+export const PAYMENTS_MIGRATION = '0011_lesson_payments.sql'
+
+/** True when the database lacks lesson_payments (0011 not run yet). */
+export async function paymentsTableMissing(): Promise<boolean> {
+  const { error } = await supabase.from('lesson_payments').select('id').limit(1)
+  return Boolean(error && (error.code === 'PGRST205' || error.code === '42P01' || /does not exist|schema cache|could not find the table/i.test(error.message)))
+}
+
+export type PaymentInput = Pick<LessonPayment, 'student_id' | 'lesson_key' | 'lesson_date' | 'amount'>
+
+export async function listPayments(): Promise<LessonPayment[]> {
+  const { data, error } = await supabase.from('lesson_payments').select('*')
+  if (error) throw error
+  return (data as LessonPayment[]).map((p) => ({ ...p, amount: p.amount == null ? null : Number(p.amount) }))
+}
+
+export async function markPaid(input: PaymentInput) {
+  const { error } = await supabase.from('lesson_payments').upsert(input, { onConflict: 'user_id,lesson_key' })
+  if (error) throw error
+}
+
+export async function markUnpaid(lessonKey: string) {
+  const { error } = await supabase.from('lesson_payments').delete().eq('lesson_key', lessonKey)
   if (error) throw error
 }

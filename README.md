@@ -50,7 +50,9 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
 - **Earnings** — each student's hourly rate (the rate tag on their card on the Schedule) puts
   a fee on every lesson, and a ledger under the week totals the week and the month: lessons and
   hours, a bar split by student, what's already earned and what's to come, and what
-  cancellations would have been. Hide it all per device in Settings → Schedule (or the eye on
+  cancellations would have been. Mark each lesson paid (its sheet, or right-click / hold): a
+  taught lesson not yet paid shows its fee in amber, and the ledger adds paid and owed, and who
+  owes what. Hide it all per device in Settings → Schedule (or the eye on
   the ledger).
 - **Reminders** — cancelling or moving a lesson writes a reminder in the app (the Schedule's
   Reminders card, and a count on the calendar button). *Add to Reminders* sends it to Apple
@@ -127,6 +129,7 @@ browser's localStorage). The AI helpers return sample responses in demo mode.
    | `supabase/migrations/0008_student_uscf.sql` | a USCF ID on each student, for the live rating on the folder |
    | `supabase/migrations/0009_schedule.sql` | the weekly schedule, its reminders, and each student's address and door codes |
    | `supabase/migrations/0010_student_rate.sql` | each student's hourly rate, for lesson fees and the week and month totals |
+   | `supabase/migrations/0011_lesson_payments.sql` | which lessons were paid, for the paid markers and paid / owed |
 
 3. In **Project Settings → API**, copy the **Project URL** and **anon public key** into
    `.env.local`:

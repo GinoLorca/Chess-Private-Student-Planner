@@ -1,5 +1,5 @@
 import fixtures from './fixtures.json'
-import { sortLibrary, type ChangeInput, type PlacePatch, type ReminderInput, type ReminderPatch, type SlotInput, type LessonBundle, type LessonPlanPatch, type LibraryEntry, type PuzzleLocation, type PuzzlePatch, type SettingsPatch, type UscfEvent, type UscfHistory, type UscfRating } from '../api'
+import { sortLibrary, type PaymentInput, type ChangeInput, type PlacePatch, type ReminderInput, type ReminderPatch, type SlotInput, type LessonBundle, type LessonPlanPatch, type LibraryEntry, type PuzzleLocation, type PuzzlePatch, type SettingsPatch, type UscfEvent, type UscfHistory, type UscfRating } from '../api'
 import { rankByUse } from '../rank'
 import type {
   CustomPieceSet,
@@ -17,6 +17,7 @@ import type {
   ScheduleSlot,
   Student,
   StudentPlace,
+  LessonPayment,
   UserSettings,
 } from '../../types/domain'
 import { addDays, reminderFor, todayIso, weekStart } from '../schedule'
@@ -40,6 +41,7 @@ interface Store {
   changes?: ScheduleChange[]
   reminders?: Reminder[]
   places?: StudentPlace[]
+  payments?: LessonPayment[]
 }
 
 const KEY = 'lesson-planner-demo-store-v1'
@@ -647,5 +649,31 @@ export async function saveStudentPlace(studentId: string, patch: PlacePatch) {
   const prev = store.places.find((p) => p.student_id === studentId)
   const next: StudentPlace = { ...blank, ...prev, ...patch, student_id: studentId, user_id: 'demo', updated_at: now() }
   store.places = [...store.places.filter((p) => p.student_id !== studentId), next]
+  save()
+}
+
+// paid lessons ------------------------------------------------------------------
+
+export { PAYMENTS_MIGRATION } from '../api'
+
+export async function paymentsTableMissing(): Promise<boolean> {
+  return false
+}
+
+export async function listPayments(): Promise<LessonPayment[]> {
+  await delay()
+  return [...(db().payments ?? [])]
+}
+
+export async function markPaid(input: PaymentInput) {
+  const store = db()
+  const rest = (store.payments ?? []).filter((p) => p.lesson_key !== input.lesson_key)
+  store.payments = [...rest, { id: uid('pay'), user_id: 'demo', paid_on: now().slice(0, 10), created_at: now(), ...input }]
+  save()
+}
+
+export async function markUnpaid(lessonKey: string) {
+  const store = db()
+  store.payments = (store.payments ?? []).filter((p) => p.lesson_key !== lessonKey)
   save()
 }

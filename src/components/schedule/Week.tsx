@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { useRef, type ReactNode } from 'react'
 import type { Student, StudentPlace } from '../../types/domain'
 import { addMinutes, clashes, fmtDay, fmtTime, isOn, parseDate, shortName, weekDates, whereLabel, type Occurrence } from '../../lib/schedule'
-import { MapPin } from '../ui/Icons'
+import { Check, MapPin } from '../ui/Icons'
 import { fmtMoney } from '../../lib/earnings'
 
 /**
@@ -18,6 +18,7 @@ export function WeekView({
   places,
   today,
   fees,
+  paid,
   onOpen,
   onMenu,
 }: {
@@ -28,6 +29,8 @@ export function WeekView({
   today: string
   /** Each lesson's fee by key, when earnings show; null for a student with no rate. */
   fees?: Map<string, number | null>
+  /** Each lesson's payment state, when paid lessons are tracked. */
+  paid?: Map<string, 'paid' | 'due' | 'open' | null>
   onOpen: (o: Occurrence) => void
   /** Right-click or long-press: the quick menu (reschedule, cancel…). */
   onMenu: (o: Occurrence) => void
@@ -75,6 +78,7 @@ export function WeekView({
                     place={places.get(o.studentId)}
                     clash={clash.has(o.key)}
                     fee={fees?.get(o.key)}
+                    pay={paid?.get(o.key) ?? null}
                     onOpen={() => onOpen(o)}
                     onMenu={() => onMenu(o)}
                   />
@@ -94,6 +98,7 @@ function LessonChip({
   place,
   clash,
   fee,
+  pay,
   onOpen,
   onMenu,
 }: {
@@ -102,6 +107,7 @@ function LessonChip({
   place?: StudentPlace
   clash: boolean
   fee?: number | null
+  pay?: 'paid' | 'due' | 'open' | null
   onOpen: () => void
   onMenu: () => void
 }) {
@@ -181,7 +187,17 @@ function LessonChip({
           {shortName(student.name)}
         </span>
         {fee != null && o.state !== 'moved-away' && (
-          <span className={clsx('shrink-0 text-[12.5px] font-bold tabular-nums', o.state === 'cancelled' ? 'text-ink-3 line-through' : 'text-accent-strong')}>
+          <span
+            title={pay === 'paid' ? 'Paid' : pay === 'due' ? 'Taught, not paid yet' : undefined}
+            className={clsx(
+              'inline-flex shrink-0 items-center gap-0.5 rounded-md text-[12.5px] font-bold tabular-nums',
+              o.state === 'cancelled' && 'text-ink-3 line-through',
+              o.state !== 'cancelled' && pay === 'paid' && 'bg-accent px-1 text-accent-ink',
+              o.state !== 'cancelled' && pay === 'due' && 'bg-warn-soft px-1 text-warn',
+              o.state !== 'cancelled' && pay !== 'paid' && pay !== 'due' && 'text-accent-strong',
+            )}
+          >
+            {pay === 'paid' && <Check size={12} strokeWidth={3} />}
             {fmtMoney(fee)}
           </span>
         )}

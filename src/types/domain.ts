@@ -244,3 +244,16 @@ export interface StudentPlace {
   hourly_rate?: number | null
   updated_at: string
 }
+
+/** A lesson marked paid; see 0011_lesson_payments.sql for how lessons are keyed. */
+export interface LessonPayment {
+  id: string
+  user_id: string
+  student_id: string
+  lesson_key: string
+  lesson_date: string
+  /** The fee when it was marked paid; null if the student had no rate then. */
+  amount: number | null
+  paid_on: string
+  created_at: string
+}

@@ -3,7 +3,7 @@ import type { Student, StudentPlace } from '../../types/domain'
 import { addMinutes, fmtDay, fmtTime, isOn, weekStart, whereLabel, type Occurrence } from '../../lib/schedule'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { Calendar, Close, Folder, Pencil, Refresh, Trash } from '../ui/Icons'
+import { Calendar, Check, Close, Folder, Pencil, Refresh, Trash } from '../ui/Icons'
 import { DayPicker, Field, GroupLabel, LengthPicker, StudentPicker, WeekdayPicker, inputClass } from './Fields'
 import { PlaceDetails } from './Places'
 import { fmtHours, fmtMoney, fmtRate, lessonFee } from '../../lib/earnings'
@@ -32,6 +32,9 @@ export function LessonSheet({
   student,
   place,
   rate,
+  paid,
+  paidOn,
+  onTogglePaid,
   onClose,
   actions,
 }: {
@@ -40,6 +43,10 @@ export function LessonSheet({
   place?: StudentPlace
   /** The student's hourly rate, when earnings show. */
   rate?: number | null
+  /** The lesson's payment state, null when there's nothing to mark. */
+  paid?: 'paid' | 'due' | 'open' | null
+  paidOn?: string | null
+  onTogglePaid?: () => void
   onClose: () => void
   actions: LessonActions
 }) {
@@ -64,6 +71,30 @@ export function LessonSheet({
                 </span>
                 {o.state === 'cancelled' && <span className="text-[12.5px]">not billed</span>}
               </p>
+            )}
+            {paid && onTogglePaid && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onTogglePaid}
+                  aria-pressed={paid === 'paid'}
+                  className={
+                    paid === 'paid'
+                      ? 'inline-flex h-10 items-center gap-2 rounded-full bg-accent px-4 text-[14.5px] font-bold text-accent-ink shadow-card transition active:scale-95'
+                      : 'inline-flex h-10 items-center gap-2 rounded-full border-2 border-dashed border-line-strong px-4 text-[14.5px] font-bold text-ink-2 transition active:scale-95'
+                  }
+                >
+                  <Check size={16} strokeWidth={paid === 'paid' ? 3 : 2} />
+                  {paid === 'paid' ? 'Paid' : 'Mark as paid'}
+                </button>
+                <span className={paid === 'due' ? 'text-[13px] font-semibold text-warn' : 'text-[13px] text-ink-3'}>
+                  {paid === 'paid'
+                    ? `${paidOn ? `Marked ${fmtDay(paidOn)}` : 'Marked paid'} · tap to undo`
+                    : paid === 'due'
+                      ? 'Taught, not paid yet'
+                      : 'Not paid yet'}
+                </span>
+              </div>
             )}
           </div>
 

@@ -34,6 +34,22 @@ export function lessonFee(o: Pick<Occurrence, 'duration'>, rate: number | null |
   return rate == null ? null : round2((rate * o.duration) / 60)
 }
 
+/**
+ * The name a lesson's payment is filed under: its regular slot and the date
+ * it was due (unchanged by moving it), or the one-off's own change id.
+ */
+export function payKey(o: Occurrence): string | null {
+  if (o.slot) return `${o.slot.id}:${o.change?.original_date ?? o.date}`
+  if (o.change) return `extra:${o.change.id}`
+  return null
+}
+
+/** Whether a lesson can be marked paid: it's on (not cancelled, not the gap a move left). */
+export const payable = (o: Occurrence) => isOn(o) && payKey(o) !== null
+
+/** When a lesson ends, as epoch ms. */
+export const lessonEnd = (o: Occurrence) => localDateTime(o.date, o.time).getTime() + o.duration * 60000
+
 /** The month a week belongs to: the one its Thursday falls in (so a week straddling two months goes to the one holding most of it). */
 export function monthOfWeek(start: string): string {
   return addDays(start, 3).slice(0, 7)
@@ -72,15 +88,28 @@ export interface Tally {
   earned: number
   /** Students with lessons here but no rate set. */
   unpriced: string[]
+  /** Marked paid (at the amount recorded then). */
+  paid: number
+  /** Taught but not marked paid. */
+  owed: number
+  /** Who owes it, largest first. */
+  owedBy: StudentShare[]
   /** Cancelled lessons and what they would have come to. */
   cancelled: { lessons: number; amount: number }
   /** Largest first. */
   byStudent: StudentShare[]
 }
 
-export function tally(list: Occurrence[], rates: Map<string, number | null | undefined>, now: Date): Tally {
-  const t: Tally = { lessons: 0, minutes: 0, total: 0, earned: 0, unpriced: [], cancelled: { lessons: 0, amount: 0 }, byStudent: [] }
+export function tally(
+  list: Occurrence[],
+  rates: Map<string, number | null | undefined>,
+  now: Date,
+  /** Paid lessons: key → amount recorded (null when there was no rate then). */
+  payments: Map<string, number | null> = new Map(),
+): Tally {
+  const t: Tally = { lessons: 0, minutes: 0, total: 0, earned: 0, paid: 0, owed: 0, owedBy: [], unpriced: [], cancelled: { lessons: 0, amount: 0 }, byStudent: [] }
   const shares = new Map<string, StudentShare>()
+  const owing = new Map<string, StudentShare>()
   const unpriced = new Set<string>()
   for (const o of list) {
     const fee = lessonFee(o, rates.get(o.studentId))
@@ -92,13 +121,24 @@ export function tally(list: Occurrence[], rates: Map<string, number | null | und
     if (!isOn(o)) continue
     t.lessons++
     t.minutes += o.duration
+    const key = payKey(o)
+    const isPaid = key !== null && payments.has(key)
+    if (isPaid) t.paid += payments.get(key!) ?? fee ?? 0
     if (fee == null) {
       unpriced.add(o.studentId)
       continue
     }
     t.total += fee
-    const end = localDateTime(o.date, o.time).getTime() + o.duration * 60000
-    if (end <= now.getTime()) t.earned += fee
+    if (lessonEnd(o) <= now.getTime()) {
+      t.earned += fee
+      if (!isPaid) {
+        t.owed += fee
+        const d = owing.get(o.studentId) ?? { studentId: o.studentId, lessons: 0, amount: 0 }
+        d.lessons++
+        d.amount += fee
+        owing.set(o.studentId, d)
+      }
+    }
     const share = shares.get(o.studentId) ?? { studentId: o.studentId, lessons: 0, amount: 0 }
     share.lessons++
     share.amount += fee
@@ -106,6 +146,9 @@ export function tally(list: Occurrence[], rates: Map<string, number | null | und
   }
   t.total = round2(t.total)
   t.earned = round2(t.earned)
+  t.paid = round2(t.paid)
+  t.owed = round2(t.owed)
+  t.owedBy = [...owing.values()].map((d) => ({ ...d, amount: round2(d.amount) })).sort((a, b) => b.amount - a.amount)
   t.cancelled.amount = round2(t.cancelled.amount)
   t.unpriced = [...unpriced]
   t.byStudent = [...shares.values()].map((s) => ({ ...s, amount: round2(s.amount) })).sort((a, b) => b.amount - a.amount)

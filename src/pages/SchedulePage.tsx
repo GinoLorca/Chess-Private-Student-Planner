@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import scheduleSql from '../../supabase/migrations/0009_schedule.sql?raw'
 import rateSql from '../../supabase/migrations/0010_student_rate.sql?raw'
+import paymentsSql from '../../supabase/migrations/0011_lesson_payments.sql?raw'
 import type { Reminder, ScheduleSlot, Student } from '../types/domain'
 import {
   useReminders,
@@ -9,11 +10,14 @@ import {
   useScheduleMissing,
   useScheduleMutations,
   useScheduleSlots,
+  usePaymentMutations,
+  usePayments,
+  usePaymentsMissing,
   useRateMissing,
   useStudentPlaces,
   useStudents,
 } from '../lib/queries'
-import { RATE_MIGRATION, SCHEDULE_MIGRATION } from '../lib/data'
+import { PAYMENTS_MIGRATION, RATE_MIGRATION, SCHEDULE_MIGRATION } from '../lib/data'
 import {
   WEEKDAYS,
   addDays,
@@ -32,13 +36,13 @@ import {
   type Occurrence,
 } from '../lib/schedule'
 import { copyText } from '../lib/links'
-import { fmtMonth, lessonFee, monthOccurrences, monthOfWeek, setShowEarnings, tally, useShowEarnings } from '../lib/earnings'
+import { fmtMonth, lessonEnd, payKey, payable, lessonFee, monthOccurrences, monthOfWeek, setShowEarnings, tally, useShowEarnings } from '../lib/earnings'
 import { LedgerCard } from '../components/schedule/Ledger'
 import { Page, Card, SectionLabel, EmptyState, LoadingPage } from '../components/ui/Page'
 import { Button, IconButton } from '../components/ui/Button'
 import { ActionSheet } from '../components/ui/ActionSheet'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
-import { Calendar, ChevronLeft, ChevronRight, Close, Copy, MapPin, Plus, Refresh, Train, Trash } from '../components/ui/Icons'
+import { Calendar, Check, ChevronLeft, ChevronRight, Close, Copy, MapPin, Plus, Refresh, Train, Trash } from '../components/ui/Icons'
 import type { ActionItem } from '../components/ui/ActionSheet'
 import { WeekView } from '../components/schedule/Week'
 import { CancelModal, LessonSheet, LessonTimeModal, SlotModal, type LessonTimeValues, type SlotValues } from '../components/schedule/Sheets'
@@ -69,6 +73,9 @@ export function SchedulePage() {
   const m = useScheduleMutations()
   const showEarnings = useShowEarnings()
   const rateMissing = useRateMissing(ready && showEarnings)
+  const paymentsMissing = usePaymentsMissing(ready && showEarnings)
+  const paymentsQ = usePayments(ready && showEarnings && paymentsMissing.data === false)
+  const pay = usePaymentMutations()
   const [now] = useState(() => new Date())
   const [rateCopied, setRateCopied] = useState(false)
 
@@ -231,7 +238,11 @@ export function SchedulePage() {
           { label: 'Transit route and ETA', icon: <Train />, onSelect: () => window.open(directionsUrl(address, 'transit'), '_blank', 'noopener') },
         ]
       : []
-    return [...lessonItems(o), ...travel, details]
+    const state = payState(o)
+    const paidItem: ActionItem[] = state
+      ? [{ label: state === 'paid' ? 'Mark as not paid' : 'Mark as paid', icon: <Check />, onSelect: () => togglePaid(o) }]
+      : []
+    return [...paidItem, ...lessonItems(o), ...travel, details]
   }
   const lessonItems = (o: Occurrence): ActionItem[] => {
     switch (o.state) {
@@ -275,8 +286,27 @@ export function SchedulePage() {
   const hasRates = [...rates.values()].some((r) => r != null)
   // This week's ledger is this month's; any other week goes to the month holding most of it.
   const month = start === weekStart(today) ? today.slice(0, 7) : monthOfWeek(start)
-  const weekTally = tally(occurrences, rates, now)
-  const monthTally = tally(monthOccurrences(month, slots.data ?? [], changes.data ?? []), rates, now)
+  const payments = new Map((paymentsQ.data ?? []).map((p) => [p.lesson_key, p.amount]))
+  const paidOn = new Map((paymentsQ.data ?? []).map((p) => [p.lesson_key, p.paid_on]))
+  const weekTally = tally(occurrences, rates, now, payments)
+  const monthTally = tally(monthOccurrences(month, slots.data ?? [], changes.data ?? []), rates, now, payments)
+  const canMarkPaid = showEarnings && paymentsMissing.data === false
+  /** 'paid', 'due' (taught, not paid), 'open' (still to come), or null when there's nothing to mark. */
+  const payState = (o: Occurrence): 'paid' | 'due' | 'open' | null => {
+    const key = payKey(o)
+    if (!canMarkPaid || !key || !payable(o)) return null
+    if (payments.has(key)) return 'paid'
+    return lessonEnd(o) <= now.getTime() ? 'due' : 'open'
+  }
+  const togglePaid = (o: Occurrence) => {
+    const key = payKey(o)
+    if (!key) return
+    if (payments.has(key)) pay.unpaid.mutate(key)
+    else pay.paid.mutate({ student_id: o.studentId, lesson_key: key, lesson_date: o.date, amount: lessonFee(o, rates.get(o.studentId)) })
+  }
+  const missingMoney = [rateMissing.data && { file: RATE_MIGRATION, sql: rateSql }, paymentsMissing.data && { file: PAYMENTS_MIGRATION, sql: paymentsSql }].filter(
+    (x): x is { file: string; sql: string } => Boolean(x),
+  )
   const loadError = slots.error ?? changes.error
 
   return (
@@ -354,6 +384,7 @@ export function SchedulePage() {
           places={places}
           today={today}
           fees={showEarnings ? new Map(occurrences.map((o) => [o.key, lessonFee(o, rates.get(o.studentId))])) : undefined}
+          paid={canMarkPaid ? new Map(occurrences.map((o) => [o.key, payState(o)])) : undefined}
           onOpen={setOpened}
           onMenu={setQuick}
         />
@@ -370,22 +401,34 @@ export function SchedulePage() {
           monthTitle={fmtMonth(month, today)}
           students={students}
           notice={
-            rateMissing.data ? (
+            missingMoney.length > 0 ? (
               <div className="rounded-xl bg-warn-soft px-3.5 py-3 text-[14px] text-warn">
-                <p className="font-semibold">One more database update adds hourly rates.</p>
-                <p className="mt-1">In Supabase → SQL Editor, paste {RATE_MIGRATION} and Run, once.</p>
+                <p className="font-semibold">
+                  {missingMoney.length === 1 ? 'One more database update' : 'Two more database updates'} for rates and paid lessons.
+                </p>
+                <p className="mt-1">
+                  In Supabase → SQL Editor, paste {missingMoney.map((x) => x.file).join(' and ')} and Run, once. The button copies
+                  {missingMoney.length === 1 ? ' it' : ' both'}.
+                </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button
                     size="sm"
                     variant="secondary"
                     onClick={async () => {
-                      await copyText(rateSql)
+                      await copyText(missingMoney.map((x) => x.sql).join('\n\n'))
                       setRateCopied(true)
                     }}
                   >
                     {rateCopied ? 'Copied' : 'Copy the SQL'}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => rateMissing.refetch()}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      void rateMissing.refetch()
+                      void paymentsMissing.refetch()
+                    }}
+                  >
                     I've run it, check again
                   </Button>
                 </div>
@@ -465,6 +508,9 @@ export function SchedulePage() {
         student={opened ? students.get(opened.studentId) : undefined}
         place={opened ? places.get(opened.studentId) : undefined}
         rate={showEarnings && opened ? rates.get(opened.studentId) : undefined}
+        paid={opened ? payState(opened) : null}
+        paidOn={opened ? (paidOn.get(payKey(opened) ?? '') ?? null) : null}
+        onTogglePaid={() => opened && togglePaid(opened)}
         onClose={() => setOpened(null)}
         actions={{
           onMove: () => setMoving(opened),

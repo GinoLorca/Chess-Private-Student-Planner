@@ -4,7 +4,7 @@ import type { Student } from '../../types/domain'
 import { fmtHours, fmtMoney, type Tally } from '../../lib/earnings'
 import { shortName } from '../../lib/schedule'
 import { IconButton } from '../ui/Button'
-import { EyeOff } from '../ui/Icons'
+import { Check, EyeOff } from '../ui/Icons'
 
 /**
  * What the lessons come to, set out like the foot of a receipt: the week
@@ -115,6 +115,28 @@ function Side({ title, t, students, onSetRate }: { title: string; t: Tally; stud
             </p>
           </div>
         </>
+      )}
+
+      {(t.paid > 0 || t.owed > 0) && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {t.paid > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-[12.5px] font-bold text-accent-ink tabular-nums">
+              <Check size={12} strokeWidth={3} /> {fmtMoney(t.paid)} paid
+            </span>
+          )}
+          {t.owed > 0 && (
+            <span className="inline-flex items-center rounded-full bg-warn-soft px-2.5 py-0.5 text-[12.5px] font-bold text-warn tabular-nums">
+              {fmtMoney(t.owed)} owed
+            </span>
+          )}
+          {t.owedBy.length > 0 && (
+            <span className="text-[12.5px] text-ink-3">
+              {t.owedBy
+                .map((d) => `${students.get(d.studentId) ? shortName(students.get(d.studentId)!.name) : 'Student'} ${fmtMoney(d.amount)}${d.lessons > 1 ? ` (${d.lessons})` : ''}`)
+                .join(' · ')}
+            </span>
+          )}
+        </div>
       )}
 
       {(t.cancelled.lessons > 0 || t.unpriced.length > 0) && (

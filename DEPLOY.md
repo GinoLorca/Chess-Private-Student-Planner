@@ -114,6 +114,7 @@ re-run, so if you're not sure which you've done, run `supabase/setup_all.sql` ag
 | `0008_student_uscf.sql` | a USCF ID on each student, for the live rating on the folder |
 | `0009_schedule.sql` | the weekly schedule, its reminders, and each student's address and door codes |
 | `0010_student_rate.sql` | each student's hourly rate, for lesson fees and the Schedule's week and month totals |
+| `0011_lesson_payments.sql` | which lessons were paid, for the paid markers and the ledger's paid / owed |
 
 ---
 

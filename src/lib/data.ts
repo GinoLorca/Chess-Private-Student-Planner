@@ -65,6 +65,12 @@ export const listStudentPlaces = impl.listStudentPlaces
 export const saveStudentPlace = impl.saveStudentPlace
 export const rateColumnMissing = impl.rateColumnMissing
 export { RATE_MIGRATION } from './api'
+export const paymentsTableMissing = impl.paymentsTableMissing
+export const listPayments = impl.listPayments
+export const markPaid = impl.markPaid
+export const markUnpaid = impl.markUnpaid
+export { PAYMENTS_MIGRATION } from './api'
+export type { PaymentInput } from './api'
 export { SCHEDULE_MIGRATION, SCHEDULE_TABLES } from './api'
 export type { ChangeInput, PlacePatch, ReminderInput, ReminderPatch, SlotInput } from './api'
 

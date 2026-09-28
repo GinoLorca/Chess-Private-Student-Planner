@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { onlineManager } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import scheduleSql from '../../supabase/migrations/0009_schedule.sql?raw'
 import rateSql from '../../supabase/migrations/0010_student_rate.sql?raw'
@@ -95,6 +96,16 @@ export function SchedulePage() {
   const [placeFor, setPlaceFor] = useState<Student | null>(null)
   const [toast, setToast] = useState<Reminder | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  /**
+   * Save a change. Online, wait for it (and its reminder). Offline, it's
+   * already on screen and queued on the device, so carry on and say so.
+   */
+  async function commit<V, R>(mutation: { mutate: (v: V) => void; mutateAsync: (v: V) => Promise<R> }, vars: V): Promise<R | undefined> {
+    if (onlineManager.isOnline()) return mutation.mutateAsync(vars)
+    mutation.mutate(vars)
+    setNotice("You're offline. The change is saved on this device and syncs when you're back online.")
+    return undefined
+  }
   const [copied, setCopied] = useState(false)
 
   if ((loadingStudents && !studentList) || (missing.isLoading && !missing.data)) return <LoadingPage />
@@ -160,23 +171,23 @@ export function SchedulePage() {
 
   async function saveMove(o: Occurrence, v: LessonTimeValues) {
     if (o.state === 'extra') {
-      const { reminder } = await m.change.mutateAsync({
+      const done = await commit(m.change, {
         input: { slot_id: null, student_id: o.studentId, kind: 'extra', original_date: null, new_date: v.date, new_time: v.time, duration_min: v.duration, note: v.note },
         id: o.change!.id,
         studentName: nameOf(o.studentId),
         slot: null,
       })
-      setToast(reminder)
+      if (done) setToast(done.reminder)
       return
     }
     const slot = o.slot!
     const from = originalDate(o)
     // Moved back to its own day and time: that's just the regular lesson again.
     if (v.date === from && v.time === slot.start_time && v.duration === slot.duration_min) {
-      if (o.change) await m.undo.mutateAsync(o.change.id)
+      if (o.change) await commit(m.undo, { id: o.change.id, slot_id: o.change.slot_id, original_date: o.change.original_date })
       return
     }
-    const { reminder } = await m.change.mutateAsync({
+    const done = await commit(m.change, {
       input: {
         slot_id: slot.id,
         student_id: o.studentId,
@@ -190,34 +201,34 @@ export function SchedulePage() {
       studentName: nameOf(o.studentId),
       slot,
     })
-    setToast(reminder)
+    if (done) setToast(done.reminder)
     // Follow the lesson if it moved into another week.
     if (weekStart(v.date) !== start) setStart(weekStart(v.date))
   }
 
   async function saveCancel(o: Occurrence, note: string) {
-    const { reminder } = await m.change.mutateAsync({
+    const done = await commit(m.change, {
       input: { slot_id: o.slot!.id, student_id: o.studentId, kind: 'cancelled', original_date: originalDate(o), new_date: null, new_time: null, duration_min: null, note },
       studentName: nameOf(o.studentId),
       slot: o.slot,
     })
-    setToast(reminder)
+    if (done) setToast(done.reminder)
   }
 
   async function saveExtra(v: LessonTimeValues) {
-    const { reminder } = await m.change.mutateAsync({
+    const done = await commit(m.change, {
       input: { slot_id: null, student_id: v.studentId, kind: 'extra', original_date: null, new_date: v.date, new_time: v.time, duration_min: v.duration, note: v.note },
       studentName: nameOf(v.studentId),
       slot: null,
     })
-    setToast(reminder)
+    if (done) setToast(done.reminder)
     if (weekStart(v.date) !== start) setStart(weekStart(v.date))
   }
 
   async function saveSlot(v: SlotValues) {
     const input = { student_id: v.studentId, weekday: v.weekday, start_time: v.time, duration_min: v.duration }
-    if (slotEdit?.slot) await m.updateSlot.mutateAsync({ id: slotEdit.slot.id, patch: input })
-    else await m.addSlot.mutateAsync(input)
+    if (slotEdit?.slot) await commit(m.updateSlot, { id: slotEdit.slot.id, patch: input })
+    else await commit(m.addSlot, input)
   }
 
   const moveInitial = (o: Occurrence): LessonTimeValues => ({
@@ -587,7 +598,7 @@ export function SchedulePage() {
             : undefined
         }
         confirmLabel="Remove"
-        onConfirm={() => m.removeSlot.mutateAsync(deletingSlot!.id)}
+        onConfirm={() => commit(m.removeSlot, deletingSlot!.id).then(() => undefined)}
         onClose={() => setDeletingSlot(null)}
       />
 
@@ -601,7 +612,7 @@ export function SchedulePage() {
         }
         confirmLabel={undoing?.state === 'extra' ? 'Remove' : 'Put it back'}
         danger={undoing?.state === 'extra'}
-        onConfirm={() => m.undo.mutateAsync(undoing!.change!.id)}
+        onConfirm={() => commit(m.undo, { id: undoing!.change!.id, slot_id: undoing!.change!.slot_id, original_date: undoing!.change!.original_date }).then(() => undefined)}
         onClose={() => setUndoing(null)}
       />
 
@@ -627,7 +638,7 @@ export function SchedulePage() {
         place={placeFor ? places.get(placeFor.id) : null}
         rate={!showEarnings ? 'off' : rateMissing.data === false ? 'on' : 'pending'}
         onClose={() => setPlaceFor(null)}
-        onSave={(patch) => m.savePlace.mutateAsync({ studentId: placeFor!.id, patch })}
+        onSave={(patch) => commit(m.savePlace, { studentId: placeFor!.id, patch }).then(() => undefined)}
       />
 
       <ReminderToast reminder={toast} onSend={send} onClose={() => setToast(null)} />

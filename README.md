@@ -77,17 +77,22 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   on every index card, the position page, the workbench and the lesson's ⋯ menu (*Copy links to
   all positions*). Paste a link into the ICN Chess Club Planner's *Puzzle / exercise links* row
   with a label, and the class lesson opens it straight at the board.
-- **Works without a connection.** Every student's lessons are pulled onto the device while
-  online, so the whole cabinet opens on a plane or in a dead Wi-Fi room. Anything changed
-  offline (a stamp, a note, an annotation) waits in a queue, shown in a bar at the top, and
-  syncs when the connection returns. Sign-in survives offline, the display fonts are cached,
-  and a new version of the app installs itself on the next launch.
+- **Works without a connection.** While online, everything is pulled onto the device: every
+  student's lessons and folders, the schedule, reminders, addresses and door and bathroom codes,
+  rates and payments, USCF ratings and the player tracker, and the library. It's kept in the
+  device's IndexedDB storage, so the app opens with no signal at all (on a plane, underground,
+  in a dead Wi-Fi room). Anything changed offline (a cancel or a move, a paid tick, a code, a
+  stamp, a note) shows at once and waits in a queue, shown in a bar at the top; the schedule's
+  changes are saved on the device too, so they still send if the app was closed in between. A
+  save that can't reach the server stays queued rather than being lost. Maps and directions
+  need a connection; copying an address doesn't. Sign-in survives offline, the display fonts are
+  cached, and a new version of the app installs itself on the next launch.
 - Installable PWA, light and dark.
 
 ## Stack
 
-- React 19 + TypeScript + Vite, Tailwind CSS 4, Framer Motion, TanStack Query (with a localStorage
-  persister for offline reads), `vite-plugin-pwa`
+- React 19 + TypeScript + Vite, Tailwind CSS 4, Framer Motion, TanStack Query (with an IndexedDB
+  persister, via idb-keyval, for offline reads and queued changes), `vite-plugin-pwa`
 - A custom board component (no chessboard library); `chess.js` for move legality and PGN
 - Supabase (Postgres + Auth + one Edge Function for the AI helpers)
 - `api/mcp.js`: an MCP connector (Vercel function, plain JavaScript) so an agent can create

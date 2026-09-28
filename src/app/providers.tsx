@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { QueryClient } from '@tanstack/react-query'
+import { onlineManager, QueryClient } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
-import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
+import { del, get, set } from 'idb-keyval'
+import { registerOfflineMutations } from '../lib/queries'
 
 // ---------------------------------------------------------------------------
 // Data: cached + persisted so an open lesson survives a dead Wi-Fi room.
@@ -14,6 +16,34 @@ const CACHE_LIFE = ONE_DAY * 24
 // How long the persisted copy on the device is trusted: a lesson looked at
 // a month ago still opens on a plane.
 const PERSIST_LIFE = ONE_DAY * 35
+
+// The query layer only hears "offline" when the connection drops while the
+// app is open; started with no signal it would assume it's online, try to
+// send changes and lose them. Start from what the device says.
+if (typeof navigator !== 'undefined') onlineManager.setOnline(navigator.onLine)
+
+/** A request that never reached the server (no signal, a dead Wi-Fi) rather than one it refused. */
+function isNetworkError(e: unknown): boolean {
+  const message = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : String(e)
+  return /failed to fetch|load failed|networkerror|network request failed|fetch failed|the internet connection appears to be offline/i.test(message)
+}
+
+let recheck: number | undefined
+/**
+ * A change that couldn't reach the server stays queued: the app counts
+ * itself offline (which pauses the queue) and looks again in 20 seconds, or
+ * as soon as the device reports the connection back. Anything the server
+ * refused gets three tries, as before.
+ */
+function retryChange(failures: number, error: unknown): boolean {
+  if (isNetworkError(error)) {
+    onlineManager.setOnline(false)
+    window.clearTimeout(recheck)
+    recheck = window.setTimeout(() => onlineManager.setOnline(navigator.onLine), 20_000)
+    return true
+  }
+  return failures < 3
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,7 +60,7 @@ const queryClient = new QueryClient({
       // A stamp or a note made offline waits in the queue and is sent when
       // the connection returns; a flaky reconnect gets a few tries.
       networkMode: 'online',
-      retry: 3,
+      retry: retryChange,
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 15_000),
     },
   },
@@ -39,14 +69,75 @@ const queryClient = new QueryClient({
 // Dev only: lets a test script look at the cache from the page.
 if (import.meta.env.DEV) (window as unknown as { __qc?: QueryClient }).__qc = queryClient
 
-const persister = createSyncStoragePersister({
-  storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-  key: 'lesson-planner-cache',
-})
+// Changes made with no connection are kept on the device and sent later, even
+// if the app is closed in between: each kind has its function registered here,
+// so a change restored from storage knows how to send itself.
+registerOfflineMutations(queryClient)
+
+/**
+ * Where the cache lives on the device: IndexedDB, which holds far more than
+ * localStorage's few megabytes (every lesson, the schedule, codes, ratings),
+ * with localStorage as the fallback where IndexedDB isn't available. The
+ * first read moves a copy saved by the older localStorage version across.
+ */
+const CACHE_KEY = 'lesson-planner-cache'
+const deviceStorage = {
+  async getItem(key: string): Promise<string | null> {
+    try {
+      const value = await get<string>(key)
+      if (value != null) return value
+      const legacy = localStorage.getItem(key)
+      if (legacy != null) {
+        await set(key, legacy)
+        localStorage.removeItem(key)
+      }
+      return legacy
+    } catch {
+      try {
+        return localStorage.getItem(key)
+      } catch {
+        return null
+      }
+    }
+  },
+  async setItem(key: string, value: string) {
+    try {
+      await set(key, value)
+    } catch {
+      try {
+        localStorage.setItem(key, value)
+      } catch {
+        // Out of room everywhere: the app still works, it just won't remember this copy.
+      }
+    }
+  },
+  async removeItem(key: string) {
+    try {
+      await del(key)
+    } catch {
+      // nothing saved there
+    }
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      // nothing saved there
+    }
+  },
+}
+
+const persister = createAsyncStoragePersister({ storage: deviceStorage, key: CACHE_KEY, throttleTime: 1000 })
 
 export function QueryProvider({ children }: { children: ReactNode }) {
   return (
-    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: PERSIST_LIFE, buster: 'v3' }}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister, maxAge: PERSIST_LIFE, buster: 'v3' }}
+      // Changes waiting from last time are sent as soon as the cache is back
+      // (they wait again by themselves if there's still no connection).
+      onSuccess={() => {
+        void queryClient.resumePausedMutations().then(() => queryClient.invalidateQueries())
+      }}
+    >
       {children}
     </PersistQueryClientProvider>
   )

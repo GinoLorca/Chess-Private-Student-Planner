@@ -77,7 +77,7 @@ export function DayPicker({ weekStart, value, onChange }: { weekStart: string; v
   )
 }
 
-const LENGTHS = [30, 45, 60, 90]
+const LENGTHS = [30, 45, 60, 90, 120, 150, 180]
 
 export function LengthPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return (

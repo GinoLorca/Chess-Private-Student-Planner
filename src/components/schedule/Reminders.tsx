@@ -39,7 +39,7 @@ export function RemindersCard({
         <h2 className="text-[16px] font-bold text-ink">Reminders</h2>
         {open.length > 0 && <span className="rounded-full bg-accent px-2 py-0.5 text-[12px] font-bold text-accent-ink">{open.length}</span>}
       </div>
-      <p className="mb-3 text-[13px] text-ink-3">Written whenever a lesson is cancelled or moved. Send each one to Apple Reminders.</p>
+      <div className="mb-2" />
       {open.length === 0 && <p className="py-2 text-[14px] text-ink-3">All caught up.</p>}
       <ul className="divide-y divide-line">
         {open.map((r) => (

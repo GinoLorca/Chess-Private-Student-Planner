@@ -211,7 +211,29 @@ export function useLessonContentMutations(planId: string) {
     onSuccess: invalidate,
   })
   const deletePuzzle = useMutation({ mutationFn: (id: string) => api.deletePuzzle(id), onSuccess: invalidate })
-  return { createSection, updateSection, deleteSection, createPuzzle, deletePuzzle }
+  /** Move a position to the end of another section; the cards move at once and move back if the save fails. */
+  const movePuzzle = useMutation({
+    mutationFn: ({ puzzle, toSectionId, sortOrder }: { puzzle: Puzzle; toSectionId: string; sortOrder: number }) =>
+      api.updatePuzzle(puzzle.id, { section_id: toSectionId, sort_order: sortOrder }),
+    onMutate: async ({ puzzle, toSectionId, sortOrder }) => {
+      const key = keys.lesson(planId)
+      await qc.cancelQueries({ queryKey: key })
+      const prev = qc.getQueryData<api.LessonBundle>(key)
+      if (prev) {
+        const moved = { ...puzzle, section_id: toSectionId, sort_order: sortOrder }
+        const bySection = Object.fromEntries(Object.entries(prev.puzzlesBySection).map(([sid, list]) => [sid, list.filter((p) => p.id !== puzzle.id)]))
+        bySection[toSectionId] = [...(bySection[toSectionId] ?? []), moved]
+        qc.setQueryData<api.LessonBundle>(key, { ...prev, puzzlesBySection: bySection })
+      }
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => ctx?.prev && qc.setQueryData(keys.lesson(planId), ctx.prev),
+    onSettled: (_d, _e, { puzzle }) => {
+      invalidate()
+      qc.invalidateQueries({ queryKey: keys.puzzle(puzzle.id) })
+    },
+  })
+  return { createSection, updateSection, deleteSection, createPuzzle, deletePuzzle, movePuzzle }
 }
 
 export function useCustomPieceSetMutations() {

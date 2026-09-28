@@ -212,10 +212,7 @@ function Bench({
           onArrowsChange={atStart ? (arrows) => apply({ arrows }) : undefined}
           onHighlightsChange={atStart ? (highlights) => apply({ highlights }) : undefined}
         />
-        <div className="mt-2 flex items-center justify-between">
-          <p className="text-[13px] text-on-bg-2">
-            {atStart ? 'Play the answer on the board. Right-drag for arrows, right-click to highlight.' : 'Keep playing to extend the line.'}
-          </p>
+        <div className="mt-2 flex items-center justify-end">
           <p className="shrink-0 text-[12px] font-semibold tracking-[0.1em] text-on-bg-2 uppercase">{toMove} to play</p>
         </div>
 

@@ -26,7 +26,7 @@ import { ActionSheet } from '../components/ui/ActionSheet'
 import { ImportSheet } from '../components/import/ImportSheet'
 import { FenSheet } from '../components/lesson/FenSheet'
 import { patchFromImported } from '../lib/import'
-import { Check, ChevronDown, Document, Download, Eye, Knight, LinkIcon, More, Pencil, Plus, Recycle, Target, Trash } from '../components/ui/Icons'
+import { Check, ChevronDown, ChevronRight, Document, Download, Eye, Folder, Knight, LinkIcon, More, Pencil, Plus, Recycle, Target, Trash } from '../components/ui/Icons'
 import { answerProblem } from '../lib/solution'
 import { copyText, puzzleLink } from '../lib/links'
 
@@ -49,6 +49,9 @@ export function LessonPlanDetailPage() {
   const [renamingSection, setRenamingSection] = useState<LessonSection | null>(null)
   const [deletingSection, setDeletingSection] = useState<LessonSection | null>(null)
   const [deletingPuzzle, setDeletingPuzzle] = useState<Puzzle | null>(null)
+  const [puzzleMenu, setPuzzleMenu] = useState<Puzzle | null>(null)
+  const [movingToNew, setMovingToNew] = useState<Puzzle | null>(null)
+  const [moved, setMoved] = useState<string | null>(null)
   const [quickAddFor, setQuickAddFor] = useState<LessonSection | null>(null)
   const [addingFens, setAddingFens] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -96,6 +99,31 @@ export function LessonPlanDetailPage() {
       id: plan.id,
       patch: { status, taught_on: status === 'taught' ? today() : null },
     })
+  }
+
+  /** Move a position to the end of another section, and say where it went. */
+  async function moveTo(puzzle: Puzzle, sectionId: string, title: string) {
+    const last = (puzzlesBySection[sectionId] ?? []).reduce((n, p) => Math.max(n, p.sort_order), -1)
+    setMoved(`${puzzle.label || 'Position'} moved to ${title || 'Untitled section'}.`)
+    window.setTimeout(() => setMoved(null), 3500)
+    await content.movePuzzle.mutateAsync({ puzzle, toSectionId: sectionId, sortOrder: last + 1 })
+  }
+
+  /** The right-click / hold menu on a position card. */
+  function positionItems(puzzle: Puzzle) {
+    const others = sections.filter((sec) => sec.id !== puzzle.section_id)
+    return [
+      ...others.map((sec) => ({
+        label: `Move to ${sec.title || 'Untitled section'}`,
+        icon: <ChevronRight />,
+        onSelect: () => void moveTo(puzzle, sec.id, sec.title),
+      })),
+      { label: 'Move to a new section…', icon: <Folder />, onSelect: () => setMovingToNew(puzzle) },
+      { label: 'Open', icon: <Eye />, onSelect: () => navigate(`${base}/puzzles/${puzzle.id}`) },
+      { label: 'Edit', icon: <Pencil />, onSelect: () => navigate(`${base}/puzzles/${puzzle.id}/edit`) },
+      { label: 'Copy link', icon: <LinkIcon />, onSelect: () => void copyText(puzzleLink(puzzle.id)) },
+      { label: 'Delete', icon: <Trash />, danger: true, onSelect: () => setDeletingPuzzle(puzzle) },
+    ]
   }
 
   const folderColor = student?.color ?? FOLDER_COLORS[0]
@@ -218,6 +246,8 @@ export function LessonPlanDetailPage() {
             activeId={active?.id ?? null}
             onPick={openSection}
             onAdd={() => setAddingSection(true)}
+            onMenu={(id) => setSectionMenu(sections.find((x) => x.id === id) ?? null)}
+            onRename={(id) => setRenamingSection(sections.find((x) => x.id === id) ?? null)}
           />
           <DividerPaper color={active ? dividerColor(activeIndex) : 'var(--line-strong)'}>
             {active ? (
@@ -228,6 +258,11 @@ export function LessonPlanDetailPage() {
                     <More size={18} />
                   </IconButton>
                 </div>
+                {moved && (
+                  <p role="status" className="mb-3 rounded-xl bg-accent-soft px-3.5 py-2 text-[14px] font-semibold text-accent-strong">
+                    {moved}
+                  </p>
+                )}
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   {activePuzzles.map((puzzle, i) => (
                     <IndexCard
@@ -236,6 +271,7 @@ export function LessonPlanDetailPage() {
                       index={i}
                       to={`${base}/puzzles/${puzzle.id}`}
                       onDelete={() => setDeletingPuzzle(puzzle)}
+                      onMenu={() => setPuzzleMenu(puzzle)}
                     />
                   ))}
                   <div className="add-slot flex min-h-[120px] flex-wrap items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-line-strong p-4">
@@ -250,11 +286,6 @@ export function LessonPlanDetailPage() {
                     </Button>
                   </div>
                 </div>
-                {activePuzzles.length === 0 && (
-                  <p className="mt-3 text-[13px] text-ink-3">
-                    Paste a Lichess or Chess.com link, a FEN, or several at once. Each becomes an index card here.
-                  </p>
-                )}
               </>
             ) : (
               <div className="py-8 text-center">
@@ -380,10 +411,29 @@ export function LessonPlanDetailPage() {
           { label: 'Delete section', icon: <Trash />, danger: true, onSelect: () => setDeletingSection(sectionMenu) },
         ]}
       />
+      <ActionSheet
+        open={Boolean(puzzleMenu)}
+        onClose={() => setPuzzleMenu(null)}
+        title={puzzleMenu?.label || 'Position'}
+        items={puzzleMenu ? positionItems(puzzleMenu) : []}
+      />
+      <InputModal
+        open={Boolean(movingToNew)}
+        title="Move to a new section"
+        label="Section name"
+        placeholder="Middle Game"
+        submitLabel="Move"
+        onClose={() => setMovingToNew(null)}
+        onSubmit={async (title) => {
+          if (!movingToNew) return
+          const section = await content.createSection.mutateAsync(title)
+          await moveTo(movingToNew, section.id, title)
+        }}
+      />
       <InputModal
         open={Boolean(renamingSection)}
         title="Rename section"
-        label="Theme"
+        label="Section name"
         initialValue={renamingSection?.title ?? ''}
         onClose={() => setRenamingSection(null)}
         onSubmit={async (title) => {

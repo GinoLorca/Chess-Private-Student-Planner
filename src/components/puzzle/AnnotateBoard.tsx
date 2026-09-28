@@ -3,7 +3,7 @@ import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
 import { Board } from '../board/Board'
 import { squareAtPoint, DRAG_THRESHOLD } from '../board/pointer'
-import { HIGHLIGHT_ALPHA, PENS, currentPen, penHint } from '../../lib/pens'
+import { HIGHLIGHT_ALPHA, PENS, currentPen } from '../../lib/pens'
 import { Button } from '../ui/Button'
 import type { Orientation } from '../../lib/fen'
 
@@ -134,10 +134,6 @@ export function AnnotateBoard({
           </Button>
         )}
       </div>
-      <p className="text-[13px] text-ink-3">
-        Drag between squares for an arrow, tap a square to highlight it; the same again removes it. With a mouse:
-        right-drag draws, hold {penHint()}, left-click clears.
-      </p>
       <div className="mx-auto w-full max-w-[560px]">
         <Board
           ref={boardRef}

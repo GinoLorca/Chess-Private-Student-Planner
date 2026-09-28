@@ -475,6 +475,8 @@ export async function getPuzzle(id: string): Promise<Puzzle> {
 }
 
 export interface PuzzlePatch {
+  /** Moving a position to another section of its lesson. */
+  section_id?: string
   label?: string
   starting_fen?: string
   side_to_move?: 'w' | 'b'

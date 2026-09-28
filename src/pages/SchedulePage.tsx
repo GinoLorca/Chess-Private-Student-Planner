@@ -400,9 +400,6 @@ export function SchedulePage() {
           onMenu={setQuick}
         />
       )}
-      <p className="mt-2 text-[13px] text-on-bg-2">
-        Right-click or press and hold a lesson to reschedule or cancel it for this week only. Tap it for the address and door codes.
-      </p>
 
       {showEarnings && slotList.length + weekChanges.size > 0 && (
         <LedgerCard
@@ -504,9 +501,6 @@ export function SchedulePage() {
       <SectionLabel tone="page" className="mt-10">
         Addresses and door codes
       </SectionLabel>
-      <p className="-mt-1 mb-4 text-[14px] text-on-bg-2">
-        Each student's lesson address, front door code and bathroom code. Tap a code to copy it.
-      </p>
       {roster.length === 0 ? (
         <EmptyState title="No students yet" body="Add a student on the Students page first." />
       ) : (

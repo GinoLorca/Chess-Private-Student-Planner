@@ -321,10 +321,6 @@ function Editor({
                   </Button>
                 </div>
               )}
-              <p className="text-[13px] text-ink-3">
-                Play the answer on the board — tap a piece, then where it goes. Each move is added to the line below.
-                {puzzle.solution.length > 0 && ' Click a move (or use the clicker / arrow keys) to step back through the line; a move played from there replaces the rest.'}
-              </p>
             </div>
           )}
         </PaperCard>
@@ -466,7 +462,6 @@ function Editor({
                 placeholder="The idea, in the words you'd use at the board."
                 className={`${field} resize-y py-3 leading-relaxed`}
               />
-              <p className="mt-1.5 text-[12.5px] text-ink-3">Tap a starter to add it, then finish the sentence:</p>
               <ChipRow className="mt-2" scroll>
                 {starters.map((text) => (
                   <Chip key={text} className="h-9 text-[13px]" icon={<Plus size={13} />} onClick={() => insertStarter(text)}>

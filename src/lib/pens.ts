@@ -46,8 +46,4 @@ export function currentPen(): Pen {
   return PENS.find((p) => held.has(p.key)) ?? DEFAULT_PEN
 }
 
-export function penHint(): string {
-  return PENS.map((p) => `${p.key.toUpperCase()} ${p.name.toLowerCase()}`).join(' · ')
-}
-
 listen()

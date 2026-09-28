@@ -7,7 +7,6 @@ import { lineSteps, stepLabel } from '../lib/solution'
 import { useClicker } from '../hooks/useClicker'
 import { Page, Card, LoadingPage, SectionLabel } from '../components/ui/Page'
 import { effectiveQuizPrompt } from '../lib/prompts'
-import { penHint } from '../lib/pens'
 import { CopyLinkButton } from '../components/ui/CopyLink'
 import { Button, IconButton } from '../components/ui/Button'
 import { DrawableBoard } from '../components/board/DrawableBoard'
@@ -110,10 +109,6 @@ export function PuzzlePage() {
               </Button>
             </div>
           )}
-          <p className="mt-2 text-[12.5px] text-on-bg-2">
-            {last > 0 ? 'Click the board, a move, or the clicker (arrow keys) to step through the answer. ' : ''}
-            Right-drag for an arrow, right-click a square to highlight it, left-click to clear. Hold {penHint()}.
-          </p>
         </div>
 
         <div className="space-y-4">
@@ -159,7 +154,7 @@ export function PuzzlePage() {
                 </IconButton>
               </div>
               {hidden ? (
-                <p className="mt-1 text-[14px] text-ink-3">Answer and explanation hidden. Tap the eye, or long-press a clicker button, to show them.</p>
+                <p className="mt-1 text-[14px] text-ink-3">Answer and explanation hidden.</p>
               ) : (
                 puzzle.summary && <p className="mt-2 text-[16px] leading-relaxed whitespace-pre-wrap text-ink">{puzzle.summary}</p>
               )}

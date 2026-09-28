@@ -11,6 +11,7 @@ import { ChevronDown, Trash, Warning } from '../ui/Icons'
 import { IconButton } from '../ui/Button'
 import { onColor } from '../../lib/colors'
 import { CopyLinkButton } from '../ui/CopyLink'
+import { useLongPress } from '../../hooks/useLongPress'
 
 /**
  * The lesson page as an open manila folder: the student's tab on top, the
@@ -128,39 +129,31 @@ export function DividerTabs({
   activeId,
   onPick,
   onAdd,
+  onMenu,
+  onRename,
 }: {
   tabs: DividerTabItem[]
   activeId: string | null
   onPick: (id: string) => void
   /** Omit to leave out the "+ Section" tab. */
   onAdd?: () => void
+  /** Right-click or press and hold a tab: its menu (rename, delete). */
+  onMenu?: (id: string) => void
+  /** Double-click a tab to rename it. */
+  onRename?: (id: string) => void
 }) {
   return (
     <div className="-mx-3 flex items-end gap-1.5 overflow-x-auto px-3 pt-1 pl-5 [scrollbar-width:none] sm:-mx-5 sm:px-5 sm:pl-7">
-      {tabs.map((t) => {
-        const active = t.id === activeId
-        return (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => onPick(t.id)}
-            aria-pressed={active}
-            className={clsx(
-              'divider-tab flex shrink-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.06em] whitespace-nowrap uppercase transition sm:px-4 sm:text-[13px]',
-              active ? 'active h-10 text-black/70 shadow-[0_-6px_14px_-10px_rgba(0,0,0,0.35)]' : 'h-[34px] text-black/55 brightness-[0.96]',
-            )}
-            style={{ background: t.color }}
-          >
-            {t.title || 'Untitled section'}
-            {t.count !== undefined && (
-              <span className="inline-grid h-[22px] min-w-[22px] place-items-center rounded-full bg-black/10 px-1.5 text-[12px] tabular-nums">
-                {t.count}
-              </span>
-            )}
-            {t.warn && <span className="block h-2 w-2 rounded-full bg-warn" title="An answer doesn't replay" />}
-          </button>
-        )
-      })}
+      {tabs.map((t) => (
+        <DividerTab
+          key={t.id}
+          t={t}
+          active={t.id === activeId}
+          onPick={() => onPick(t.id)}
+          onMenu={onMenu ? () => onMenu(t.id) : undefined}
+          onRename={onRename ? () => onRename(t.id) : undefined}
+        />
+      ))}
       {onAdd && (
         <button
           type="button"
@@ -171,6 +164,46 @@ export function DividerTabs({
         </button>
       )}
     </div>
+  )
+}
+
+function DividerTab({
+  t,
+  active,
+  onPick,
+  onMenu,
+  onRename,
+}: {
+  t: DividerTabItem
+  active: boolean
+  onPick: () => void
+  onMenu?: () => void
+  onRename?: () => void
+}) {
+  const press = useLongPress(() => onMenu?.())
+  return (
+    <button
+      type="button"
+      {...(onMenu ? press.bind : {})}
+      onClickCapture={onMenu ? press.onClickCapture : undefined}
+      onClick={onPick}
+      onDoubleClick={onRename}
+      aria-pressed={active}
+      title={onMenu ? 'Right-click or hold to rename · double-click to rename' : undefined}
+      className={clsx(
+        'divider-tab flex shrink-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.06em] whitespace-nowrap uppercase transition sm:px-4 sm:text-[13px]',
+        active ? 'active h-10 text-black/70 shadow-[0_-6px_14px_-10px_rgba(0,0,0,0.35)]' : 'h-[34px] text-black/55 brightness-[0.96]',
+      )}
+      style={{ ...(onMenu ? press.bind.style : {}), background: t.color }}
+    >
+      {t.title || 'Untitled section'}
+      {t.count !== undefined && (
+        <span className="inline-grid h-[22px] min-w-[22px] place-items-center rounded-full bg-black/10 px-1.5 text-[12px] tabular-nums">
+          {t.count}
+        </span>
+      )}
+      {t.warn && <span className="block h-2 w-2 rounded-full bg-warn" title="An answer doesn't replay" />}
+    </button>
   )
 }
 
@@ -192,19 +225,26 @@ export function IndexCard({
   index,
   to,
   onDelete,
+  onMenu,
 }: {
   puzzle: Puzzle
   index: number
   to: string
   onDelete: () => void
+  /** Right-click or press and hold: the card's menu (move to another section…). */
+  onMenu?: () => void
 }) {
+  const press = useLongPress(() => onMenu?.())
   const excerpt = puzzle.summary.replace(/\s+/g, ' ').trim()
   const broken = answerProblem(puzzle)
   const toMove = puzzle.side_to_move === 'w' ? 'White' : 'Black'
   return (
     <div
+      {...(onMenu ? press.bind : {})}
+      onClickCapture={onMenu ? press.onClickCapture : undefined}
       className="index-card relative min-w-0 rounded-xl border border-line bg-surface shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)] transition active:scale-[0.99]"
       style={{
+        ...(onMenu ? press.bind.style : {}),
         transform: `rotate(${index % 2 === 0 ? -0.4 : 0.5}deg)`,
         backgroundImage: 'repeating-linear-gradient(to bottom, transparent 0 27px, var(--paper-rule) 27px 28px)',
         backgroundPosition: '0 44px',

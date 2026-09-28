@@ -314,6 +314,20 @@ export function saveShortcutName(name: string) {
   }
 }
 
+export type TravelMode = 'transit' | 'walking' | 'driving'
+
+/**
+ * Directions from wherever the device is to the address, opening straight
+ * onto the route and its ETA: Apple Maps (the Maps app on an iPad or
+ * iPhone) or Google Maps.
+ */
+export function directionsUrl(address: string, mode: TravelMode, provider: 'apple' | 'google' = 'apple'): string {
+  const to = encodeURIComponent(address.trim())
+  if (provider === 'google') return `https://www.google.com/maps/dir/?api=1&destination=${to}&travelmode=${mode}`
+  const flag = mode === 'transit' ? 'r' : mode === 'walking' ? 'w' : 'd'
+  return `https://maps.apple.com/?daddr=${to}&dirflg=${flag}`
+}
+
 /** Apple Maps for an address; opens the Maps app on an iPad or iPhone. */
 export function mapsUrl(address: string): string {
   return `https://maps.apple.com/?q=${encodeURIComponent(address.trim())}`

@@ -239,3 +239,34 @@ export const Key = (p: IconProps) => (
     <path d="M14.5 8.5l2 2" />
   </svg>
 )
+export const Copy = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2" />
+    <path d="M15.5 8.5V6A2 2 0 0 0 13.5 4H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5" />
+  </svg>
+)
+export const Train = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="5.5" y="3.5" width="13" height="13.5" rx="3" />
+    <path d="M5.5 10.5h13" />
+    <circle cx="9" cy="13.8" r="0.6" />
+    <circle cx="15" cy="13.8" r="0.6" />
+    <path d="M8.5 17l-2 3.5M15.5 17l2 3.5" />
+  </svg>
+)
+export const Walk = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="13" cy="4.5" r="1.8" />
+    <path d="M11 21l2-6-2.5-2.5 1-5 3 3h3" />
+    <path d="M10.5 7.5L7.5 9.5 7 13" />
+    <path d="M13 15l3 6" />
+  </svg>
+)
+export const Car = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 16.5V12l2-5h12l2 5v4.5" />
+    <path d="M3.5 12h17v4.5h-17z" />
+    <circle cx="7.5" cy="18" r="1.6" />
+    <circle cx="16.5" cy="18" r="1.6" />
+  </svg>
+)

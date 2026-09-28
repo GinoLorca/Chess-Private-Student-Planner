@@ -45,7 +45,8 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   lesson to cancel or reschedule it for that week only (a tap opens its details): the week shows it struck through, or a dashed gap where it
   was and the lesson marked where it went, and a day that picks up a second lesson says so.
   One-off lessons (make-ups) too. Each student's lesson address, front door code and bathroom
-  code (and which bathroom) sit on the lesson and below the week, with Directions to Apple Maps.
+  code (and which bathroom) sit on the lesson and below the week. Tap an address to copy it
+  for a transit app, or Transit, Walk or Drive for the route and ETA in Apple Maps (or Google Maps).
 - **Reminders** — cancelling or moving a lesson writes a reminder in the app (the Schedule's
   Reminders card, and a count on the calendar button). *Add to Reminders* sends it to Apple
   Reminders through the share sheet, or through a shortcut that fills in the due date too

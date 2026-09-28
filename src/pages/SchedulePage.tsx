@@ -16,6 +16,7 @@ import {
   WEEKDAYS,
   addDays,
   addMinutes,
+  directionsUrl,
   fmtDay,
   fmtTime,
   fmtWeekRange,
@@ -33,7 +34,7 @@ import { Page, Card, SectionLabel, EmptyState, LoadingPage } from '../components
 import { Button, IconButton } from '../components/ui/Button'
 import { ActionSheet } from '../components/ui/ActionSheet'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
-import { Calendar, ChevronLeft, ChevronRight, Close, MapPin, Plus, Refresh, Trash } from '../components/ui/Icons'
+import { Calendar, ChevronLeft, ChevronRight, Close, Copy, MapPin, Plus, Refresh, Train, Trash } from '../components/ui/Icons'
 import type { ActionItem } from '../components/ui/ActionSheet'
 import { WeekView } from '../components/schedule/Week'
 import { CancelModal, LessonSheet, LessonTimeModal, SlotModal, type LessonTimeValues, type SlotValues } from '../components/schedule/Sheets'
@@ -215,18 +216,26 @@ export function SchedulePage() {
   /** The right-click / long-press menu: this week's changes, as the lesson's state allows. */
   const quickItems = (o: Occurrence): ActionItem[] => {
     const details: ActionItem = { label: 'Details, address and codes', icon: <MapPin />, onSelect: () => setOpened(o) }
+    const address = places.get(o.studentId)?.address
+    const travel: ActionItem[] = address
+      ? [
+          { label: 'Copy the address', icon: <Copy />, onSelect: () => void copyText(address).then((ok) => ok && setNotice(`Copied: ${address}`)) },
+          { label: 'Transit route and ETA', icon: <Train />, onSelect: () => window.open(directionsUrl(address, 'transit'), '_blank', 'noopener') },
+        ]
+      : []
+    return [...lessonItems(o), ...travel, details]
+  }
+  const lessonItems = (o: Occurrence): ActionItem[] => {
     switch (o.state) {
       case 'regular':
         return [
           { label: "Reschedule this week's lesson", icon: <Calendar />, onSelect: () => setMoving(o) },
           { label: "Cancel this week's lesson", icon: <Close />, danger: true, onSelect: () => setCancelling(o) },
-          details,
         ]
       case 'cancelled':
         return [
           { label: "It's back on: undo the cancellation", icon: <Refresh />, onSelect: () => setUndoing(o) },
           { label: 'Reschedule it instead', icon: <Calendar />, onSelect: () => setMoving(o) },
-          details,
         ]
       case 'moved-away':
       case 'moved-here':
@@ -234,13 +243,11 @@ export function SchedulePage() {
           { label: 'Change the new day or time', icon: <Calendar />, onSelect: () => setMoving(o) },
           { label: 'Undo: back to the regular time', icon: <Refresh />, onSelect: () => setUndoing(o) },
           { label: 'Cancel it altogether', icon: <Close />, danger: true, onSelect: () => setCancelling(o) },
-          details,
         ]
       case 'extra':
         return [
           { label: 'Change the day or time', icon: <Calendar />, onSelect: () => setMoving(o) },
           { label: 'Remove this one-off lesson', icon: <Trash />, danger: true, onSelect: () => setUndoing(o) },
-          details,
         ]
     }
   }

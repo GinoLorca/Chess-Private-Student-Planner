@@ -1,21 +1,21 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import type { Student, StudentPlace } from '../../types/domain'
 import type { PlacePatch } from '../../lib/data'
-import { mapsUrl } from '../../lib/schedule'
+import { directionsUrl, type TravelMode } from '../../lib/schedule'
 import { onColor } from '../../lib/colors'
 import { copyText } from '../../lib/links'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { Key, MapPin, Pencil } from '../ui/Icons'
+import { Car, Check, Copy, Key, MapPin, Pencil, Train, Walk } from '../ui/Icons'
 import { Field, inputClass } from './Fields'
 
 const hasAny = (p?: StudentPlace | null) => Boolean(p && (p.address || p.door_code || p.bathroom_code || p.bathroom_note || p.notes))
 
 /**
  * Where a student's lessons happen and the codes to get in, laid out to be
- * read on the doorstep: the address with a Directions button, each code large
- * enough to key in at a glance (tap one to copy it).
+ * read on the doorstep: the address (tap to copy, or open the route and its
+ * ETA), each code large enough to key in at a glance (tap one to copy it).
  */
 export function PlaceDetails({ place, onEdit, compact }: { place?: StudentPlace | null; onEdit?: () => void; compact?: boolean }) {
   if (!hasAny(place)) {
@@ -33,20 +33,7 @@ export function PlaceDetails({ place, onEdit, compact }: { place?: StudentPlace 
   const p = place!
   return (
     <div className="space-y-2.5">
-      {p.address && (
-        <div className="flex items-start gap-3">
-          <MapPin size={18} className="mt-0.5 shrink-0 text-ink-3" />
-          <p className="min-w-0 flex-1 text-[15px] leading-snug whitespace-pre-line text-ink">{p.address}</p>
-          <a
-            href={mapsUrl(p.address)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 rounded-full bg-accent-soft px-3 py-1.5 text-[13px] font-bold text-accent-strong active:scale-95"
-          >
-            Directions
-          </a>
-        </div>
-      )}
+      {p.address && <AddressBlock address={p.address} />}
       {(p.door_code || p.bathroom_code) && (
         <div className={clsx('grid gap-2', p.door_code && p.bathroom_code ? 'grid-cols-2' : 'grid-cols-1')}>
           {p.door_code && <CodeTile label="Front door" code={p.door_code} />}
@@ -60,6 +47,64 @@ export function PlaceDetails({ place, onEdit, compact }: { place?: StudentPlace 
           Edit address and codes
         </button>
       )}
+    </div>
+  )
+}
+
+const MODES: { mode: TravelMode; label: string; icon: ReactNode }[] = [
+  { mode: 'transit', label: 'Transit', icon: <Train size={15} /> },
+  { mode: 'walking', label: 'Walk', icon: <Walk size={15} /> },
+  { mode: 'driving', label: 'Drive', icon: <Car size={15} /> },
+]
+
+/**
+ * The address, ready to go: tap it (or Copy) to put it on the clipboard for
+ * a transit app; Transit, Walk or Drive opens Apple Maps on the route from
+ * wherever you are, with its ETA; Google Maps does the same there.
+ */
+function AddressBlock({ address }: { address: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    if (await copyText(address)) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    }
+  }
+  const chip = 'inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold transition active:scale-95'
+  return (
+    <div>
+      <button type="button" onClick={copy} title="Tap to copy the address" className="flex w-full items-start gap-3 text-left">
+        <MapPin size={18} className="mt-0.5 shrink-0 text-ink-3" />
+        <span className="min-w-0 flex-1 text-[15px] leading-snug whitespace-pre-line text-ink">{address}</span>
+      </button>
+      <div className="mt-2 flex flex-wrap gap-1.5 pl-[30px]">
+        <button type="button" onClick={copy} className={clsx(chip, copied ? 'bg-accent text-accent-ink' : 'bg-surface-2 text-ink-2')}>
+          {copied ? <Check size={15} /> : <Copy size={15} />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+        {MODES.map((m) => (
+          <a
+            key={m.mode}
+            href={directionsUrl(address, m.mode)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`${m.label} route and ETA in Apple Maps`}
+            className={clsx(chip, 'bg-accent-soft text-accent-strong')}
+          >
+            {m.icon}
+            {m.label}
+          </a>
+        ))}
+        <a
+          href={directionsUrl(address, 'transit', 'google')}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Transit route and ETA in Google Maps"
+          className={clsx(chip, 'bg-surface-2 text-ink-2')}
+        >
+          Google Maps
+        </a>
+      </div>
     </div>
   )
 }

@@ -240,5 +240,7 @@ export interface StudentPlace {
   /** Where that bathroom is, e.g. "McDonald's next door". */
   bathroom_note: string
   notes: string
+  /** Dollars an hour; a lesson's fee is this times its length. Null until set (migration 0010). */
+  hourly_rate?: number | null
   updated_at: string
 }

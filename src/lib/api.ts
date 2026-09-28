@@ -712,12 +712,21 @@ export async function deleteReminder(id: string) {
   if (error) throw error
 }
 
-export type PlacePatch = Partial<Pick<StudentPlace, 'address' | 'door_code' | 'bathroom_code' | 'bathroom_note' | 'notes'>>
+export type PlacePatch = Partial<Pick<StudentPlace, 'address' | 'door_code' | 'bathroom_code' | 'bathroom_note' | 'notes' | 'hourly_rate'>>
+
+export const RATE_MIGRATION = '0010_student_rate.sql'
+
+/** True when the database lacks student_places.hourly_rate (0010 not run yet). */
+export async function rateColumnMissing(): Promise<boolean> {
+  const { error } = await supabase.from('student_places').select('hourly_rate').limit(1)
+  return Boolean(error && /hourly_rate/.test(error.message))
+}
 
 export async function listStudentPlaces(): Promise<StudentPlace[]> {
   const { data, error } = await supabase.from('student_places').select('*')
   if (error) throw error
-  return data as StudentPlace[]
+  // numeric arrives as a number from PostgREST, but be sure.
+  return (data as StudentPlace[]).map((p) => ({ ...p, hourly_rate: p.hourly_rate == null ? null : Number(p.hourly_rate) }))
 }
 
 export async function saveStudentPlace(studentId: string, patch: PlacePatch) {

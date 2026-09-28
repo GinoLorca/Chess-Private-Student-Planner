@@ -22,6 +22,7 @@ export const keys = {
   scheduleChanges: ['scheduleChanges'] as const,
   reminders: ['reminders'] as const,
   places: ['places'] as const,
+  rateMissing: ['rateMissing'] as const,
 }
 
 /** A student's live USCF rating, kept for six hours (and offline, from the persisted cache). */
@@ -322,6 +323,11 @@ export function useScheduleChanges(enabled = true) {
 
 export function useReminders(enabled = true) {
   return useQuery({ queryKey: keys.reminders, queryFn: api.listReminders, enabled, retry: 1 })
+}
+
+/** Whether the hourly-rate column is still to be added (migration 0010). */
+export function useRateMissing(enabled = true) {
+  return useQuery({ queryKey: keys.rateMissing, queryFn: api.rateColumnMissing, enabled, staleTime: 60 * 60_000 })
 }
 
 export function useStudentPlaces(enabled = true) {

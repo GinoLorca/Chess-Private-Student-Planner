@@ -9,6 +9,7 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Car, Check, Copy, Key, MapPin, Pencil, Train, Walk } from '../ui/Icons'
 import { Field, inputClass } from './Fields'
+import { fmtRate } from '../../lib/earnings'
 
 const hasAny = (p?: StudentPlace | null) => Boolean(p && (p.address || p.door_code || p.bathroom_code || p.bathroom_note || p.notes))
 
@@ -137,10 +138,12 @@ function CodeTile({ label, code, note }: { label: string; code: string; note?: s
 export function PlacesSection({
   students,
   places,
+  showRates,
   onEdit,
 }: {
   students: Student[]
   places: Map<string, StudentPlace>
+  showRates: boolean
   onEdit: (s: Student) => void
 }) {
   return (
@@ -149,10 +152,21 @@ export function PlacesSection({
         const ink = onColor(s.color)
         return (
           <div key={s.id} className="min-w-0">
-            <div className="ml-3 flex h-7 w-fit max-w-[80%] items-center rounded-t-xl px-3.5" style={{ background: s.color }}>
-              <span className="truncate text-[12px] font-bold tracking-[0.08em] uppercase" style={{ color: ink.inkSoft }}>
-                {s.name}
-              </span>
+            <div className="flex items-end justify-between gap-2">
+              <div className="ml-3 flex h-7 w-fit max-w-[70%] min-w-0 items-center rounded-t-xl px-3.5" style={{ background: s.color }}>
+                <span className="truncate text-[12px] font-bold tracking-[0.08em] uppercase" style={{ color: ink.inkSoft }}>
+                  {s.name}
+                </span>
+              </div>
+              {showRates && (
+                <button
+                  type="button"
+                  onClick={() => onEdit(s)}
+                  className="mr-2 mb-1 shrink-0 rounded-full border border-line bg-surface px-2.5 py-0.5 text-[12.5px] font-bold text-ink-2 tabular-nums"
+                >
+                  {places.get(s.id)?.hourly_rate != null ? fmtRate(places.get(s.id)!.hourly_rate!) : '+ Rate'}
+                </button>
+              )}
             </div>
             <div className="rounded-2xl rounded-tl-md border-2 bg-surface p-3.5 shadow-card" style={{ borderColor: s.color }}>
               <PlaceDetails place={places.get(s.id)} onEdit={() => onEdit(s)} />
@@ -167,45 +181,88 @@ export function PlacesSection({
 export function PlaceModal({
   student,
   place,
+  rate,
   onClose,
   onSave,
 }: {
   student: Student | null
   place?: StudentPlace | null
+  rate: 'on' | 'off' | 'pending'
   onClose: () => void
   onSave: (patch: PlacePatch) => Promise<void>
 }) {
   return (
-    <Modal open={Boolean(student)} onClose={onClose} title={student ? `${student.name}: where and codes` : ''}>
-      {student && <PlaceForm key={student.id} place={place} onClose={onClose} onSave={onSave} />}
+    <Modal open={Boolean(student)} onClose={onClose} title={student ? `${student.name}: details` : ''}>
+      {student && <PlaceForm key={student.id} place={place} rate={rate} onClose={onClose} onSave={onSave} />}
     </Modal>
   )
 }
 
-function PlaceForm({ place, onClose, onSave }: { place?: StudentPlace | null; onClose: () => void; onSave: (patch: PlacePatch) => Promise<void> }) {
-  const [v, setV] = useState<Required<PlacePatch>>({
+type TextFields = Required<Omit<PlacePatch, 'hourly_rate'>>
+
+function PlaceForm({
+  place,
+  rate,
+  onClose,
+  onSave,
+}: {
+  place?: StudentPlace | null
+  /** Show the hourly rate field; 'pending' when its database column is still to be added. */
+  rate: 'on' | 'off' | 'pending'
+  onClose: () => void
+  onSave: (patch: PlacePatch) => Promise<void>
+}) {
+  const [v, setV] = useState<TextFields>({
     address: place?.address ?? '',
     door_code: place?.door_code ?? '',
     bathroom_code: place?.bathroom_code ?? '',
     bathroom_note: place?.bathroom_note ?? '',
     notes: place?.notes ?? '',
   })
+  const [rateText, setRateText] = useState(place?.hourly_rate != null ? String(place.hourly_rate) : '')
+  const rateValue = rateText.trim() === '' ? null : Number(rateText.replace(/[$,\s]/g, ''))
+  const rateBad = rateValue !== null && (!Number.isFinite(rateValue) || rateValue < 0)
   const [busy, setBusy] = useState(false)
-  const set = (k: keyof PlacePatch) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setV({ ...v, [k]: e.target.value })
+  const set = (k: keyof TextFields) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setV({ ...v, [k]: e.target.value })
   return (
     <form
       className="space-y-3.5"
       onSubmit={async (e) => {
         e.preventDefault()
+        if (rateBad) return
         setBusy(true)
         try {
-          await onSave(Object.fromEntries(Object.entries(v).map(([k, x]) => [k, x.trim()])) as PlacePatch)
+          const patch: PlacePatch = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, x.trim()]))
+          if (rate === 'on') patch.hourly_rate = rateValue === null ? null : Math.round(rateValue * 100) / 100
+          await onSave(patch)
           onClose()
         } finally {
           setBusy(false)
         }
       }}
     >
+      {rate !== 'off' && (
+        <div className="rounded-2xl border border-line bg-surface-2 p-3">
+          <span className="mb-1.5 block text-[13px] font-medium text-ink-2">Hourly rate</span>
+          {rate === 'pending' ? (
+            <p className="text-[13.5px] text-warn">Rates can be saved once the 0010 database update is run (the Schedule shows the SQL).</p>
+          ) : (
+            <label className="flex h-12 items-center gap-1 rounded-xl border border-line-strong bg-surface px-3.5 focus-within:border-accent">
+              <span className="font-display text-[22px] font-bold text-ink-3">$</span>
+              <input
+                value={rateText}
+                onChange={(e) => setRateText(e.target.value)}
+                inputMode="decimal"
+                placeholder="60"
+                aria-label="Hourly rate in dollars"
+                className="w-full min-w-0 bg-transparent font-display text-[22px] font-bold text-ink tabular-nums outline-none"
+              />
+              <span className="shrink-0 text-[14px] text-ink-3">per hour</span>
+            </label>
+          )}
+          {rateBad && <p className="mt-1 text-[13px] text-danger">Enter the rate as a number, like 60 or 62.50.</p>}
+        </div>
+      )}
       <Field label="Address (home, store or venue)">
         <textarea value={v.address} onChange={set('address')} rows={2} placeholder="180 8th Ave, New York, NY" className={clsx(inputClass, 'h-auto py-2.5')} />
       </Field>
@@ -227,7 +284,7 @@ function PlaceForm({ place, onClose, onSave }: { place?: StudentPlace | null; on
         <Button type="button" variant="ghost" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={busy}>
+        <Button type="submit" variant="primary" disabled={busy || rateBad}>
           {busy ? 'Saving…' : 'Save'}
         </Button>
       </div>

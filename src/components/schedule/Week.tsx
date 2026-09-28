@@ -3,6 +3,7 @@ import { useRef, type ReactNode } from 'react'
 import type { Student, StudentPlace } from '../../types/domain'
 import { addMinutes, clashes, fmtDay, fmtTime, isOn, parseDate, shortName, weekDates, whereLabel, type Occurrence } from '../../lib/schedule'
 import { MapPin } from '../ui/Icons'
+import { fmtMoney } from '../../lib/earnings'
 
 /**
  * The week at a glance. On an iPad in landscape it's seven columns, Monday
@@ -16,6 +17,7 @@ export function WeekView({
   students,
   places,
   today,
+  fees,
   onOpen,
   onMenu,
 }: {
@@ -24,6 +26,8 @@ export function WeekView({
   students: Map<string, Student>
   places: Map<string, StudentPlace>
   today: string
+  /** Each lesson's fee by key, when earnings show; null for a student with no rate. */
+  fees?: Map<string, number | null>
   onOpen: (o: Occurrence) => void
   /** Right-click or long-press: the quick menu (reschedule, cancel…). */
   onMenu: (o: Occurrence) => void
@@ -70,6 +74,7 @@ export function WeekView({
                     student={students.get(o.studentId)!}
                     place={places.get(o.studentId)}
                     clash={clash.has(o.key)}
+                    fee={fees?.get(o.key)}
                     onOpen={() => onOpen(o)}
                     onMenu={() => onMenu(o)}
                   />
@@ -88,6 +93,7 @@ function LessonChip({
   student,
   place,
   clash,
+  fee,
   onOpen,
   onMenu,
 }: {
@@ -95,6 +101,7 @@ function LessonChip({
   student: Student
   place?: StudentPlace
   clash: boolean
+  fee?: number | null
   onOpen: () => void
   onMenu: () => void
 }) {
@@ -169,8 +176,15 @@ function LessonChip({
         <span className="whitespace-nowrap">{fmtTime(o.time)}</span>
         <span className="font-medium whitespace-nowrap text-ink-3">– {fmtTime(addMinutes(o.time, o.duration))}</span>
       </p>
-      <p className={clsx('truncate text-[15px] leading-tight font-semibold', off ? 'text-ink-3 line-through decoration-2' : 'text-ink')} title={student.name}>
-        {shortName(student.name)}
+      <p className="flex items-baseline justify-between gap-1.5">
+        <span className={clsx('truncate text-[15px] leading-tight font-semibold', off ? 'text-ink-3 line-through decoration-2' : 'text-ink')} title={student.name}>
+          {shortName(student.name)}
+        </span>
+        {fee != null && o.state !== 'moved-away' && (
+          <span className={clsx('shrink-0 text-[12.5px] font-bold tabular-nums', o.state === 'cancelled' ? 'text-ink-3 line-through' : 'text-accent-strong')}>
+            {fmtMoney(fee)}
+          </span>
+        )}
       </p>
       {badge && <div className="mt-1">{badge}</div>}
       {clash && (

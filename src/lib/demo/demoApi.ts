@@ -519,6 +519,7 @@ function seedSchedule(store: Store) {
       bathroom_code: '',
       bathroom_note: '',
       notes: 'Doorman building; ask for the Liu family.',
+      hourly_rate: 60,
       updated_at: created,
     },
     {
@@ -529,6 +530,7 @@ function seedSchedule(store: Store) {
       bathroom_code: '1357',
       bathroom_note: "McDonald's next door",
       notes: '',
+      hourly_rate: 45,
       updated_at: created,
     },
   ]
@@ -544,6 +546,12 @@ export { SCHEDULE_MIGRATION, SCHEDULE_TABLES } from '../api'
 
 export async function missingScheduleTables(): Promise<string[]> {
   return []
+}
+
+export { RATE_MIGRATION } from '../api'
+
+export async function rateColumnMissing(): Promise<boolean> {
+  return false
 }
 
 export async function listScheduleSlots(): Promise<ScheduleSlot[]> {
@@ -635,7 +643,7 @@ export async function listStudentPlaces(): Promise<StudentPlace[]> {
 
 export async function saveStudentPlace(studentId: string, patch: PlacePatch) {
   const store = sched()
-  const blank = { address: '', door_code: '', bathroom_code: '', bathroom_note: '', notes: '' }
+  const blank = { address: '', door_code: '', bathroom_code: '', bathroom_note: '', notes: '', hourly_rate: null }
   const prev = store.places.find((p) => p.student_id === studentId)
   const next: StudentPlace = { ...blank, ...prev, ...patch, student_id: studentId, user_id: 'demo', updated_at: now() }
   store.places = [...store.places.filter((p) => p.student_id !== studentId), next]

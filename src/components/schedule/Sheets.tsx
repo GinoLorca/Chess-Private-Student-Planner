@@ -6,6 +6,7 @@ import { Button } from '../ui/Button'
 import { Calendar, Close, Folder, Pencil, Refresh, Trash } from '../ui/Icons'
 import { DayPicker, Field, GroupLabel, LengthPicker, StudentPicker, WeekdayPicker, inputClass } from './Fields'
 import { PlaceDetails } from './Places'
+import { fmtHours, fmtMoney, fmtRate, lessonFee } from '../../lib/earnings'
 import { Badge } from './Week'
 
 // ---------------------------------------------------------------------------
@@ -30,12 +31,15 @@ export function LessonSheet({
   occurrence: o,
   student,
   place,
+  rate,
   onClose,
   actions,
 }: {
   occurrence: Occurrence | null
   student?: Student
   place?: StudentPlace
+  /** The student's hourly rate, when earnings show. */
+  rate?: number | null
   onClose: () => void
   actions: LessonActions
 }) {
@@ -52,6 +56,15 @@ export function LessonSheet({
               {fmtDay(o.date, { weekday: 'long' })} · {fmtTime(o.time)} – {fmtTime(addMinutes(o.time, o.duration))}
             </p>
             <StatusLine o={o} />
+            {rate != null && o.state !== 'moved-away' && (
+              <p className="mt-2 inline-flex items-baseline gap-2 rounded-xl bg-surface-2 px-3 py-1.5 text-[14px] text-ink-2 tabular-nums">
+                {fmtRate(rate)} × {fmtHours(o.duration)}
+                <span className={o.state === 'cancelled' ? 'font-display text-[20px] font-bold text-ink-3 line-through' : 'font-display text-[20px] font-bold text-ink'}>
+                  {fmtMoney(lessonFee(o, rate)!)}
+                </span>
+                {o.state === 'cancelled' && <span className="text-[12.5px]">not billed</span>}
+              </p>
+            )}
           </div>
 
           <div className="rounded-2xl border border-line bg-surface p-3">

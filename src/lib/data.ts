@@ -63,6 +63,8 @@ export const updateReminder = impl.updateReminder
 export const deleteReminder = impl.deleteReminder
 export const listStudentPlaces = impl.listStudentPlaces
 export const saveStudentPlace = impl.saveStudentPlace
+export const rateColumnMissing = impl.rateColumnMissing
+export { RATE_MIGRATION } from './api'
 export { SCHEDULE_MIGRATION, SCHEDULE_TABLES } from './api'
 export type { ChangeInput, PlacePatch, ReminderInput, ReminderPatch, SlotInput } from './api'
 

@@ -19,6 +19,7 @@ import { StatusStamp } from '../components/lesson/Folder'
 import { FOLDER_COLORS } from '../lib/colors'
 import { describeTrigger, keyLabel, loadToggle, saveToggle, type Trigger } from '../lib/clicker'
 import { DEFAULT_SHORTCUT_NAME, loadShortcutName, saveShortcutName } from '../lib/schedule'
+import { setShowEarnings, useShowEarnings } from '../lib/earnings'
 import { Check, Moon, Sun, Trash, Upload } from '../components/ui/Icons'
 
 const APPEARANCES: { id: Appearance; label: string }[] = [
@@ -190,6 +191,12 @@ export function SettingsPage() {
           />
         </label>
       </Card>
+
+      <SectionLabel tone="page">Schedule</SectionLabel>
+      <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">
+        Hourly rates, each lesson's fee, and the week's and month's totals. Hide them on a device you show to parents.
+      </p>
+      <EarningsSwitch />
 
       <SectionLabel tone="page">Apple Reminders</SectionLabel>
       <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">
@@ -678,6 +685,31 @@ function RemindersCard() {
           </Button>
         )}
       </div>
+    </Card>
+  )
+}
+
+/** Show or hide rates, fees and totals on the Schedule (per device). */
+function EarningsSwitch() {
+  const on = useShowEarnings()
+  return (
+    <Card className="mb-8 flex gap-1 p-1.5">
+      {[
+        { value: true, label: 'Show earnings' },
+        { value: false, label: 'Hide earnings' },
+      ].map((o) => (
+        <button
+          key={o.label}
+          onClick={() => setShowEarnings(o.value)}
+          aria-pressed={on === o.value}
+          className={clsx(
+            'flex h-11 flex-1 items-center justify-center rounded-xl text-[15px] font-semibold transition',
+            on === o.value ? 'bg-accent text-accent-ink shadow-card' : 'text-ink-2 hover:bg-surface-2',
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
     </Card>
   )
 }

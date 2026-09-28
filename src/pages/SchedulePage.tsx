@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import scheduleSql from '../../supabase/migrations/0009_schedule.sql?raw'
+import rateSql from '../../supabase/migrations/0010_student_rate.sql?raw'
 import type { Reminder, ScheduleSlot, Student } from '../types/domain'
 import {
   useReminders,
@@ -8,10 +9,11 @@ import {
   useScheduleMissing,
   useScheduleMutations,
   useScheduleSlots,
+  useRateMissing,
   useStudentPlaces,
   useStudents,
 } from '../lib/queries'
-import { SCHEDULE_MIGRATION } from '../lib/data'
+import { RATE_MIGRATION, SCHEDULE_MIGRATION } from '../lib/data'
 import {
   WEEKDAYS,
   addDays,
@@ -30,6 +32,8 @@ import {
   type Occurrence,
 } from '../lib/schedule'
 import { copyText } from '../lib/links'
+import { fmtMonth, lessonFee, monthOccurrences, monthOfWeek, setShowEarnings, tally, useShowEarnings } from '../lib/earnings'
+import { LedgerCard } from '../components/schedule/Ledger'
 import { Page, Card, SectionLabel, EmptyState, LoadingPage } from '../components/ui/Page'
 import { Button, IconButton } from '../components/ui/Button'
 import { ActionSheet } from '../components/ui/ActionSheet'
@@ -63,6 +67,10 @@ export function SchedulePage() {
   const reminders = useReminders(ready)
   const placesQ = useStudentPlaces(ready)
   const m = useScheduleMutations()
+  const showEarnings = useShowEarnings()
+  const rateMissing = useRateMissing(ready && showEarnings)
+  const [now] = useState(() => new Date())
+  const [rateCopied, setRateCopied] = useState(false)
 
   const students = useMemo(() => new Map((studentList ?? []).map((s) => [s.id, s])), [studentList])
   const places = useMemo(() => new Map((placesQ.data ?? []).map((p) => [p.student_id, p])), [placesQ.data])
@@ -261,6 +269,14 @@ export function SchedulePage() {
     })
 
   const slotList = (slots.data ?? []).filter((s) => students.has(s.student_id))
+
+  // What the lessons come to, for the ledger and each lesson's fee.
+  const rates = new Map((placesQ.data ?? []).map((p) => [p.student_id, p.hourly_rate ?? null]))
+  const hasRates = [...rates.values()].some((r) => r != null)
+  // This week's ledger is this month's; any other week goes to the month holding most of it.
+  const month = start === weekStart(today) ? today.slice(0, 7) : monthOfWeek(start)
+  const weekTally = tally(occurrences, rates, now)
+  const monthTally = tally(monthOccurrences(month, slots.data ?? [], changes.data ?? []), rates, now)
   const loadError = slots.error ?? changes.error
 
   return (
@@ -331,11 +347,63 @@ export function SchedulePage() {
           }
         />
       ) : (
-        <WeekView start={start} occurrences={occurrences} students={students} places={places} today={today} onOpen={setOpened} onMenu={setQuick} />
+        <WeekView
+          start={start}
+          occurrences={occurrences}
+          students={students}
+          places={places}
+          today={today}
+          fees={showEarnings ? new Map(occurrences.map((o) => [o.key, lessonFee(o, rates.get(o.studentId))])) : undefined}
+          onOpen={setOpened}
+          onMenu={setQuick}
+        />
       )}
       <p className="mt-2 text-[13px] text-on-bg-2">
         Right-click or press and hold a lesson to reschedule or cancel it for this week only. Tap it for the address and door codes.
       </p>
+
+      {showEarnings && slotList.length + weekChanges.size > 0 && (
+        <LedgerCard
+          week={weekTally}
+          month={monthTally}
+          weekTitle={weekLabel(start, today)}
+          monthTitle={fmtMonth(month, today)}
+          students={students}
+          notice={
+            rateMissing.data ? (
+              <div className="rounded-xl bg-warn-soft px-3.5 py-3 text-[14px] text-warn">
+                <p className="font-semibold">One more database update adds hourly rates.</p>
+                <p className="mt-1">In Supabase → SQL Editor, paste {RATE_MIGRATION} and Run, once.</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={async () => {
+                      await copyText(rateSql)
+                      setRateCopied(true)
+                    }}
+                  >
+                    {rateCopied ? 'Copied' : 'Copy the SQL'}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => rateMissing.refetch()}>
+                    I've run it, check again
+                  </Button>
+                </div>
+              </div>
+            ) : !hasRates ? (
+              <p className="text-[14px] text-ink-2">
+                Add each student's hourly rate (the <span className="font-semibold">+ Rate</span> tag on their card below) to see what every lesson,
+                the week and the month come to.
+              </p>
+            ) : undefined
+          }
+          onSetRate={(id) => setPlaceFor(students.get(id) ?? null)}
+          onHide={() => {
+            setShowEarnings(false)
+            setNotice('Earnings are hidden on this device. Settings → Schedule shows them again.')
+          }}
+        />
+      )}
 
       {/* The regular week */}
       <div className="mt-10 mb-2 flex items-center justify-between gap-2">
@@ -388,7 +456,7 @@ export function SchedulePage() {
       {roster.length === 0 ? (
         <EmptyState title="No students yet" body="Add a student on the Students page first." />
       ) : (
-        <PlacesSection students={roster} places={places} onEdit={setPlaceFor} />
+        <PlacesSection students={roster} places={places} showRates={showEarnings && rateMissing.data === false} onEdit={setPlaceFor} />
       )}
 
       {/* Sheets and dialogs */}
@@ -396,6 +464,7 @@ export function SchedulePage() {
         occurrence={opened}
         student={opened ? students.get(opened.studentId) : undefined}
         place={opened ? places.get(opened.studentId) : undefined}
+        rate={showEarnings && opened ? rates.get(opened.studentId) : undefined}
         onClose={() => setOpened(null)}
         actions={{
           onMove: () => setMoving(opened),
@@ -510,6 +579,7 @@ export function SchedulePage() {
       <PlaceModal
         student={placeFor}
         place={placeFor ? places.get(placeFor.id) : null}
+        rate={!showEarnings ? 'off' : rateMissing.data === false ? 'on' : 'pending'}
         onClose={() => setPlaceFor(null)}
         onSave={(patch) => m.savePlace.mutateAsync({ studentId: placeFor!.id, patch })}
       />

@@ -37,6 +37,7 @@ import {
   weekOccurrences,
   weekStart,
   weekdayName,
+  weekdayOf,
   type Occurrence,
 } from '../lib/schedule'
 import { copyText } from '../lib/links'
@@ -49,7 +50,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Calendar, Check, ChevronLeft, ChevronRight, Close, Copy, MapPin, Plus, Refresh, Train, Trash } from '../components/ui/Icons'
 import type { ActionItem } from '../components/ui/ActionSheet'
 import { WeekView } from '../components/schedule/Week'
-import { CancelModal, LessonSheet, LessonTimeModal, SlotModal, type LessonTimeValues, type SlotValues } from '../components/schedule/Sheets'
+import { CancelModal, DuplicateModal, LessonSheet, LessonTimeModal, SlotModal, type DuplicateValues, type LessonTimeValues, type SlotValues } from '../components/schedule/Sheets'
 import { RemindersCard, ReminderToast } from '../components/schedule/Reminders'
 import { sendToReminders } from '../lib/sendReminder'
 import { PlaceModal, PlacesSection } from '../components/schedule/Places'
@@ -91,6 +92,7 @@ export function SchedulePage() {
   const [opened, setOpened] = useState<Occurrence | null>(null)
   const [quick, setQuick] = useState<Occurrence | null>(null)
   const [moving, setMoving] = useState<Occurrence | null>(null)
+  const [duplicating, setDuplicating] = useState<Occurrence | null>(null)
   const [cancelling, setCancelling] = useState<Occurrence | null>(null)
   const [undoing, setUndoing] = useState<Occurrence | null>(null)
   const [adding, setAdding] = useState(false)
@@ -230,6 +232,25 @@ export function SchedulePage() {
     if (weekStart(v.date) !== start) setStart(weekStart(v.date))
   }
 
+  /**
+   * A copy of a lesson on another day, standing on its own: a one-off lesson
+   * for that day, or a new regular weekly lesson. Nothing links it back to
+   * the lesson it came from, so changing either leaves the other alone.
+   */
+  async function saveDuplicate(o: Occurrence, v: DuplicateValues) {
+    if (v.repeat === 'weekly') {
+      await commit(m.addSlot, { student_id: o.studentId, weekday: weekdayOf(v.date), start_time: v.time, duration_min: v.duration })
+    } else {
+      const done = await commit(m.change, {
+        input: { slot_id: null, student_id: o.studentId, kind: 'extra', original_date: null, new_date: v.date, new_time: v.time, duration_min: v.duration, note: '' },
+        studentName: nameOf(o.studentId),
+        slot: null,
+      })
+      if (done) setToast(done.reminder)
+    }
+    if (weekStart(v.date) !== start) setStart(weekStart(v.date))
+  }
+
   async function saveSlot(v: SlotValues) {
     const input = { student_id: v.studentId, weekday: v.weekday, start_time: v.time, duration_min: v.duration }
     if (slotEdit?.slot) await commit(m.updateSlot, { id: slotEdit.slot.id, patch: input })
@@ -258,7 +279,8 @@ export function SchedulePage() {
     const paidItem: ActionItem[] = state
       ? [{ label: state === 'paid' ? 'Mark as not paid' : 'Mark as paid', icon: <Check />, onSelect: () => togglePaid(o) }]
       : []
-    return [...paidItem, ...lessonItems(o), ...travel, details]
+    const copy: ActionItem[] = isOn(o) ? [{ label: 'Duplicate…', icon: <Plus />, onSelect: () => setDuplicating(o) }] : []
+    return [...paidItem, ...lessonItems(o), ...copy, ...travel, details]
   }
   const lessonItems = (o: Occurrence): ActionItem[] => {
     switch (o.state) {
@@ -588,6 +610,15 @@ export function SchedulePage() {
         notePlaceholder="Make-up for last week…"
         onClose={() => setAddingExtra(null)}
         onSubmit={saveExtra}
+      />
+
+      <DuplicateModal
+        source={duplicating}
+        studentName={duplicating ? nameOf(duplicating.studentId) : ''}
+        occurrences={occurrences}
+        names={new Map(roster.map((s) => [s.id, s.name]))}
+        onClose={() => setDuplicating(null)}
+        onSubmit={(v) => saveDuplicate(duplicating!, v)}
       />
 
       <SlotModal

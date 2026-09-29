@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react'
 import type { Student, StudentPlace } from '../../types/domain'
-import { addMinutes, fmtDay, fmtTime, isOn, weekStart, whereLabel, type Occurrence } from '../../lib/schedule'
+import { addMinutes, fmtDay, fmtTime, isOn, minutesOf, parseDate, shortName, weekStart, whereLabel, type Occurrence } from '../../lib/schedule'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { Calendar, Check, Close, Folder, Pencil, Refresh, Trash } from '../ui/Icons'
+import { Calendar, Check, Close, Folder, Pencil, Refresh, Trash, Warning } from '../ui/Icons'
 import { DayPicker, Field, GroupLabel, LengthPicker, StudentPicker, WeekdayPicker, inputClass } from './Fields'
+import { Chip, ChipRow } from '../ui/Chip'
 import { PlaceDetails } from './Places'
 import { fmtHours, fmtMoney, fmtRate, lessonFee } from '../../lib/earnings'
 import { Badge } from './Week'
@@ -496,6 +497,140 @@ function SlotForm({
             {busy ? 'Saving…' : 'Save'}
           </Button>
         </div>
+      </div>
+    </form>
+  )
+}
+
+export interface DuplicateValues {
+  date: string
+  time: string
+  duration: number
+  /** 'once': that day only; 'weekly': a new regular lesson on that weekday from then on. */
+  repeat: 'once' | 'weekly'
+}
+
+/**
+ * Copy a lesson to another day: pick the day, adjust the time and length if
+ * it clashes with something already there, and choose that day only or every
+ * week. The copy is a lesson of its own, not linked to the one it came from.
+ */
+export function DuplicateModal({
+  source,
+  studentName,
+  occurrences,
+  names,
+  onClose,
+  onSubmit,
+}: {
+  source: Occurrence | null
+  studentName: string
+  /** The week's lessons, to warn of a clash on the chosen day. */
+  occurrences: Occurrence[]
+  names: Map<string, string>
+  onClose: () => void
+  onSubmit: (v: DuplicateValues) => Promise<void>
+}) {
+  return (
+    <Modal open={Boolean(source)} onClose={onClose} title={source ? `Duplicate ${shortName(studentName)}'s lesson` : ''}>
+      {source && <DuplicateForm key={source.key} source={source} occurrences={occurrences} names={names} onClose={onClose} onSubmit={onSubmit} />}
+    </Modal>
+  )
+}
+
+function DuplicateForm({
+  source,
+  occurrences,
+  names,
+  onClose,
+  onSubmit,
+}: {
+  source: Occurrence
+  occurrences: Occurrence[]
+  names: Map<string, string>
+  onClose: () => void
+  onSubmit: (v: DuplicateValues) => Promise<void>
+}) {
+  const [v, setV] = useState<DuplicateValues>({ date: '', time: source.time, duration: source.duration, repeat: 'once' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const ready = Boolean(v.date && /^\d\d:\d\d$/.test(v.time)) && !(v.date === source.date && v.time === source.time)
+  // Lessons already on the chosen day that the copy would overlap.
+  const start = v.time ? minutesOf(v.time) : 0
+  const clash = occurrences.filter(
+    (o) => isOn(o) && o.date === v.date && minutesOf(o.time) < start + v.duration && start < minutesOf(o.time) + o.duration,
+  )
+  const weekday = v.date ? parseDate(v.date).toLocaleDateString('en-US', { weekday: 'long' }) : ''
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={async (e) => {
+        e.preventDefault()
+        if (!ready) return
+        setBusy(true)
+        setError(null)
+        try {
+          await onSubmit(v)
+          onClose()
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'That could not be saved.')
+        } finally {
+          setBusy(false)
+        }
+      }}
+    >
+      <p className="-mt-1 text-[14px] text-ink-2">
+        From {fmtDay(source.date, { weekday: 'long' })}, {fmtTime(source.time)} – {fmtTime(addMinutes(source.time, source.duration))}
+      </p>
+      <div>
+        <GroupLabel>To which day?</GroupLabel>
+        <DayPicker weekStart={weekStart(source.date)} value={v.date} onChange={(date) => setV({ ...v, date })} />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[150px_1fr]">
+        <Field label="Time">
+          <input type="time" required value={v.time} onChange={(e) => setV({ ...v, time: e.target.value })} className={inputClass} />
+        </Field>
+        <div>
+          <GroupLabel>Length</GroupLabel>
+          <LengthPicker value={v.duration} onChange={(duration) => setV({ ...v, duration })} />
+        </div>
+      </div>
+      <div>
+        <GroupLabel>Repeat</GroupLabel>
+        <ChipRow>
+          <Chip selected={v.repeat === 'once'} onClick={() => setV({ ...v, repeat: 'once' })}>
+            That day only
+          </Chip>
+          <Chip selected={v.repeat === 'weekly'} onClick={() => setV({ ...v, repeat: 'weekly' })}>
+            {weekday ? `Every ${weekday}` : 'Every week'}
+          </Chip>
+        </ChipRow>
+      </div>
+      {clash.length > 0 && (
+        <p className="flex items-start gap-2 rounded-xl bg-warn-soft px-3 py-2 text-[14px] text-warn">
+          <Warning size={16} className="mt-0.5 shrink-0" />
+          <span>
+            Clashes with{' '}
+            {clash
+              .map((o) => `${shortName(names.get(o.studentId) ?? 'a lesson')} ${fmtTime(o.time)} – ${fmtTime(addMinutes(o.time, o.duration))}`)
+              .join(', ')}
+          </span>
+        </p>
+      )}
+      {v.date && v.time && (
+        <p className="rounded-xl bg-surface-2 px-3 py-2 text-[14px] text-ink-2">
+          {v.repeat === 'weekly' ? `Every ${weekday} from ${fmtDay(v.date)}` : fmtDay(v.date, { weekday: 'long' })} at {fmtTime(v.time)} –{' '}
+          {fmtTime(addMinutes(v.time, v.duration))}
+        </p>
+      )}
+      {error && <p className="text-[14px] text-danger">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={onClose}>
+          Back
+        </Button>
+        <Button type="submit" variant="primary" disabled={busy || !ready}>
+          {busy ? 'Saving…' : 'Duplicate'}
+        </Button>
       </div>
     </form>
   )

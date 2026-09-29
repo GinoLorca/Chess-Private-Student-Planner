@@ -332,3 +332,19 @@ export function directionsUrl(address: string, mode: TravelMode, provider: 'appl
 export function mapsUrl(address: string): string {
   return `https://maps.apple.com/?q=${encodeURIComponent(address.trim())}`
 }
+
+/**
+ * When the lesson a schedule reminder is about ends, as a timestamp: the
+ * new day and time for a move or an extra, the regular time for a
+ * cancellation. Null when the reminder isn't tied to a lesson.
+ */
+export function reminderLessonEnd(reminder: Reminder, changes: ScheduleChange[], slots: ScheduleSlot[]): number | null {
+  const change = reminder.change_id ? changes.find((c) => c.id === reminder.change_id) : undefined
+  if (!change) return null
+  const slot = change.slot_id ? slots.find((x) => x.id === change.slot_id) : undefined
+  const date = change.kind === 'cancelled' ? change.original_date : change.new_date
+  const time = change.kind === 'cancelled' ? slot?.start_time : (change.new_time ?? slot?.start_time)
+  const minutes = (change.kind === 'cancelled' ? null : change.duration_min) ?? slot?.duration_min ?? 60
+  if (!date || !time) return null
+  return localDateTime(date, time).getTime() + minutes * 60000
+}

@@ -7,6 +7,7 @@ import { AppearanceProvider, QueryProvider } from './app/providers'
 import { LoadingPage } from './components/ui/Page'
 import { OfflineBar } from './components/ui/OfflineBar'
 import { Prefetcher } from './app/Prefetcher'
+import { ReminderSweep } from './components/schedule/ReminderSweep'
 import { PullToRefresh } from './components/ui/PullToRefresh'
 
 // Each screen loads on demand so the first paint on an iPad only pulls the
@@ -42,6 +43,7 @@ function App() {
               <HashRouter>
                 <OfflineBar />
                 <Prefetcher />
+                <ReminderSweep />
                 <PullToRefresh>
                 <Suspense fallback={<LoadingPage />}>
                   <Routes>

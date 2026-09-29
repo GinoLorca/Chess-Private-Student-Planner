@@ -1,15 +1,17 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import type { Student } from '../../types/domain'
 import { useReminders, useScheduleChanges, useScheduleMissing, useScheduleSlots } from '../../lib/queries'
-import { fmtTime, isOn, shortName, todayIso, weekOccurrences, weekStart } from '../../lib/schedule'
+import { fmtTime, isOn, isoDate, shortName, weekOccurrences, weekStart } from '../../lib/schedule'
+import { lessonEnd } from '../../lib/earnings'
 import { Bell, Calendar, ChevronRight } from '../ui/Icons'
 
 /**
- * Today's lessons in one line above the folders, with any moves or
- * cancellations marked, and the open reminders; it leads to the Schedule.
- * Stays out of the way until there's a schedule to show.
+ * Today's lessons still to come (or under way) in one line above the
+ * folders, with any moves or cancellations marked, and the open reminders;
+ * it leads to the Schedule. A lesson drops off the moment it ends. Stays out
+ * of the way until there's a schedule to show.
  */
 export function TodayStrip({ students }: { students: Student[] }) {
   const missing = useScheduleMissing()
@@ -17,12 +19,33 @@ export function TodayStrip({ students }: { students: Student[] }) {
   const slots = useScheduleSlots(ready)
   const changes = useScheduleChanges(ready)
   const reminders = useReminders(ready)
-  const today = todayIso()
+  const [now, setNow] = useState(() => Date.now())
+  const today = isoDate(new Date(now))
   const byId = useMemo(() => new Map(students.map((s) => [s.id, s])), [students])
-  const list = useMemo(
+  const todays = useMemo(
     () => weekOccurrences(weekStart(today), slots.data ?? [], changes.data ?? []).filter((o) => o.date === today && byId.has(o.studentId)),
     [today, slots.data, changes.data, byId],
   )
+  const list = todays.filter((o) => lessonEnd(o) > now)
+  // Look at the clock again exactly when the next of today's lessons ends
+  // (to take it off), or at midnight for the new day's.
+  const midnight = new Date(now)
+  midnight.setHours(24, 0, 0, 0)
+  const wakeAt = Math.min(midnight.getTime(), ...list.map(lessonEnd))
+  useEffect(() => {
+    const t = window.setTimeout(() => setNow(Date.now()), Math.max(0, wakeAt - Date.now()) + 50)
+    return () => window.clearTimeout(t)
+  }, [wakeAt])
+  // An iPad pauses timers while the app is in the background: catch up on return.
+  useEffect(() => {
+    const refresh = () => document.visibilityState === 'visible' && setNow(Date.now())
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('focus', refresh)
+    return () => {
+      document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [])
   const open = (reminders.data ?? []).filter((r) => !r.done).length
   if (!ready || ((slots.data ?? []).length === 0 && open === 0)) return null
   return (
@@ -34,7 +57,7 @@ export function TodayStrip({ students }: { students: Student[] }) {
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-bold tracking-[0.12em] text-ink-3 uppercase">Today</p>
         {list.length === 0 ? (
-          <p className="text-[15px] text-ink-2">No lessons today</p>
+          <p className="text-[15px] text-ink-2">{todays.some(isOn) ? 'All done for today' : 'No lessons today'}</p>
         ) : (
           <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-[15px]">
             {list.map((o) => {
@@ -60,3 +83,4 @@ export function TodayStrip({ students }: { students: Student[] }) {
     </Link>
   )
 }
+

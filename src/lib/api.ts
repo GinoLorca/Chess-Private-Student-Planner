@@ -6,6 +6,7 @@ import type {
   FolderKind,
   LessonPlan,
   LessonSection,
+  LessonStatus,
   Note,
   PieceImages,
   Puzzle,
@@ -245,7 +246,8 @@ export async function duplicateLessonPlan(planId: string, studentId?: string): P
     if (error) throw error
     const puzzles = (source.puzzlesBySection[section.id] ?? []).map((p) => {
       const { id: _id, section_id: _s, ...rest } = p
-      return { ...rest, section_id: (created as LessonSection).id }
+      // A copy starts over: none of it given yet (when the database has the dot).
+      return { ...rest, section_id: (created as LessonSection).id, ...(p.status ? { status: 'planned' as const } : {}) }
     })
     if (puzzles.length > 0) {
       const { error: puzzleError } = await supabase.from('puzzles').insert(puzzles)
@@ -491,6 +493,8 @@ export interface PuzzlePatch {
   source?: PuzzleSource | null
   themes?: string[]
   done?: boolean
+  /** Gone over with the student yet (migration 0012). */
+  status?: LessonStatus
 }
 
 /** A blank position, or one pre-filled from an import. */

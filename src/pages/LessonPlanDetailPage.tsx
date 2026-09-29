@@ -9,12 +9,17 @@ import {
   useLessonHistory,
   useLessonPlanMutations,
   useLessonTemplateMutations,
+  useCodesMissing,
   useStudent,
   useStudents,
 } from '../lib/queries'
 import { agendaOptions, sectionOptions, themeOptions } from '../lib/lessonDefaults'
 import { PickSheet } from '../components/lesson/PickSheet'
-import { DividerPaper, DividerTabs, FolderBody, FolderTab, IndexCard, StatusStamp, StickyNote } from '../components/lesson/Folder'
+import { DividerPaper, DividerTabs, FolderBody, FolderTab, IndexCard, StickyNote } from '../components/lesson/Folder'
+import { StatusDot } from '../components/lesson/StatusDot'
+import { MigrationNotice } from '../components/ui/MigrationNotice'
+import { CODES_MIGRATION } from '../lib/data'
+import codesSql from '../../supabase/migrations/0012_codes_and_coverage.sql?raw'
 import { FOLDER_COLORS, onColor } from '../lib/colors'
 import { nextStatus } from '../lib/lessonStatus'
 import { useSessionSet } from '../hooks/useSessionSet'
@@ -51,7 +56,10 @@ export function LessonPlanDetailPage() {
   const [deletingPuzzle, setDeletingPuzzle] = useState<Puzzle | null>(null)
   const [puzzleMenu, setPuzzleMenu] = useState<Puzzle | null>(null)
   const [movingToNew, setMovingToNew] = useState<Puzzle | null>(null)
-  const [moved, setMoved] = useState<string | null>(null)
+  const [moved, setMoved] = useState<{ text: string; to?: string } | null>(null)
+  // Positions' dots need migration 0012; until then the cards go without.
+  const codesMissing = useCodesMissing()
+  const canDot = codesMissing.data === false
   const [quickAddFor, setQuickAddFor] = useState<LessonSection | null>(null)
   const [addingFens, setAddingFens] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -77,7 +85,11 @@ export function LessonPlanDetailPage() {
 
   const { plan, sections, puzzlesBySection } = lesson
   const base = `/students/${studentId}/lessons/${plan.id}`
-  const puzzleCount = Object.values(puzzlesBySection).reduce((n, list) => n + list.length, 0)
+  // Every position in lesson order: section by section.
+  const allPuzzles = sections.flatMap((sec) => puzzlesBySection[sec.id] ?? [])
+  const puzzleCount = allPuzzles.length
+  const covered = { planned: 0, in_progress: 0, taught: 0 }
+  for (const p of allPuzzles) covered[p.status ?? 'planned']++
   const todoCount = Object.values(puzzlesBySection).reduce((n, list) => n + list.filter((p) => !p.done).length, 0)
 
   // FENs go into the open section, or a "Positions" section when there is none yet; then straight to the bench.
@@ -104,14 +116,26 @@ export function LessonPlanDetailPage() {
   /** Move a position to the end of another section, and say where it went. */
   async function moveTo(puzzle: Puzzle, sectionId: string, title: string) {
     const last = (puzzlesBySection[sectionId] ?? []).reduce((n, p) => Math.max(n, p.sort_order), -1)
-    setMoved(`${puzzle.label || 'Position'} moved to ${title || 'Untitled section'}.`)
-    window.setTimeout(() => setMoved(null), 3500)
+    say({ text: `${puzzle.label || 'Position'} moved to ${title || 'Untitled section'}.` })
     await content.movePuzzle.mutateAsync({ puzzle, toSectionId: sectionId, sortOrder: last + 1 })
+  }
+
+  function say(message: { text: string; to?: string }) {
+    setMoved(message)
+    window.setTimeout(() => setMoved((m) => (m === message ? null : m)), message.to ? 8000 : 3500)
+  }
+
+  /** Carry positions not got to into a new lesson, numbered next; this lesson keeps the rest. */
+  async function moveToNewLesson(puzzles: Puzzle[]) {
+    const next = await content.moveToNewLesson.mutateAsync({ puzzles })
+    const what = puzzles.length === 1 ? puzzles[0].label || 'Position' : `${puzzles.length} positions`
+    say({ text: `${what} moved to Lesson ${next.number}.`, to: `/students/${studentId}/lessons/${next.id}` })
   }
 
   /** The right-click / hold menu on a position card. */
   function positionItems(puzzle: Puzzle) {
     const others = sections.filter((sec) => sec.id !== puzzle.section_id)
+    const notTaught = canDot ? allPuzzles.filter((p) => p.status !== 'taught') : []
     return [
       ...others.map((sec) => ({
         label: `Move to ${sec.title || 'Untitled section'}`,
@@ -119,6 +143,16 @@ export function LessonPlanDetailPage() {
         onSelect: () => void moveTo(puzzle, sec.id, sec.title),
       })),
       { label: 'Move to a new section…', icon: <Folder />, onSelect: () => setMovingToNew(puzzle) },
+      { label: 'Move to a new lesson', icon: <Plus />, onSelect: () => void moveToNewLesson([puzzle]) },
+      ...(notTaught.length > 1 && notTaught.length < allPuzzles.length
+        ? [
+            {
+              label: `Move all ${notTaught.length} not taught to a new lesson`,
+              icon: <Plus />,
+              onSelect: () => void moveToNewLesson(notTaught),
+            },
+          ]
+        : []),
       { label: 'Open', icon: <Eye />, onSelect: () => navigate(`${base}/puzzles/${puzzle.id}`) },
       { label: 'Edit', icon: <Pencil />, onSelect: () => navigate(`${base}/puzzles/${puzzle.id}/edit`) },
       { label: 'Copy link', icon: <LinkIcon />, onSelect: () => void copyText(puzzleLink(puzzle.id)) },
@@ -197,7 +231,7 @@ export function LessonPlanDetailPage() {
               </div>
               <div className="ml-1 flex min-w-0 flex-col gap-2 pt-1">
                 <div className="flex items-center gap-3">
-                  <StatusStamp status={plan.status} onTap={cycleStatus} />
+                  <StatusDot status={plan.status} onTap={cycleStatus} label what="Lesson" />
                   <TitleField
                     key={plan.title}
                     value={plan.title}
@@ -219,6 +253,16 @@ export function LessonPlanDetailPage() {
                   <span className="truncate">{plan.theme || 'Theme block'}</span>
                   <ChevronDown size={14} className="shrink-0" />
                 </button>
+                {canDot && puzzleCount > 0 && (
+                  <p className="flex items-center gap-3 text-[13px] font-semibold tabular-nums" style={{ color: ink.inkSoft }} aria-label="Positions covered">
+                    {(['taught', 'in_progress', 'planned'] as const).map((k) => (
+                      <span key={k} className="flex items-center gap-1.5">
+                        <StatusDot status={k} what="Positions" />
+                        {covered[k]}
+                      </span>
+                    ))}
+                  </p>
+                )}
               </div>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2 sm:hidden">{viewButtons(true)}</div>
@@ -234,6 +278,11 @@ export function LessonPlanDetailPage() {
           </StickyNote>
         </div>
 
+        {codesMissing.data && (
+          <div className="mt-5">
+            <MigrationNotice file={CODES_MIGRATION} sql={codesSql} adds="the covered dots on positions" onCheck={() => void codesMissing.refetch()} />
+          </div>
+        )}
         <div className="mt-5">
           <DividerTabs
             tabs={sections.map((sec, i) => ({
@@ -259,8 +308,13 @@ export function LessonPlanDetailPage() {
                   </IconButton>
                 </div>
                 {moved && (
-                  <p role="status" className="mb-3 rounded-xl bg-accent-soft px-3.5 py-2 text-[14px] font-semibold text-accent-strong">
-                    {moved}
+                  <p role="status" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-accent-soft px-3.5 py-2 text-[14px] font-semibold text-accent-strong">
+                    {moved.text}
+                    {moved.to && (
+                      <Link to={moved.to} className="underline underline-offset-2">
+                        Open it ›
+                      </Link>
+                    )}
                   </p>
                 )}
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -272,6 +326,7 @@ export function LessonPlanDetailPage() {
                       to={`${base}/puzzles/${puzzle.id}`}
                       onDelete={() => setDeletingPuzzle(puzzle)}
                       onMenu={() => setPuzzleMenu(puzzle)}
+                      onStatus={canDot ? () => content.setPuzzleStatus.mutate({ puzzle, status: nextStatus(puzzle.status) }) : undefined}
                     />
                   ))}
                   <div className="add-slot flex min-h-[120px] flex-wrap items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-line-strong p-4">

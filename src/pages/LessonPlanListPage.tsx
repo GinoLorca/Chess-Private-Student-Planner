@@ -9,13 +9,15 @@ import { Plus } from '../components/ui/Icons'
 import { FenSheet } from '../components/lesson/FenSheet'
 import { DividerPaper, FolderBody, FolderTab, LessonCard } from '../components/lesson/Folder'
 import { FOLDER_COLORS } from '../lib/colors'
+import { nextStatus } from '../lib/lessonStatus'
+import { todayIso } from '../lib/schedule'
 
 export function LessonPlanListPage() {
   const { studentId = '' } = useParams<{ studentId: string }>()
   const navigate = useNavigate()
   const { data: student } = useStudent(studentId)
   const { data: plans, isLoading } = useLessonPlans(studentId)
-  const { createFromPositions, remove } = useLessonPlanMutations(studentId)
+  const { createFromPositions, remove, update } = useLessonPlanMutations(studentId)
   const [deleting, setDeleting] = useState<LessonPlan | null>(null)
   const [creating, setCreating] = useState(false)
 
@@ -55,6 +57,10 @@ export function LessonPlanListPage() {
                 taughtOn={plan.taught_on}
                 to={`/students/${studentId}/lessons/${plan.id}`}
                 onDelete={() => setDeleting(plan)}
+                onStatus={() => {
+                  const status = nextStatus(plan.status)
+                  update.mutate({ id: plan.id, patch: { status, taught_on: status === 'taught' ? todayIso() : null } })
+                }}
               />
             ))}
             <div className="add-slot flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line-strong p-4 text-center">

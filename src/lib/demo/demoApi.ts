@@ -252,7 +252,7 @@ export async function duplicateLessonPlan(planId: string, studentId?: string): P
     const copy: LessonSection = { id: uid('sec'), lesson_plan_id: plan.id, title: section.title, sort_order: section.sort_order }
     db().sections.push(copy)
     for (const puzzle of source.puzzlesBySection[section.id] ?? []) {
-      db().puzzles.push({ ...puzzle, id: uid('pz'), section_id: copy.id })
+      db().puzzles.push({ ...puzzle, id: uid('pz'), section_id: copy.id, status: 'planned' })
     }
   }
   save()

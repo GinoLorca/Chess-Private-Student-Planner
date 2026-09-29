@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import type { LessonStatus, Puzzle } from '../../types/domain'
 import { normalizeFen } from '../../lib/fen'
 import { statusLabel, nextStatus } from '../../lib/lessonStatus'
+import { StatusDot, dotLabel } from './StatusDot'
 import { answerProblem } from '../../lib/solution'
 import { Board } from '../board/Board'
 import { ChevronDown, Trash, Warning } from '../ui/Icons'
@@ -226,6 +227,7 @@ export function IndexCard({
   to,
   onDelete,
   onMenu,
+  onStatus,
 }: {
   puzzle: Puzzle
   index: number
@@ -233,6 +235,8 @@ export function IndexCard({
   onDelete: () => void
   /** Right-click or press and hold: the card's menu (move to another section…). */
   onMenu?: () => void
+  /** Tap the dot: not given yet → in progress → taught. No dot without it. */
+  onStatus?: () => void
 }) {
   const press = useLongPress(() => onMenu?.())
   const excerpt = puzzle.summary.replace(/\s+/g, ' ').trim()
@@ -289,7 +293,10 @@ export function IndexCard({
         </div>
       </Link>
       <div className="flex items-center justify-between px-4 pb-3">
-        <span className="text-[12px] font-semibold tracking-[0.1em] text-ink-3 uppercase">{toMove} to move</span>
+        <span className="flex items-center gap-1">
+          {onStatus && <StatusDot status={puzzle.status} onTap={onStatus} what="Position" className="-ml-2.5" />}
+          <span className="text-[12px] font-semibold tracking-[0.1em] text-ink-3 uppercase">{toMove} to move</span>
+        </span>
         <div className="flex items-center gap-1">
           <CopyLinkButton puzzleId={puzzle.id} />
           <IconButton label="Delete position" className="h-9 w-9 text-ink-3" onClick={onDelete}>
@@ -437,6 +444,7 @@ export function LessonCard({
   taughtOn,
   to,
   onDelete,
+  onStatus,
 }: {
   number: number
   title?: string
@@ -445,6 +453,8 @@ export function LessonCard({
   taughtOn?: string | null
   to: string
   onDelete: () => void
+  /** Tap the dot: not given yet → in progress → taught. */
+  onStatus?: () => void
 }) {
   return (
     <div
@@ -466,12 +476,14 @@ export function LessonCard({
             <p className="truncate font-display text-[20px] leading-tight font-semibold text-ink">{title || (theme ? '\u00a0' : 'Untitled')}</p>
             {theme && <p className="mt-0.5 truncate text-[13px] text-ink-2">{theme}</p>}
           </div>
-          <StatusStamp status={status} size="sm" />
         </div>
       </Link>
       <div className="flex items-center justify-between px-4 pb-2.5">
-        <span className="text-[12px] font-semibold tracking-[0.1em] text-ink-3 uppercase">
-          {taughtOn ? `Taught ${formatShortDate(taughtOn)}` : '\u00a0'}
+        <span className="flex items-center gap-1">
+          <StatusDot status={status} onTap={onStatus} what="Lesson" className={onStatus ? '-ml-2.5' : 'mr-1'} />
+          <span className="text-[12px] font-semibold tracking-[0.1em] text-ink-3 uppercase">
+            {status === 'taught' && taughtOn ? `Taught ${formatShortDate(taughtOn)}` : dotLabel(status)}
+          </span>
         </span>
         <div className="flex items-center gap-1">
           <IconButton label="Delete lesson" className="h-9 w-9 text-ink-3" onClick={onDelete}>

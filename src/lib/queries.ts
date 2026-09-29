@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import * as api from './data'
-import type { LessonPayment, FolderKind, LessonSection, LessonTemplate, NewLessonInit, Note, Puzzle, Reminder, ScheduleChange, ScheduleSlot, Student, StudentPlace } from '../types/domain'
+import type { LessonPayment, FolderKind, LessonPlan, LessonSection, LessonStatus, LessonTemplate, NewLessonInit, Note, Puzzle, Reminder, ScheduleChange, ScheduleSlot, Student, StudentPlace } from '../types/domain'
 import { reminderFor } from './schedule'
 
 export const keys = {
@@ -152,9 +152,15 @@ export function useLessonPlanMutations(studentId: string) {
       await qc.cancelQueries({ queryKey: keys.lesson(id) })
       const prev = qc.getQueryData<api.LessonBundle>(keys.lesson(id))
       if (prev) qc.setQueryData<api.LessonBundle>(keys.lesson(id), { ...prev, plan: { ...prev.plan, ...patch } })
-      return { prev }
+      // The lesson list changes at once too (its status dots).
+      const prevList = qc.getQueryData<LessonPlan[]>(keys.lessonPlans(studentId))
+      if (prevList) qc.setQueryData<LessonPlan[]>(keys.lessonPlans(studentId), prevList.map((p) => (p.id === id ? { ...p, ...patch } : p)))
+      return { prev, prevList }
     },
-    onError: (_e, { id }, ctx) => ctx?.prev && qc.setQueryData(keys.lesson(id), ctx.prev),
+    onError: (_e, { id }, ctx) => {
+      if (ctx?.prev) qc.setQueryData(keys.lesson(id), ctx.prev)
+      if (ctx?.prevList) qc.setQueryData(keys.lessonPlans(studentId), ctx.prevList)
+    },
     onSettled: (_d, _e, { id }) => {
       qc.invalidateQueries({ queryKey: keys.lesson(id) })
       invalidate()
@@ -234,7 +240,57 @@ export function useLessonContentMutations(planId: string) {
       qc.invalidateQueries({ queryKey: keys.puzzle(puzzle.id) })
     },
   })
-  return { createSection, updateSection, deleteSection, createPuzzle, deletePuzzle, movePuzzle }
+  /** A position's red / yellow / green dot; the card changes at once. */
+  const setPuzzleStatus = useMutation({
+    mutationFn: ({ puzzle, status }: { puzzle: Puzzle; status: LessonStatus }) => api.updatePuzzle(puzzle.id, { status }),
+    onMutate: async ({ puzzle, status }) => {
+      const key = keys.lesson(planId)
+      await qc.cancelQueries({ queryKey: key })
+      const prev = qc.getQueryData<api.LessonBundle>(key)
+      if (prev) {
+        const list = (prev.puzzlesBySection[puzzle.section_id] ?? []).map((p) => (p.id === puzzle.id ? { ...p, status } : p))
+        qc.setQueryData<api.LessonBundle>(key, { ...prev, puzzlesBySection: { ...prev.puzzlesBySection, [puzzle.section_id]: list } })
+      }
+      const one = qc.getQueryData<Puzzle>(keys.puzzle(puzzle.id))
+      if (one) qc.setQueryData<Puzzle>(keys.puzzle(puzzle.id), { ...one, status })
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => ctx?.prev && qc.setQueryData(keys.lesson(planId), ctx.prev),
+    onSettled: (_d, _e, { puzzle }) => {
+      invalidate()
+      qc.invalidateQueries({ queryKey: keys.puzzle(puzzle.id) })
+    },
+  })
+  /**
+   * Positions not got to, carried into a new lesson: numbered next, the same
+   * title and theme, each position under a section of the same name, in
+   * the order they were in.
+   */
+  const moveToNewLesson = useMutation({
+    mutationFn: async ({ puzzles }: { puzzles: Puzzle[] }) => {
+      const bundle = qc.getQueryData<api.LessonBundle>(keys.lesson(planId)) ?? (await api.getLessonBundle(planId))
+      const { plan: source, sections } = bundle
+      const plan = await api.createLessonPlan(source.student_id, { title: source.title, theme: source.theme })
+      const moving = new Set(puzzles.map((p) => p.id))
+      let order = 0
+      for (const section of sections) {
+        const here = (bundle.puzzlesBySection[section.id] ?? []).filter((p) => moving.has(p.id))
+        if (here.length === 0) continue
+        const created = await api.createSection(plan.id, section.title)
+        for (const p of here) await api.updatePuzzle(p.id, { section_id: created.id, sort_order: order++ })
+      }
+      return plan
+    },
+    onSettled: (plan, _e, { puzzles }) => {
+      invalidate()
+      for (const p of puzzles) qc.invalidateQueries({ queryKey: keys.puzzle(p.id) })
+      if (plan) {
+        qc.invalidateQueries({ queryKey: keys.lessonPlans(plan.student_id) })
+        qc.invalidateQueries({ queryKey: keys.folderCounts(plan.student_id) })
+      }
+    },
+  })
+  return { createSection, updateSection, deleteSection, createPuzzle, deletePuzzle, movePuzzle, setPuzzleStatus, moveToNewLesson }
 }
 
 export function useCustomPieceSetMutations() {

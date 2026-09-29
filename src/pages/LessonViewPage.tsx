@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight, Puzzle } from '../types/domain'
-import { useLesson, usePuzzleMutations, useStudent } from '../lib/queries'
+import { useCodesMissing, useLesson, useLessonContentMutations, usePuzzleMutations, useStudent } from '../lib/queries'
+import { StatusDot } from '../components/lesson/StatusDot'
+import { nextStatus } from '../lib/lessonStatus'
 import { canSolveLine, lineSteps, sameMove, stepLabel } from '../lib/solution'
 import { pieceList, type Orientation, type SideSetup } from '../lib/fen'
 import { useSessionSet } from '../hooks/useSessionSet'
@@ -236,6 +238,13 @@ function PuzzleView({
 }) {
   const { lessonPlanId = '' } = useParams()
   const { update } = usePuzzleMutations(puzzle.id, lessonPlanId)
+  // Coach and Present carry the position's red / yellow / green dot, to mark it as it's gone over.
+  const { setPuzzleStatus } = useLessonContentMutations(lessonPlanId)
+  const codesMissing = useCodesMissing(mode !== 'learn')
+  const dot =
+    mode !== 'learn' && codesMissing.data === false ? (
+      <StatusDot status={puzzle.status} what="Position" onTap={() => setPuzzleStatus.mutate({ puzzle, status: nextStatus(puzzle.status) })} className="-my-2 -ml-2" />
+    ) : null
   const steps = useMemo(() => lineSteps(puzzle), [puzzle])
   const [step, setStep] = useState(0)
   // Right-drag drawings: on the starting position they're saved with the
@@ -371,7 +380,7 @@ function PuzzleView({
             <span className="truncate">{sectionTitle}</span>
           </p>
           <div className="flex-1" />
-          <Caption className="hidden pb-1 lg:flex" position={position} label={revealed && !notesHidden ? puzzle.label : ''} toMove={toMove} />
+          <Caption className="hidden pb-1 lg:flex" dot={dot} position={position} label={revealed && !notesHidden ? puzzle.label : ''} toMove={toMove} />
           <button onClick={flip} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg">
             Flip board
           </button>
@@ -419,7 +428,7 @@ function PuzzleView({
           />
         </motion.div>
         )}
-        <Caption className="mt-2 flex lg:hidden" position={position} label={revealed && !notesHidden ? puzzle.label : ''} toMove={toMove} />
+        <Caption className="mt-2 flex lg:hidden" dot={dot} position={position} label={revealed && !notesHidden ? puzzle.label : ''} toMove={toMove} />
       </div>
 
       <div className="space-y-3">
@@ -587,10 +596,23 @@ function PuzzleView({
 }
 
 /** "#4 b6+ … White to play": which position this is, its name once shown, and whose move. */
-function Caption({ position, label, toMove, className }: { position: number; label: string; toMove: string; className?: string }) {
+function Caption({
+  position,
+  label,
+  toMove,
+  dot,
+  className,
+}: {
+  position: number
+  label: string
+  toMove: string
+  dot?: ReactNode
+  className?: string
+}) {
   return (
-    <div className={clsx('min-w-0 items-baseline justify-between gap-3', className)}>
-      <p className="min-w-0 truncate text-[15px] font-semibold text-on-bg">
+    <div className={clsx('min-w-0 items-center justify-between gap-3', className)}>
+      {dot}
+      <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-on-bg">
         <span className="text-on-bg-2">#{position}</span> <span className="font-display text-[19px]">{label}</span>
       </p>
       <p className="shrink-0 text-[12px] font-semibold tracking-[0.1em] text-on-bg-2 uppercase">{toMove} to play</p>

@@ -58,6 +58,7 @@ export function SetupBoard({
   const [drag, setDrag] = useState<{ code: PieceCode; x: number; y: number } | null>(null)
   const [fenDraft, setFenDraft] = useState('')
   const boardRef = useRef<HTMLDivElement>(null)
+  const ghostRef = useRef<HTMLDivElement>(null)
   const placement = parsePlacement(fen)
   const draw = useRightClickDraw({
     boardRef,
@@ -116,8 +117,11 @@ export function SetupBoard({
       // A finger that rested on the board has become a pen; the piece stays put.
       if (draw.claimed()) return
       if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return
+      // React hears about the drag once; the piece then follows the pointer directly.
+      if (!dragging) setDrag({ code, x: ev.clientX, y: ev.clientY })
       dragging = true
-      setDrag({ code, x: ev.clientX, y: ev.clientY })
+      const el = ghostRef.current
+      if (el) el.style.transform = `translate(${ev.clientX}px, ${ev.clientY}px) translate(-50%, -50%)`
     }
     const onUp = (ev: PointerEvent) => {
       target.removeEventListener('pointermove', onMove)
@@ -274,8 +278,9 @@ export function SetupBoard({
 
       {drag && DragPiece && (
         <div
-          className="pointer-events-none fixed z-50 h-16 w-16 -translate-x-1/2 -translate-y-1/2 drop-shadow-lg"
-          style={{ left: drag.x, top: drag.y }}
+          ref={ghostRef}
+          className="pointer-events-none fixed top-0 left-0 z-50 h-16 w-16 drop-shadow-lg will-change-transform"
+          style={{ transform: `translate(${drag.x}px, ${drag.y}px) translate(-50%, -50%)` }}
         >
           <DragPiece />
         </div>

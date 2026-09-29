@@ -22,8 +22,10 @@ function isKnightHop(dx: number, dy: number) {
 export function Arrows({ arrows, orientation }: { arrows: BoardArrow[]; orientation: Orientation }) {
   if (arrows.length === 0) return null
   return (
+    // Its own compositing layer: drawing an arrow repaints only the arrows,
+    // never the squares and pieces under them (textured skins make those dear).
     <svg
-      className="pointer-events-none absolute inset-0 h-full w-full"
+      className="pointer-events-none absolute inset-0 h-full w-full will-change-transform"
       viewBox="0 0 8 8"
       preserveAspectRatio="none"
       aria-hidden

@@ -1,4 +1,4 @@
-import { memo, type CSSProperties, type HTMLAttributes, type ReactNode, type Ref } from 'react'
+import { memo, type ComponentType, type CSSProperties, type HTMLAttributes, type ReactNode, type Ref } from 'react'
 import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
 import { FILES, cellToSquare, isLightSquare, parsePlacement, type Orientation } from '../../lib/fen'
@@ -48,53 +48,25 @@ export const Board = memo(function Board({
   const highlightBySquare = new Map(highlights.map((h) => [h.square, h.color]))
   const hidden = new Set(hiddenSquares ?? [])
 
+  // Each square is its own memoised component, so a render (a drag, a new
+  // arrow, a selection) only repaints the squares whose content changed; the
+  // pieces' drawings aren't rebuilt on every pointer move.
   const cells: ReactNode[] = []
   for (let y = 0; y < 8; y++) {
     for (let x = 0; x < 8; x++) {
       const square = cellToSquare(x, y, orientation)
-      const light = isLightSquare(square)
       const code = placement[square]
-      const Piece = code ? pieces[code] : null
-      const highlight = highlightBySquare.get(square)
-      const isLast = lastMove && (lastMove.from === square || lastMove.to === square)
-      const showFile = coordinates && y === 7
-      const showRank = coordinates && x === 0
-      const coordColor = light ? 'var(--board-coord-on-light)' : 'var(--board-coord-on-dark)'
       cells.push(
-        <div
+        <Square
           key={square}
-          data-square={square}
-          className={clsx('board-sq relative', light ? 'light' : 'dark')}
-          // Each square draws half the line; neighbours meet to make one stroke.
-          style={{ boxShadow: 'inset 0 0 0 0.14cqw var(--board-line)' }}
-        >
-          {isLast && <div className="absolute inset-0" style={{ background: 'var(--board-last-move)' }} />}
-          {highlight && <div className="absolute inset-0" style={{ background: highlight }} />}
-          {selected === square && (
-            <div className="absolute inset-0" style={{ boxShadow: 'inset 0 0 0 0.35em var(--board-select)' }} />
-          )}
-          {Piece && !hidden.has(square) && (
-            <div className="board-piece absolute inset-[6%]">
-              <Piece />
-            </div>
-          )}
-          {showRank && (
-            <span
-              className="pointer-events-none absolute top-[3%] left-[6%] text-[2.6cqw] leading-none font-bold"
-              style={{ color: coordColor }}
-            >
-              {square[1]}
-            </span>
-          )}
-          {showFile && (
-            <span
-              className="pointer-events-none absolute right-[7%] bottom-[3%] text-[2.6cqw] leading-none font-bold"
-              style={{ color: coordColor }}
-            >
-              {square[0]}
-            </span>
-          )}
-        </div>,
+          square={square}
+          Piece={code && !hidden.has(square) ? pieces[code] : null}
+          highlight={highlightBySquare.get(square)}
+          last={Boolean(lastMove && (lastMove.from === square || lastMove.to === square))}
+          selected={selected === square}
+          file={coordinates && y === 7}
+          rank={coordinates && x === 0}
+        />,
       )
     }
   }
@@ -126,3 +98,56 @@ export const Board = memo(function Board({
 })
 
 export { FILES }
+
+const Square = memo(function Square({
+  square,
+  Piece,
+  highlight,
+  last,
+  selected,
+  file,
+  rank,
+}: {
+  square: string
+  Piece: ComponentType | null
+  highlight?: string
+  last: boolean
+  selected: boolean
+  /** Show the file letter / rank number in this square's corner. */
+  file: boolean
+  rank: boolean
+}) {
+  const light = isLightSquare(square)
+  const coordColor = light ? 'var(--board-coord-on-light)' : 'var(--board-coord-on-dark)'
+  return (
+    <div
+      data-square={square}
+      className={clsx('board-sq relative', light ? 'light' : 'dark')}
+      // Each square draws half the line; neighbours meet to make one stroke.
+      style={SQUARE_LINE}
+    >
+      {last && <div className="absolute inset-0" style={LAST_MOVE} />}
+      {highlight && <div className="absolute inset-0" style={{ background: highlight }} />}
+      {selected && <div className="absolute inset-0" style={SELECTED} />}
+      {Piece && (
+        <div className="board-piece absolute inset-[6%]">
+          <Piece />
+        </div>
+      )}
+      {rank && (
+        <span className="pointer-events-none absolute top-[3%] left-[6%] text-[2.6cqw] leading-none font-bold" style={{ color: coordColor }}>
+          {square[1]}
+        </span>
+      )}
+      {file && (
+        <span className="pointer-events-none absolute right-[7%] bottom-[3%] text-[2.6cqw] leading-none font-bold" style={{ color: coordColor }}>
+          {square[0]}
+        </span>
+      )}
+    </div>
+  )
+})
+
+const SQUARE_LINE: CSSProperties = { boxShadow: 'inset 0 0 0 0.14cqw var(--board-line)' }
+const LAST_MOVE: CSSProperties = { background: 'var(--board-last-move)' }
+const SELECTED: CSSProperties = { boxShadow: 'inset 0 0 0 0.35em var(--board-select)' }

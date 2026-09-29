@@ -40,6 +40,7 @@ export function MoveBoard({
 }: MoveBoardProps) {
   const { pieces } = usePieceSet()
   const boardRef = useRef<HTMLDivElement>(null)
+  const ghostRef = useRef<HTMLDivElement>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [drag, setDrag] = useState<{ code: string; x: number; y: number; from: string } | null>(null)
   const [promotion, setPromotion] = useState<{ from: string; to: string } | null>(null)
@@ -115,8 +116,12 @@ export function MoveBoard({
       // A finger that rested has become a pen; the piece stays put.
       if (draw.claimed()) return
       if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return
+      // React hears about the drag once, when it starts; after that the piece
+      // under the finger is moved directly, so the board isn't re-rendered
+      // on every pointer move.
+      if (!dragging) setDrag({ code, x: ev.clientX, y: ev.clientY, from: square })
       dragging = true
-      setDrag({ code, x: ev.clientX, y: ev.clientY, from: square })
+      placeGhost(ev.clientX, ev.clientY)
     }
     const onUp = (ev: PointerEvent) => {
       target.removeEventListener('pointermove', onMove)
@@ -134,6 +139,10 @@ export function MoveBoard({
   }
 
   const DragPiece = drag ? pieces[drag.code] : null
+  function placeGhost(x: number, y: number) {
+    const el = ghostRef.current
+    if (el) el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`
+  }
   const promoColor = chess?.turn() ?? 'w'
 
   return (
@@ -180,8 +189,9 @@ export function MoveBoard({
       />
       {drag && DragPiece && (
         <div
-          className="pointer-events-none fixed z-50 h-16 w-16 -translate-x-1/2 -translate-y-1/2 drop-shadow-lg"
-          style={{ left: drag.x, top: drag.y }}
+          ref={ghostRef}
+          className="pointer-events-none fixed top-0 left-0 z-50 h-16 w-16 drop-shadow-lg will-change-transform"
+          style={{ transform: `translate(${drag.x}px, ${drag.y}px) translate(-50%, -50%)` }}
         >
           <DragPiece />
         </div>

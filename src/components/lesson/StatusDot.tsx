@@ -1,15 +1,6 @@
 import clsx from 'clsx'
 import type { LessonStatus } from '../../types/domain'
-import { nextStatus } from '../../lib/lessonStatus'
-
-/** The ICN Chess Club Planner's colours: red not given, yellow under way, green taught. */
-const DOT: Record<LessonStatus, { color: string; label: string }> = {
-  planned: { color: '#d64545', label: 'Not given yet' },
-  in_progress: { color: '#e0a800', label: 'In progress' },
-  taught: { color: '#2f8f4e', label: 'Taught' },
-}
-
-export const dotLabel = (s: LessonStatus | undefined) => DOT[s ?? 'planned'].label
+import { STATUS_DOT as DOT, nextStatus } from '../../lib/lessonStatus'
 
 /**
  * Red, yellow or green: whether a lesson or a position has been gone over.

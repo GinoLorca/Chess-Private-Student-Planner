@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { useRef, type ReactNode } from 'react'
 import type { Student, StudentPlace } from '../../types/domain'
 import { addMinutes, clashes, fmtDay, fmtTime, isOn, parseDate, shortName, weekDates, whereLabel, type Occurrence } from '../../lib/schedule'
-import { Check, MapPin } from '../ui/Icons'
+import { Check, MapPin, Plus } from '../ui/Icons'
 import { fmtMoney } from '../../lib/earnings'
 
 /**
@@ -21,6 +21,7 @@ export function WeekView({
   paid,
   onOpen,
   onMenu,
+  onAdd,
 }: {
   start: string
   occurrences: Occurrence[]
@@ -34,6 +35,8 @@ export function WeekView({
   onOpen: (o: Occurrence) => void
   /** Right-click or long-press: the quick menu (reschedule, cancel…). */
   onMenu: (o: Occurrence) => void
+  /** The day's +: a lesson on that day only, for anyone (an extra this week, a make-up). */
+  onAdd?: (date: string) => void
 }) {
   const clash = clashes(occurrences)
   return (
@@ -63,6 +66,17 @@ export function WeekView({
                 {isToday && <span className="text-[10.5px] font-bold tracking-[0.1em] text-accent-strong uppercase">Today</span>}
                 {on >= 2 && (
                   <span className="w-fit rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-warn">{on} lessons</span>
+                )}
+                {onAdd && (
+                  <button
+                    type="button"
+                    onClick={() => onAdd(date)}
+                    aria-label={`Add a lesson on ${fmtDay(date, { weekday: 'long' })}`}
+                    title="Add a lesson this day"
+                    className="grid h-8 w-8 place-items-center rounded-full text-ink-3 transition hover:bg-surface-2 hover:text-accent-strong active:scale-90 lg:-my-1 lg:h-7 lg:w-7"
+                  >
+                    <Plus size={16} />
+                  </button>
                 )}
               </div>
             </header>

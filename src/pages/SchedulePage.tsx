@@ -94,7 +94,8 @@ export function SchedulePage() {
   const [cancelling, setCancelling] = useState<Occurrence | null>(null)
   const [undoing, setUndoing] = useState<Occurrence | null>(null)
   const [adding, setAdding] = useState(false)
-  const [addingExtra, setAddingExtra] = useState(false)
+  /** The day an extra lesson is being added on, or null. */
+  const [addingExtra, setAddingExtra] = useState<string | null>(null)
   const [slotEdit, setSlotEdit] = useState<{ slot: ScheduleSlot | null; initial: SlotValues } | null>(null)
   const [deletingSlot, setDeletingSlot] = useState<ScheduleSlot | null>(null)
   const [placeFor, setPlaceFor] = useState<Student | null>(null)
@@ -402,6 +403,7 @@ export function SchedulePage() {
           paid={canMarkPaid ? new Map(occurrences.map((o) => [o.key, payState(o)])) : undefined}
           onOpen={setOpened}
           onMenu={setQuick}
+          onAdd={setAddingExtra}
         />
       )}
 
@@ -577,15 +579,14 @@ export function SchedulePage() {
       />
 
       <LessonTimeModal
-        open={addingExtra}
-        title="One-off lesson"
-        intro="An extra lesson on one day only, such as a make-up. A reminder is written for it."
+        open={addingExtra !== null}
+        title="Extra lesson"
         submitLabel="Add the lesson"
         weekStart={start}
-        initial={{ studentId: roster[0]?.id ?? '', date: start <= today && today <= addDays(start, 6) ? today : start, time: '16:00', duration: 60, note: '' }}
+        initial={{ studentId: roster[0]?.id ?? '', date: addingExtra ?? start, time: '16:00', duration: 60, note: '' }}
         students={roster}
         notePlaceholder="Make-up for last week…"
-        onClose={() => setAddingExtra(false)}
+        onClose={() => setAddingExtra(null)}
         onSubmit={saveExtra}
       />
 
@@ -638,7 +639,7 @@ export function SchedulePage() {
         onClose={() => setAdding(false)}
         title="Add"
         items={[
-          { label: 'One-off lesson (a make-up, an extra)', icon: <Calendar />, onSelect: () => setAddingExtra(true) },
+          { label: 'One-off lesson (a make-up, an extra)', icon: <Calendar />, onSelect: () => setAddingExtra(start <= today && today <= addDays(start, 6) ? today : start) },
           { label: 'Regular weekly lesson', icon: <Plus />, onSelect: () => openSlot(null) },
         ]}
       />

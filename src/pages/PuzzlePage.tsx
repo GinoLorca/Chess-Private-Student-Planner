@@ -17,10 +17,10 @@ import { useHideToggle } from '../hooks/useHideToggle'
 import { opposite, useFlip } from '../hooks/useFlip'
 
 /**
- * The read view of one position: what the coach glances at right before a
- * lesson. Everything is visible at once — no reveal step — because this is
- * for the coach's eyes, not the student's. The board steps through the
- * answer: click it, click a move, or use the clicker / arrow keys.
+ * One position. It opens with the eye closed: the answer and explanation
+ * hidden and the board live, to be solved. Open the eye (or solve it) and
+ * everything shows; the board then steps through the answer: click it,
+ * click a move, or use the clicker / arrow keys.
  */
 export function PuzzlePage() {
   const { studentId = '', lessonPlanId = '', puzzleId = '' } = useParams()
@@ -35,7 +35,14 @@ export function PuzzlePage() {
   const next = useCallback(() => setStep((s) => Math.min(last, s + 1)), [last])
   const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
   // The eye hides the answer and explanation: tap it, long-press a clicker button, or press B.
-  const [hidden, toggleHidden, setHidden] = useHideToggle()
+  const [hidden, toggleHidden, setHidden] = useHideToggle(true)
+  // Each position opens with the eye closed: the answer hidden, the board ready to solve.
+  const [openedId, setOpenedId] = useState(puzzleId)
+  if (openedId !== puzzleId) {
+    setOpenedId(puzzleId)
+    setHidden(true)
+    setStep(0)
+  }
   // With the answer hidden the board is live, to play the line out; solving
   // it brings the answer back, at the move the line was played to.
   const solve = useSolve(steps, puzzleId, (at) => {

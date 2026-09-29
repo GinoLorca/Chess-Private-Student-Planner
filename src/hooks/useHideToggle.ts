@@ -4,10 +4,10 @@ import { isTextTarget, isToggleKey, isToggleMouse, loadToggle } from '../lib/cli
 /**
  * Hidden / shown for the explanation on a board page, flipped by the eye
  * button or by the clicker's taught third button (see src/lib/clicker.ts).
- * Starts shown, since the coach opens these pages to read.
+ * Starts shown unless told otherwise.
  */
-export function useHideToggle(): [boolean, () => void, (hidden: boolean) => void] {
-  const [hidden, setHidden] = useState(false)
+export function useHideToggle(startHidden = false): [boolean, () => void, (hidden: boolean) => void] {
+  const [hidden, setHidden] = useState(startHidden)
   const toggle = useCallback(() => setHidden((h) => !h), [])
   useEffect(() => {
     const custom = loadToggle()

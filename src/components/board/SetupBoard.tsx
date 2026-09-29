@@ -197,7 +197,7 @@ export function SetupBoard({
         })}
       </div>
 
-      <div className="mx-auto w-full max-w-[644px]">
+      <div className="mx-auto w-full max-w-[644px] pointer-fine:max-w-[560px]">
         <Board
           ref={boardRef}
           fen={fen}

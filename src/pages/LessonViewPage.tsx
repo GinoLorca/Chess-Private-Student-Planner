@@ -363,13 +363,14 @@ function PuzzleView({
   }, [onSwipe])
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)] lg:items-start">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)] lg:items-start pointer-fine:lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
       {/* Square board, so cap its width by the viewport height: on an iPad in
           landscape the whole board must fit above the nav. There the caption
-          moves up beside the section tab, giving the board its height. */}
+          moves up beside the section tab, giving the board its height. A Mac
+          (a mouse or trackpad) keeps the smaller board it had before. */}
       <div
-        className="mx-auto w-full [--board-reserve:236px] lg:[--board-reserve:176px]"
-        style={{ maxWidth: 'min(736px, calc(100svh - var(--board-reserve)))' }}
+        className="mx-auto w-full [--board-max:736px] [--board-reserve:236px] lg:[--board-reserve:176px] pointer-fine:[--board-max:640px] pointer-fine:lg:[--board-reserve:236px]"
+        style={{ maxWidth: 'min(var(--board-max), calc(100svh - var(--board-reserve)))' }}
       >
         <div className="flex items-end gap-3 pl-3">
           <p

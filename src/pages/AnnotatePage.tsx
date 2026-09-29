@@ -187,8 +187,8 @@ function Bench({
   const toMove = puzzle.side_to_move === 'w' ? 'White' : 'Black'
 
   return (
-    <div className="grid gap-5 md:grid-cols-[minmax(0,1.25fr)_minmax(270px,0.75fr)] md:items-start">
-      <div className="mx-auto w-full max-w-[644px] md:mx-0">
+    <div className="grid gap-5 md:grid-cols-[minmax(0,1.25fr)_minmax(270px,0.75fr)] md:items-start pointer-fine:md:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)]">
+      <div className="mx-auto w-full max-w-[644px] md:mx-0 pointer-fine:max-w-[560px]">
         <div className="flex items-end justify-between gap-3 pl-3">
           <p
             className="folder-tab flex h-8 min-w-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] uppercase"

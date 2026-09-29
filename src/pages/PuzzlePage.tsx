@@ -84,9 +84,10 @@ export function PuzzlePage() {
         </>
       }
     >
-      {/* Desktop (a mouse or trackpad, wide window) gets a board about a third larger; iPad and iPhone keep their layout. */}
-      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start pointer-fine:min-[1280px]:max-w-[1300px] pointer-fine:min-[1280px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="mx-auto w-full max-w-[644px] pointer-fine:min-[1280px]:max-w-[765px]">
+      {/* iPad and iPhone get the larger board. A Mac (a mouse or trackpad) keeps its own sizes, larger in a wide window, and never
+          taller than the window, so the whole board is always in view. */}
+      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start pointer-fine:lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] pointer-fine:min-[1280px]:max-w-[1300px] pointer-fine:min-[1280px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div className="mx-auto w-full max-w-[644px] pointer-fine:max-w-[min(560px,calc(100svh-190px))] pointer-fine:min-[1280px]:max-w-[min(665px,calc(100svh-190px))]">
           {/* The title sits on its own paper strip so it reads on any skin's background. */}
           <div className="mb-2 flex items-baseline justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-2.5 shadow-card">
             <h1 className="min-w-0 truncate text-[24px] font-bold tracking-tight text-ink">{hidden ? 'Position' : puzzle.label || 'Untitled position'}</h1>

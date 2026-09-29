@@ -23,6 +23,7 @@ export const keys = {
   reminders: ['reminders'] as const,
   places: ['places'] as const,
   rateMissing: ['rateMissing'] as const,
+  codesMissing: ['codesMissing'] as const,
   paymentsMissing: ['paymentsMissing'] as const,
   payments: ['payments'] as const,
 }
@@ -349,6 +350,11 @@ export function useReminders(enabled = true) {
   return useQuery({ queryKey: keys.reminders, queryFn: api.listReminders, enabled, retry: 1 })
 }
 
+/** Whether 0012 (more door codes, each position's covered dot) is still to be run. */
+export function useCodesMissing(enabled = true) {
+  return useQuery({ queryKey: keys.codesMissing, queryFn: api.codesMigrationMissing, enabled, staleTime: 60 * 60_000 })
+}
+
 /** Whether the hourly-rate column is still to be added (migration 0010). */
 export function useRateMissing(enabled = true) {
   return useQuery({ queryKey: keys.rateMissing, queryFn: api.rateColumnMissing, enabled, staleTime: 60 * 60_000 })
@@ -551,7 +557,7 @@ export function useScheduleMutations() {
     onMutate: ({ studentId, patch }) =>
       patchList<StudentPlace>(qc, keys.places, (l) => {
         const prev = l.find((p) => p.student_id === studentId)
-        const blank = { address: '', door_code: '', bathroom_code: '', bathroom_note: '', notes: '', hourly_rate: null }
+        const blank = { address: '', door_code: '', bathroom_code: '', bathroom_note: '', notes: '', hourly_rate: null, extra_codes: [] }
         const next: StudentPlace = { ...blank, ...prev, ...patch, student_id: studentId, user_id: prev?.user_id ?? '', updated_at: now() }
         return [...l.filter((p) => p.student_id !== studentId), next]
       }),

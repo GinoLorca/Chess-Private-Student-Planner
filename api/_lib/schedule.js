@@ -12,7 +12,7 @@
  * @typedef {{ id: string, student_id: string, weekday: number, start_time: string, duration_min: number }} Slot
  * @typedef {{ id: string, slot_id: string | null, student_id: string, kind: 'cancelled' | 'moved' | 'extra',
  *   original_date: string | null, new_date: string | null, new_time: string | null, duration_min: number | null, note: string }} Change
- * @typedef {{ student_id: string, address: string, door_code: string, bathroom_code: string, bathroom_note: string, notes: string }} Place
+ * @typedef {{ student_id: string, address: string, door_code: string, bathroom_code: string, bathroom_note: string, notes: string, extra_codes?: {label: string, code: string}[] }} Place
  * @typedef {{ id: string, name: string }} Student
  */
 
@@ -194,6 +194,9 @@ export function lessonsBetween({ from, to, tz, now, slots, changes, places, stud
             door_code: place.door_code || null,
             bathroom_code: place.bathroom_code || null,
             bathroom: place.bathroom_note || null,
+            other_codes: (Array.isArray(place.extra_codes) ? place.extra_codes : [])
+              .filter((c) => c && c.code)
+              .map((c) => ({ label: c.label || 'Code', code: c.code })),
             notes: place.notes || null,
           }
         : null,
@@ -278,7 +281,11 @@ export function sayNext(lesson, dep, today, current = null) {
         : ' Time to leave now.'
       : ` Leave in ${fmtMinutes(dep.minutes_until_leave)}.`
   }
-  const codes = [lesson.place?.door_code && `Door code ${lesson.place.door_code}.`, lesson.place?.bathroom_code && `Bathroom code ${lesson.place.bathroom_code}${lesson.place.bathroom ? ` (${lesson.place.bathroom})` : ''}.`]
+  const codes = [
+    lesson.place?.door_code && `Door code ${lesson.place.door_code}.`,
+    lesson.place?.bathroom_code && `Bathroom code ${lesson.place.bathroom_code}${lesson.place.bathroom ? ` (${lesson.place.bathroom})` : ''}.`,
+    ...(lesson.place?.other_codes ?? []).map((/** @type {{label: string, code: string}} */ c) => `${c.label}: ${c.code}.`),
+  ]
     .filter(Boolean)
     .join(' ')
   const now = current ? `Teaching ${current.student} until ${current.time.split(' – ')[1]}. Next: ` : ''

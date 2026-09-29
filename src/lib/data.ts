@@ -64,6 +64,8 @@ export const deleteReminder = impl.deleteReminder
 export const listStudentPlaces = impl.listStudentPlaces
 export const saveStudentPlace = impl.saveStudentPlace
 export const rateColumnMissing = impl.rateColumnMissing
+export const codesMigrationMissing = impl.codesMigrationMissing
+export { CODES_MIGRATION } from './api'
 export { RATE_MIGRATION } from './api'
 export const paymentsTableMissing = impl.paymentsTableMissing
 export const listPayments = impl.listPayments

@@ -14,6 +14,7 @@ import { SolveBoardView, SolveStatus } from '../components/board/SolveBoard'
 import { useSolve } from '../hooks/useSolve'
 import { ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Play } from '../components/ui/Icons'
 import { useHideToggle } from '../hooks/useHideToggle'
+import { opposite, useFlip } from '../hooks/useFlip'
 
 /**
  * The read view of one position: what the coach glances at right before a
@@ -42,6 +43,7 @@ export function PuzzlePage() {
     setHidden(false)
   })
   useClicker({ next, prev, hold: toggleHidden })
+  const [flipped] = useFlip()
 
   if (isLoading && !puzzle) return <LoadingPage />
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
@@ -50,6 +52,8 @@ export function PuzzlePage() {
   const section = lesson?.sections.find((s) => s.id === puzzle.section_id)
   const fen = normalizeFen(puzzle.starting_fen, puzzle.side_to_move)
   const toMove = puzzle.side_to_move === 'w' ? 'White' : 'Black'
+  const sideView = puzzle.side_to_move === 'b' ? 'black' : 'white'
+  const orientation = flipped ? opposite(sideView) : sideView
   // Hidden = the quiz alone: the start position, no answer arrows, no moves, no label.
   const shownStep = hidden ? 0 : step
   const current = steps[Math.min(shownStep, last)]
@@ -92,14 +96,14 @@ export function PuzzlePage() {
               move shows its own arrow. Drawings are saved only on the start. */}
           {hidden ? (
             // The answer hidden, the board is live: play the line out.
-            <SolveBoardView solve={solve} orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'} />
+            <SolveBoardView solve={solve} orientation={orientation} />
           ) : (
             <DrawableBoard
               fen={atStart || !current ? fen : current.fen}
               arrows={hidden ? [] : atStart ? puzzle.arrows : current?.arrow ? [current.arrow] : []}
               highlights={hidden || !atStart ? [] : puzzle.highlights}
               lastMove={lastMove}
-              orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'}
+              orientation={orientation}
               onArrowsChange={(arrows) => atStart && !hidden && update.mutate({ arrows })}
               onHighlightsChange={(highlights) => atStart && !hidden && update.mutate({ highlights })}
               onClick={last > 0 && !hidden ? next : undefined}

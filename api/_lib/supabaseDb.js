@@ -140,12 +140,16 @@ function supabaseDb(sb) {
     },
 
     async listSchedule() {
-      const [students, slots, changes, places] = await Promise.all([
+      const placeCols = 'student_id, address, door_code, bathroom_code, bathroom_note, notes'
+      const [students, slots, changes, firstPlaces] = await Promise.all([
         sb.from('students').select('id, name'),
         sb.from('schedule_slots').select('id, student_id, weekday, start_time, duration_min'),
         sb.from('schedule_changes').select('id, slot_id, student_id, kind, original_date, new_date, new_time, duration_min, note'),
-        sb.from('student_places').select('student_id, address, door_code, bathroom_code, bathroom_note, notes'),
+        sb.from('student_places').select(`${placeCols}, extra_codes`),
       ])
+      // Before migration 0012 there are no further codes to read.
+      const places =
+        firstPlaces.error && /extra_codes/.test(firstPlaces.error.message) ? await sb.from('student_places').select(placeCols) : firstPlaces
       for (const [res, what] of [[students, 'Listing students'], [slots, 'Reading the schedule'], [changes, 'Reading schedule changes'], [places, 'Reading addresses']]) {
         if (!res.error) continue
         if (res.error.code === 'PGRST205' || res.error.code === '42P01' || /does not exist|schema cache|could not find the table/i.test(res.error.message))

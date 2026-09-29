@@ -715,7 +715,7 @@ export async function deleteReminder(id: string) {
   if (error) throw error
 }
 
-export type PlacePatch = Partial<Pick<StudentPlace, 'address' | 'door_code' | 'bathroom_code' | 'bathroom_note' | 'notes' | 'hourly_rate'>>
+export type PlacePatch = Partial<Pick<StudentPlace, 'address' | 'door_code' | 'bathroom_code' | 'bathroom_note' | 'notes' | 'hourly_rate' | 'extra_codes'>>
 
 export const RATE_MIGRATION = '0010_student_rate.sql'
 
@@ -725,11 +725,26 @@ export async function rateColumnMissing(): Promise<boolean> {
   return Boolean(error && /hourly_rate/.test(error.message))
 }
 
+export const CODES_MIGRATION = '0012_codes_and_coverage.sql'
+
+/** True when the database lacks 0012's columns: more door codes, and each position's covered dot. */
+export async function codesMigrationMissing(): Promise<boolean> {
+  const [places, puzzles] = await Promise.all([
+    supabase.from('student_places').select('extra_codes').limit(1),
+    supabase.from('puzzles').select('status').limit(1),
+  ])
+  return Boolean((places.error && /extra_codes/.test(places.error.message)) || (puzzles.error && /status/.test(puzzles.error.message)))
+}
+
 export async function listStudentPlaces(): Promise<StudentPlace[]> {
   const { data, error } = await supabase.from('student_places').select('*')
   if (error) throw error
   // numeric arrives as a number from PostgREST, but be sure.
-  return (data as StudentPlace[]).map((p) => ({ ...p, hourly_rate: p.hourly_rate == null ? null : Number(p.hourly_rate) }))
+  return (data as StudentPlace[]).map((p) => ({
+    ...p,
+    hourly_rate: p.hourly_rate == null ? null : Number(p.hourly_rate),
+    extra_codes: Array.isArray(p.extra_codes) ? p.extra_codes : [],
+  }))
 }
 
 export async function saveStudentPlace(studentId: string, patch: PlacePatch) {

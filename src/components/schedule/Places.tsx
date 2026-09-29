@@ -1,17 +1,18 @@
 import { useState, type ReactNode } from 'react'
 import clsx from 'clsx'
-import type { Student, StudentPlace } from '../../types/domain'
+import type { PlaceCode, Student, StudentPlace } from '../../types/domain'
 import type { PlacePatch } from '../../lib/data'
 import { directionsUrl, type TravelMode } from '../../lib/schedule'
 import { onColor } from '../../lib/colors'
 import { copyText } from '../../lib/links'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { Car, Check, Copy, Key, MapPin, Pencil, Train, Walk } from '../ui/Icons'
+import { Car, Check, Close, Copy, Key, MapPin, Pencil, Plus, Train, Walk } from '../ui/Icons'
 import { Field, inputClass } from './Fields'
 import { fmtRate } from '../../lib/earnings'
 
-const hasAny = (p?: StudentPlace | null) => Boolean(p && (p.address || p.door_code || p.bathroom_code || p.bathroom_note || p.notes))
+const hasAny = (p?: StudentPlace | null) =>
+  Boolean(p && (p.address || p.door_code || p.bathroom_code || p.bathroom_note || p.notes || p.extra_codes?.length))
 
 /**
  * Where a student's lessons happen and the codes to get in, laid out to be
@@ -35,12 +36,14 @@ export function PlaceDetails({ place, onEdit, compact }: { place?: StudentPlace 
   return (
     <div className="space-y-2.5">
       {p.address && <AddressBlock address={p.address} />}
-      {(p.door_code || p.bathroom_code) && (
-        <div className={clsx('grid gap-2', p.door_code && p.bathroom_code ? 'grid-cols-2' : 'grid-cols-1')}>
-          {p.door_code && <CodeTile label="Front door" code={p.door_code} />}
-          {p.bathroom_code && <CodeTile label="Bathroom" code={p.bathroom_code} note={p.bathroom_note} />}
-        </div>
-      )}
+      {(() => {
+        const tiles = [
+          p.door_code && <CodeTile key="door" label="Front door" code={p.door_code} />,
+          p.bathroom_code && <CodeTile key="bath" label="Bathroom" code={p.bathroom_code} note={p.bathroom_note} />,
+          ...(p.extra_codes ?? []).filter((c) => c.code).map((c, i) => <CodeTile key={`x${i}`} label={c.label || 'Code'} code={c.code} />),
+        ].filter(Boolean)
+        return tiles.length > 0 && <div className={clsx('grid gap-2', tiles.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>{tiles}</div>
+      })()}
       {!p.bathroom_code && p.bathroom_note && <p className="text-[14px] text-ink-2">Bathroom: {p.bathroom_note}</p>}
       {p.notes && !compact && <p className="text-[14px] leading-snug whitespace-pre-line text-ink-2">{p.notes}</p>}
       {onEdit && (
@@ -182,36 +185,42 @@ export function PlaceModal({
   student,
   place,
   rate,
+  codes,
   onClose,
   onSave,
 }: {
   student: Student | null
   place?: StudentPlace | null
   rate: 'on' | 'off' | 'pending'
+  /** More codes can be saved; false while their database column (0012) is still to be added. */
+  codes: boolean
   onClose: () => void
   onSave: (patch: PlacePatch) => Promise<void>
 }) {
   return (
     <Modal open={Boolean(student)} onClose={onClose} title={student ? `${student.name}: details` : ''}>
-      {student && <PlaceForm key={student.id} place={place} rate={rate} onClose={onClose} onSave={onSave} />}
+      {student && <PlaceForm key={student.id} place={place} rate={rate} codes={codes} onClose={onClose} onSave={onSave} />}
     </Modal>
   )
 }
 
-type TextFields = Required<Omit<PlacePatch, 'hourly_rate'>>
+type TextFields = Required<Omit<PlacePatch, 'hourly_rate' | 'extra_codes'>>
 
 function PlaceForm({
   place,
   rate,
+  codes,
   onClose,
   onSave,
 }: {
   place?: StudentPlace | null
   /** Show the hourly rate field; 'pending' when its database column is still to be added. */
   rate: 'on' | 'off' | 'pending'
+  codes: boolean
   onClose: () => void
   onSave: (patch: PlacePatch) => Promise<void>
 }) {
+  const [extra, setExtra] = useState<PlaceCode[]>(place?.extra_codes ?? [])
   const [v, setV] = useState<TextFields>({
     address: place?.address ?? '',
     door_code: place?.door_code ?? '',
@@ -234,6 +243,7 @@ function PlaceForm({
         try {
           const patch: PlacePatch = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, x.trim()]))
           if (rate === 'on') patch.hourly_rate = rateValue === null ? null : Math.round(rateValue * 100) / 100
+          if (codes) patch.extra_codes = extra.map((c) => ({ label: c.label.trim(), code: c.code.trim() })).filter((c) => c.code || c.label)
           await onSave(patch)
           onClose()
         } finally {
@@ -277,6 +287,7 @@ function PlaceForm({
       <Field label="Which bathroom">
         <input value={v.bathroom_note} onChange={set('bathroom_note')} placeholder="McDonald's next door" className={inputClass} />
       </Field>
+      {codes && <MoreCodes codes={extra} onChange={setExtra} />}
       <Field label="Notes">
         <textarea value={v.notes} onChange={set('notes')} rows={2} placeholder="Parking, buzzer, who to ask for…" className={clsx(inputClass, 'h-auto py-2.5')} />
       </Field>
@@ -289,5 +300,48 @@ function PlaceForm({
         </Button>
       </div>
     </form>
+  )
+}
+
+/** Any number of further codes, each with what it opens: another venue, a second bathroom. */
+function MoreCodes({ codes, onChange }: { codes: PlaceCode[]; onChange: (codes: PlaceCode[]) => void }) {
+  const edit = (i: number, patch: Partial<PlaceCode>) => onChange(codes.map((c, j) => (j === i ? { ...c, ...patch } : c)))
+  return (
+    <div className="space-y-2">
+      {codes.map((c, i) => (
+        <div key={i} className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] items-end gap-2">
+          <Field label={i === 0 ? 'More codes: what it opens' : ''}>
+            <input
+              value={c.label}
+              onChange={(e) => edit(i, { label: e.target.value })}
+              placeholder="Chick-fil-A bathroom"
+              aria-label="What the code opens"
+              className={inputClass}
+            />
+          </Field>
+          <Field label={i === 0 ? 'Code' : ''}>
+            <input
+              value={c.code}
+              onChange={(e) => edit(i, { code: e.target.value })}
+              placeholder="19-18-07"
+              aria-label="Code"
+              autoCapitalize="off"
+              className={clsx(inputClass, 'font-mono')}
+            />
+          </Field>
+          <button
+            type="button"
+            onClick={() => onChange(codes.filter((_, j) => j !== i))}
+            aria-label="Remove this code"
+            className="mb-1.5 grid h-9 w-9 place-items-center rounded-full text-ink-3 hover:bg-surface-2"
+          >
+            <Close size={17} />
+          </button>
+        </div>
+      ))}
+      <Button type="button" size="sm" variant="soft" icon={<Plus size={15} />} onClick={() => onChange([...codes, { label: '', code: '' }])}>
+        {codes.length ? 'Add another code' : 'Add a venue or bathroom code'}
+      </Button>
+    </div>
   )
 }

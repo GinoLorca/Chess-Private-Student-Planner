@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import scheduleSql from '../../supabase/migrations/0009_schedule.sql?raw'
 import rateSql from '../../supabase/migrations/0010_student_rate.sql?raw'
 import paymentsSql from '../../supabase/migrations/0011_lesson_payments.sql?raw'
+import codesSql from '../../supabase/migrations/0012_codes_and_coverage.sql?raw'
 import type { Reminder, ScheduleSlot, Student } from '../types/domain'
 import {
   useReminders,
@@ -14,11 +15,13 @@ import {
   usePaymentMutations,
   usePayments,
   usePaymentsMissing,
+  useCodesMissing,
   useRateMissing,
   useStudentPlaces,
   useStudents,
 } from '../lib/queries'
-import { PAYMENTS_MIGRATION, RATE_MIGRATION, SCHEDULE_MIGRATION } from '../lib/data'
+import { CODES_MIGRATION, PAYMENTS_MIGRATION, RATE_MIGRATION, SCHEDULE_MIGRATION } from '../lib/data'
+import { MigrationNotice } from '../components/ui/MigrationNotice'
 import {
   WEEKDAYS,
   addDays,
@@ -74,6 +77,7 @@ export function SchedulePage() {
   const m = useScheduleMutations()
   const showEarnings = useShowEarnings()
   const rateMissing = useRateMissing(ready && showEarnings)
+  const codesMissing = useCodesMissing(ready)
   const paymentsMissing = usePaymentsMissing(ready && showEarnings)
   const paymentsQ = usePayments(ready && showEarnings && paymentsMissing.data === false)
   const pay = usePaymentMutations()
@@ -504,7 +508,19 @@ export function SchedulePage() {
       {roster.length === 0 ? (
         <EmptyState title="No students yet" body="Add a student on the Students page first." />
       ) : (
-        <PlacesSection students={roster} places={places} showRates={showEarnings && rateMissing.data === false} onEdit={setPlaceFor} />
+        <>
+          {codesMissing.data && (
+            <div className="mb-4">
+              <MigrationNotice
+                file={CODES_MIGRATION}
+                sql={codesSql}
+                adds="more venue and bathroom codes, and the covered dots on positions"
+                onCheck={() => void codesMissing.refetch()}
+              />
+            </div>
+          )}
+          <PlacesSection students={roster} places={places} showRates={showEarnings && rateMissing.data === false} onEdit={setPlaceFor} />
+        </>
       )}
 
       {/* Sheets and dialogs */}
@@ -631,6 +647,7 @@ export function SchedulePage() {
         student={placeFor}
         place={placeFor ? places.get(placeFor.id) : null}
         rate={!showEarnings ? 'off' : rateMissing.data === false ? 'on' : 'pending'}
+        codes={codesMissing.data === false}
         onClose={() => setPlaceFor(null)}
         onSave={(patch) => commit(m.savePlace, { studentId: placeFor!.id, patch }).then(() => undefined)}
       />

@@ -21,6 +21,7 @@ import { PaperCard, StickyNote } from '../components/lesson/Folder'
 import { FOLDER_COLORS, onColor } from '../lib/colors'
 import { Check, ChevronLeft, ChevronRight, Close, Document, Eye, EyeOff } from '../components/ui/Icons'
 import { useHideToggle } from '../hooks/useHideToggle'
+import { useFlip } from '../hooks/useFlip'
 
 type Mode = 'coach' | 'present' | 'learn'
 
@@ -259,7 +260,7 @@ function PuzzleView({
   const [outcome, setOutcome] = useState<'solved' | 'shown' | null>(null)
   const [wrong, setWrong] = useState<string | null>(null)
   const [misses, setMisses] = useState(0)
-  const [flipped, setFlipped] = useState(false)
+  const [flipped, flip] = useFlip()
   // A finger drawing on the board mustn't also swipe to the next position:
   // the drag holds off while it draws, and a press that drew never turns the page.
   const [boardDrawing, setBoardDrawing] = useState(false)
@@ -371,7 +372,7 @@ function PuzzleView({
           </p>
           <div className="flex-1" />
           <Caption className="hidden pb-1 lg:flex" position={position} label={revealed && !notesHidden ? puzzle.label : ''} toMove={toMove} />
-          <button onClick={() => setFlipped((f) => !f)} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg">
+          <button onClick={flip} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg">
             Flip board
           </button>
         </div>

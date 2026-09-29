@@ -28,6 +28,9 @@ interface SetupBoardProps {
   highlights?: BoardHighlight[]
   onArrowsChange?: (arrows: BoardArrow[]) => void
   onHighlightsChange?: (highlights: BoardHighlight[]) => void
+  /** Which way up, when the page keeps it (X flips every board on a page); otherwise the board's own Flip does. */
+  orientation?: Orientation
+  onFlip?: () => void
 }
 
 type Held = { code: PieceCode; from: 'tray' | string }
@@ -37,9 +40,20 @@ type Held = { code: PieceCode; from: 'tray' | string }
  * squares to stamp it; tap a piece on the board to lift it and tap where it
  * goes; drag works too. A lifted piece dropped off the board is removed.
  */
-export function SetupBoard({ fen, side, onChange, arrows, highlights, onArrowsChange, onHighlightsChange }: SetupBoardProps) {
+export function SetupBoard({
+  fen,
+  side,
+  onChange,
+  arrows,
+  highlights,
+  onArrowsChange,
+  onHighlightsChange,
+  orientation: givenOrientation,
+  onFlip,
+}: SetupBoardProps) {
   const { pieces } = usePieceSet()
-  const [orientation, setOrientation] = useState<Orientation>('white')
+  const [ownOrientation, setOwnOrientation] = useState<Orientation>('white')
+  const orientation = givenOrientation ?? ownOrientation
   const [held, setHeld] = useState<Held | null>(null)
   const [drag, setDrag] = useState<{ code: PieceCode; x: number; y: number } | null>(null)
   const [fenDraft, setFenDraft] = useState('')
@@ -209,7 +223,7 @@ export function SetupBoard({ fen, side, onChange, arrows, highlights, onArrowsCh
             </button>
           ))}
         </div>
-        <Button size="sm" variant="ghost" onClick={() => setOrientation((o) => (o === 'white' ? 'black' : 'white'))}>
+        <Button size="sm" variant="ghost" onClick={onFlip ?? (() => setOwnOrientation((o) => (o === 'white' ? 'black' : 'white')))}>
           Flip
         </Button>
         <div className="flex-1" />

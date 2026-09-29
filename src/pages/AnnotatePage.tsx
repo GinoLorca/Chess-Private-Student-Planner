@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import clsx from 'clsx'
+import { useFlip } from '../hooks/useFlip'
 import type { Puzzle, SolutionMove } from '../types/domain'
 import type { PuzzlePatch } from '../lib/data'
 import { useLesson, usePuzzleMutations, useStudent } from '../lib/queries'
@@ -136,7 +137,7 @@ function Bench({
   const { update } = usePuzzleMutations(initial.id, planId)
   const [puzzle, setPuzzle] = useState<Puzzle>(initial)
   const [step, setStep] = useState(initial.solution.length)
-  const [flipped, setFlipped] = useState(false)
+  const [flipped, flip] = useFlip()
   const summaryRef = useRef<HTMLTextAreaElement>(null)
 
   const fen = useMemo(() => normalizeFen(puzzle.starting_fen, puzzle.side_to_move), [puzzle.starting_fen, puzzle.side_to_move])
@@ -198,7 +199,7 @@ function Bench({
               #{position} · {sectionTitle}
             </span>
           </p>
-          <button onClick={() => setFlipped((f) => !f)} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg">
+          <button onClick={flip} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg">
             Flip board
           </button>
         </div>

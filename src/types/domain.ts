@@ -132,6 +132,8 @@ export interface Puzzle {
   themes?: string[]
   /** Annotated and saved in the workbench. */
   done?: boolean
+  /** Gone over with the student yet: the red, yellow or green dot (migration 0012). */
+  status?: LessonStatus
 }
 
 export interface CustomBoard {
@@ -230,6 +232,13 @@ export interface Reminder {
   created_at: string
 }
 
+/** One more code to get in somewhere: what it opens, and the code. */
+export interface PlaceCode {
+  /** What it opens, e.g. "Chick-fil-A bathroom". */
+  label: string
+  code: string
+}
+
 /** Where a student's lessons happen, and the codes to get in. */
 export interface StudentPlace {
   student_id: string
@@ -240,6 +249,8 @@ export interface StudentPlace {
   /** Where that bathroom is, e.g. "McDonald's next door". */
   bathroom_note: string
   notes: string
+  /** Codes beyond the front door and the one bathroom, e.g. another venue's bathroom (migration 0012). */
+  extra_codes?: PlaceCode[]
   /** Dollars an hour; a lesson's fee is this times its length. Null until set (migration 0010). */
   hourly_rate?: number | null
   updated_at: string

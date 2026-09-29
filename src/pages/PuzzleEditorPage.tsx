@@ -18,6 +18,7 @@ import { EngineCheck } from '../components/import/EngineCheck'
 import { draftExplanation } from '../lib/ai'
 import { answerProblem } from '../lib/solution'
 import { useClicker } from '../hooks/useClicker'
+import { opposite, useFlip } from '../hooks/useFlip'
 import { Check, ChevronDown, ChevronRight, Plus, Sparkle, Warning } from '../components/ui/Icons'
 import { Chip, ChipRow } from '../components/ui/Chip'
 import { defaultQuizPrompt, explanationStarters, quizPromptChips } from '../lib/prompts'
@@ -116,7 +117,10 @@ function Editor({
     }
   }
   const fen = useMemo(() => normalizeFen(puzzle.starting_fen, puzzle.side_to_move), [puzzle.starting_fen, puzzle.side_to_move])
-  const orientation = puzzle.side_to_move === 'b' ? 'black' : 'white'
+  // X (or the set-up board's Flip) turns every board in the editor round.
+  const [flipped, flip] = useFlip()
+  const sideView = puzzle.side_to_move === 'b' ? 'black' : 'white'
+  const orientation = flipped ? opposite(sideView) : sideView
 
   function apply(patch: PuzzlePatch) {
     setPuzzle((p) => ({ ...p, ...patch }))
@@ -274,6 +278,8 @@ function Editor({
               fen={fen}
               side={puzzle.side_to_move}
               onChange={setPosition}
+              orientation={flipped ? 'black' : 'white'}
+              onFlip={flip}
               arrows={puzzle.arrows}
               highlights={puzzle.highlights}
               onArrowsChange={(arrows) => apply({ arrows })}

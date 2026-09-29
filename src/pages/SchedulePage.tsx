@@ -38,6 +38,8 @@ import {
   weekStart,
   weekdayName,
   weekdayOf,
+  fmtDue,
+  lessonReminder,
   type Occurrence,
 } from '../lib/schedule'
 import { copyText } from '../lib/links'
@@ -47,7 +49,7 @@ import { Page, Card, SectionLabel, EmptyState, LoadingPage } from '../components
 import { Button, IconButton } from '../components/ui/Button'
 import { ActionSheet } from '../components/ui/ActionSheet'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
-import { Calendar, Check, ChevronLeft, ChevronRight, Close, Copy, MapPin, Plus, Refresh, Train, Trash } from '../components/ui/Icons'
+import { Bell, Calendar, Check, ChevronLeft, ChevronRight, Close, Copy, MapPin, Plus, Refresh, Train, Trash } from '../components/ui/Icons'
 import type { ActionItem } from '../components/ui/ActionSheet'
 import { WeekView } from '../components/schedule/Week'
 import { CancelModal, DuplicateModal, LessonSheet, LessonTimeModal, SlotModal, type DuplicateValues, type LessonTimeValues, type SlotValues } from '../components/schedule/Sheets'
@@ -82,7 +84,8 @@ export function SchedulePage() {
   const paymentsMissing = usePaymentsMissing(ready && showEarnings)
   const paymentsQ = usePayments(ready && showEarnings && paymentsMissing.data === false)
   const pay = usePaymentMutations()
-  const [now] = useState(() => new Date())
+  // Read again whenever a lesson is opened, so what's past (earned, remindable) is current.
+  const [now, setNow] = useState(() => new Date())
   const [rateCopied, setRateCopied] = useState(false)
 
   const students = useMemo(() => new Map((studentList ?? []).map((s) => [s.id, s])), [studentList])
@@ -93,6 +96,7 @@ export function SchedulePage() {
   const [quick, setQuick] = useState<Occurrence | null>(null)
   const [moving, setMoving] = useState<Occurrence | null>(null)
   const [duplicating, setDuplicating] = useState<Occurrence | null>(null)
+  const [remindedKeys, setRemindedKeys] = useState(loadReminded)
   const [cancelling, setCancelling] = useState<Occurrence | null>(null)
   const [undoing, setUndoing] = useState<Occurrence | null>(null)
   const [adding, setAdding] = useState(false)
@@ -175,6 +179,32 @@ export function SchedulePage() {
   }
 
   const originalDate = (o: Occurrence) => o.change?.original_date ?? o.date
+
+  /** A lesson as it stands, sent to Apple Reminders with its alert the night before at 9:27 PM. */
+  const reminderOf = (o: Occurrence): Reminder => ({
+    id: '',
+    user_id: '',
+    change_id: null,
+    done: false,
+    shared_at: null,
+    created_at: '',
+    ...lessonReminder(o, nameOf(o.studentId), places.get(o.studentId)),
+  })
+  const canRemind = (o: Occurrence) => isOn(o) && lessonEnd(o) > now.getTime()
+  async function remindLesson(o: Occurrence) {
+    const how = await sendToReminders(reminderOf(o))
+    if (how === 'cancelled') return
+    if (how === 'failed') {
+      setNotice("Couldn't open the share sheet or copy the text on this device.")
+      return
+    }
+    setRemindedKeys(markReminded(o.key))
+    // Only the shortcut can set the alert; the share sheet and the clipboard carry the text alone.
+    if (how !== 'shortcut') {
+      const at = fmtDue(reminderOf(o).due_at)
+      setNotice(`${how === 'copied' ? 'Copied. Paste it into a new reminder in Apple Reminders' : 'Sent to Reminders'} without its alert: set it for ${at}, or add the shortcut in Settings to have it set for you.`)
+    }
+  }
 
   async function saveMove(o: Occurrence, v: LessonTimeValues) {
     if (o.state === 'extra') {
@@ -280,7 +310,10 @@ export function SchedulePage() {
       ? [{ label: state === 'paid' ? 'Mark as not paid' : 'Mark as paid', icon: <Check />, onSelect: () => togglePaid(o) }]
       : []
     const copy: ActionItem[] = isOn(o) ? [{ label: 'Duplicate…', icon: <Plus />, onSelect: () => setDuplicating(o) }] : []
-    return [...paidItem, ...lessonItems(o), ...copy, ...travel, details]
+    const remind: ActionItem[] = canRemind(o)
+      ? [{ label: `Add to Reminders (alert ${fmtDue(reminderOf(o).due_at)})`, icon: <Bell />, onSelect: () => void remindLesson(o) }]
+      : []
+    return [...paidItem, ...lessonItems(o), ...remind, ...copy, ...travel, details]
   }
   const lessonItems = (o: Occurrence): ActionItem[] => {
     switch (o.state) {
@@ -423,8 +456,14 @@ export function SchedulePage() {
           today={today}
           fees={showEarnings ? new Map(occurrences.map((o) => [o.key, lessonFee(o, rates.get(o.studentId))])) : undefined}
           paid={canMarkPaid ? new Map(occurrences.map((o) => [o.key, payState(o)])) : undefined}
-          onOpen={setOpened}
-          onMenu={setQuick}
+          onOpen={(o) => {
+            setNow(new Date())
+            setOpened(o)
+          }}
+          onMenu={(o) => {
+            setNow(new Date())
+            setQuick(o)
+          }}
           onAdd={setAddingExtra}
         />
       )}
@@ -565,7 +604,10 @@ export function SchedulePage() {
           onEditPlace: () => opened && setPlaceFor(students.get(opened.studentId) ?? null),
           onOpenFolder: () => opened && navigate(`/students/${opened.studentId}`),
           onEditSlot: () => opened?.slot && openSlot(opened.slot),
+          onRemind: opened && canRemind(opened) ? () => void remindLesson(opened) : undefined,
         }}
+        remindAt={opened && canRemind(opened) ? fmtDue(reminderOf(opened).due_at) : undefined}
+        reminded={opened ? remindedKeys.has(opened.key) : false}
       />
 
       <LessonTimeModal
@@ -687,4 +729,25 @@ export function SchedulePage() {
       <ReminderToast reminder={toast} onSend={send} onClose={() => setToast(null)} />
     </Page>
   )
+}
+
+// Which lessons were sent to Apple Reminders from this device, by lesson key.
+const REMINDED_KEY = 'lesson-reminders-sent'
+function loadReminded(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(REMINDED_KEY) ?? '[]') as string[])
+  } catch {
+    return new Set()
+  }
+}
+function markReminded(key: string): Set<string> {
+  const next = loadReminded()
+  next.add(key)
+  try {
+    // The last 200 are plenty; old weeks drop off.
+    localStorage.setItem(REMINDED_KEY, JSON.stringify([...next].slice(-200)))
+  } catch {
+    // private window or storage off: the button just won't remember
+  }
+  return next
 }

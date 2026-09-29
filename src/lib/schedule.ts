@@ -1,4 +1,4 @@
-import type { Reminder, ScheduleChange, ScheduleSlot } from '../types/domain'
+import type { Reminder, ScheduleChange, ScheduleSlot, StudentPlace } from '../types/domain'
 
 /**
  * The schedule's arithmetic, kept free of React and the database so it can be
@@ -218,11 +218,47 @@ function firstAhead(moments: Date[], now: Date): string | null {
 
 const when = (date: string, time: string) => `${fmtDay(date)} at ${fmtTime(time)}`
 
+/** A lesson reminder's alert: the night before, at 9:27 PM. */
+export const ALERT_TIME = '21:27'
+export const nightBefore = (date: string) => localDateTime(addDays(date, -1), ALERT_TIME)
+
 /**
- * The reminder a change writes. A cancellation is due the morning of the
- * lesson that's off (so the free slot isn't forgotten); a moved or extra
- * lesson is due an hour before it starts. A time already past falls back
- * to the next one, then to no due date.
+ * A reminder for one lesson as it stands, to send to Apple Reminders: who,
+ * when, where and the codes to get in. Its alert is the night before at
+ * 9:27 PM; once that's past, an hour before the lesson, then its start.
+ */
+export function lessonReminder(
+  o: Pick<Occurrence, 'date' | 'time' | 'duration' | 'studentId'>,
+  studentName: string,
+  place?: Pick<StudentPlace, 'address' | 'door_code' | 'bathroom_code' | 'bathroom_note' | 'extra_codes'> | null,
+  now = new Date(),
+): NewReminder {
+  const start = localDateTime(o.date, o.time)
+  const codes = [
+    place?.door_code && `Door ${place.door_code}`,
+    place?.bathroom_code && `Bathroom ${place.bathroom_code}${place.bathroom_note ? ` (${place.bathroom_note})` : ''}`,
+    ...(place?.extra_codes ?? []).filter((c) => c.code).map((c) => `${c.label || 'Code'} ${c.code}`),
+  ].filter(Boolean)
+  return {
+    student_id: o.studentId,
+    title: `Lesson: ${shortName(studentName)}, ${when(o.date, o.time)}`,
+    notes: [
+      `${fmtTime(o.time)} – ${fmtTime(addMinutes(o.time, o.duration))}`,
+      place?.address && `At ${place.address.replace(/\s*\n\s*/g, ', ')}`,
+      codes.length > 0 && `Codes: ${codes.join(' · ')}`,
+    ]
+      .filter(Boolean)
+      .join('\n'),
+    due_at: firstAhead([nightBefore(o.date), new Date(start.getTime() - 60 * 60000), start], now),
+  }
+}
+
+/**
+ * The reminder a change writes, due the night before the lesson at 9:27 PM
+ * (for a cancellation, the lesson that's off, so the free slot isn't
+ * forgotten). Once that's past it falls back to the morning of a
+ * cancelled lesson or an hour before a moved or extra one, then its start,
+ * then no due date.
  */
 export function reminderFor(
   change: Pick<ScheduleChange, 'kind' | 'original_date' | 'new_date' | 'new_time' | 'note' | 'student_id'>,
@@ -239,7 +275,7 @@ export function reminderFor(
       student_id: change.student_id,
       title: `Cancelled: ${nick}'s lesson, ${when(date, time)}`,
       notes: [note && `Reason: ${note}`, `The ${fmtTime(time)} slot on ${fmtDay(date, { weekday: 'long' })} is free.`].filter(Boolean).join('\n'),
-      due_at: firstAhead([localDateTime(date, '09:00'), localDateTime(date, time)], now),
+      due_at: firstAhead([nightBefore(date), localDateTime(date, '09:00'), localDateTime(date, time)], now),
     }
   }
   const date = change.new_date!
@@ -252,14 +288,14 @@ export function reminderFor(
       student_id: change.student_id,
       title: `Rescheduled: ${nick}'s lesson, now ${when(date, time)}`,
       notes: [from && `Moved from ${from}.`, note && `Reason: ${note}`, 'This week only; the regular time stays the same.'].filter(Boolean).join('\n'),
-      due_at: firstAhead([hourBefore, start], now),
+      due_at: firstAhead([nightBefore(date), hourBefore, start], now),
     }
   }
   return {
     student_id: change.student_id,
     title: `Extra lesson: ${nick}, ${when(date, time)}`,
     notes: [note && `Note: ${note}`, 'One-off lesson.'].filter(Boolean).join('\n'),
-    due_at: firstAhead([hourBefore, start], now),
+    due_at: firstAhead([nightBefore(date), hourBefore, start], now),
   }
 }
 

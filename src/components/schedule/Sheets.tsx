@@ -3,7 +3,7 @@ import type { Student, StudentPlace } from '../../types/domain'
 import { addMinutes, fmtDay, fmtTime, isOn, minutesOf, parseDate, shortName, weekStart, whereLabel, type Occurrence } from '../../lib/schedule'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { Calendar, Check, Close, Folder, Pencil, Refresh, Trash, Warning } from '../ui/Icons'
+import { Bell, Calendar, Check, Close, Folder, Pencil, Refresh, Trash, Warning } from '../ui/Icons'
 import { DayPicker, Field, GroupLabel, LengthPicker, StudentPicker, WeekdayPicker, inputClass } from './Fields'
 import { Chip, ChipRow } from '../ui/Chip'
 import { PlaceDetails } from './Places'
@@ -22,6 +22,8 @@ export interface LessonActions {
   onEditPlace: () => void
   onOpenFolder: () => void
   onEditSlot: () => void
+  /** Send this lesson to Apple Reminders; absent once the lesson is over. */
+  onRemind?: () => void
 }
 
 /**
@@ -38,6 +40,8 @@ export function LessonSheet({
   onTogglePaid,
   onClose,
   actions,
+  remindAt,
+  reminded,
 }: {
   occurrence: Occurrence | null
   student?: Student
@@ -50,6 +54,10 @@ export function LessonSheet({
   onTogglePaid?: () => void
   onClose: () => void
   actions: LessonActions
+  /** When the lesson reminder's alert would go off, e.g. "Sun, Sep 27 at 9:27 PM". */
+  remindAt?: string
+  /** Already sent from this device. */
+  reminded?: boolean
 }) {
   const act = (fn: () => void) => () => {
     onClose()
@@ -146,6 +154,14 @@ export function LessonSheet({
                   Remove this one-off lesson
                 </Action>
               </>
+            )}
+            {actions.onRemind && (
+              <Button block variant="secondary" icon={<Bell size={18} />} onClick={act(actions.onRemind)} className="justify-start">
+                <span className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-2 text-left">
+                  <span>{reminded ? 'Send to Reminders again' : 'Add to Reminders'}</span>
+                  {remindAt && <span className="text-[13px] font-medium opacity-70">Alert {remindAt}</span>}
+                </span>
+              </Button>
             )}
             <div className="mt-1 flex flex-wrap gap-2">
               <Button size="sm" variant="ghost" icon={<Folder size={15} />} onClick={act(actions.onOpenFolder)}>

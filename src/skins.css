@@ -101,7 +101,7 @@
       --felt-nap:rgba(0,0,0,.22);
 }
 
-:root[data-skin="felt"] body, .skin-surface[data-skin="felt"] {
+:root[data-skin="felt"] body::before, .skin-surface[data-skin="felt"] {
 background-image:
       repeating-linear-gradient(45deg,  var(--felt-weave) 0 2px, transparent 2px 5px),
       repeating-linear-gradient(-45deg, var(--felt-weave) 0 2px, transparent 2px 5px),
@@ -209,7 +209,7 @@ background-image:
       --stone-rock-b:rgba(255,255,255,.09);
 }
 
-:root[data-skin="hustler"] body, .skin-surface[data-skin="hustler"] {
+:root[data-skin="hustler"] body::before, .skin-surface[data-skin="hustler"] {
 background-image:
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='700'%3E%3Cfilter id='pv'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.018' numOctaves='4' seed='11' result='n'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='n' scale='90'/%3E%3C/filter%3E%3Cg filter='url(%23pv)' fill='none'%3E%3Cline x1='-100' y1='120' x2='1000' y2='420' stroke='%23302c26' stroke-width='2.4' opacity='.16'/%3E%3Cline x1='-100' y1='480' x2='1000' y2='90' stroke='%23302c26' stroke-width='1.6' opacity='.12'/%3E%3Cline x1='150' y1='-80' x2='620' y2='780' stroke='%23302c26' stroke-width='1.4' opacity='.13'/%3E%3Cline x1='500' y1='-80' x2='950' y2='780' stroke='%23ffffff' stroke-width='1.8' opacity='.28'/%3E%3Cline x1='-100' y1='650' x2='800' y2='200' stroke='%23ffffff' stroke-width='1.2' opacity='.22'/%3E%3Cline x1='-60' y1='-40' x2='340' y2='380' stroke='%23302c26' stroke-width='1' opacity='.10'/%3E%3Cline x1='560' y1='560' x2='980' y2='740' stroke='%23ffffff' stroke-width='1' opacity='.16'/%3E%3C/g%3E%3C/svg%3E"),
       linear-gradient(45deg, var(--stone-vein) 25%, transparent 25%, transparent 75%, var(--stone-vein) 75%),
@@ -548,7 +548,7 @@ filter:sepia(1) saturate(6) hue-rotate(45deg) brightness(.75) contrast(1.1);
       --scan-line:rgba(0,0,0,.22);
 }
 
-:root[data-skin="outerspace"] body, .skin-surface[data-skin="outerspace"] {
+:root[data-skin="outerspace"] body::before, .skin-surface[data-skin="outerspace"] {
 background-image:
       radial-gradient(ellipse 480px 320px at 18% 20%, var(--nebula-a), transparent 70%),
       radial-gradient(ellipse 420px 300px at 82% 70%, var(--nebula-b), transparent 72%),
@@ -591,17 +591,28 @@ filter:sepia(.3) saturate(1.5) hue-rotate(-6deg) contrast(1.1) brightness(1.03)
 }
 
 /* Bauhaus and Game Boy ship with a picture under a scrim in Chess Arcade. */
-:root[data-skin="bauhaus"] body, .skin-surface[data-skin="bauhaus"] {
+:root[data-skin="bauhaus"] body::before, .skin-surface[data-skin="bauhaus"] {
   background-image: linear-gradient(var(--bg-scrim), var(--bg-scrim)), url('/skins/bauhaus-bg.svg');
   background-size: cover; background-position: center center; background-attachment: fixed; background-repeat: no-repeat;
 }
-:root[data-skin="gameboy"] body, .skin-surface[data-skin="gameboy"] {
+:root[data-skin="gameboy"] body::before, .skin-surface[data-skin="gameboy"] {
   background-image: linear-gradient(var(--bg-scrim), var(--bg-scrim)), url('/skins/gameboy-bg.jpg');
   background-size: cover; background-position: center center; background-attachment: fixed; background-repeat: no-repeat;
 }
-/* Fixed attachment is a no-op on iOS; the picture still covers the page. */
-@supports (-webkit-touch-callout: none) {
-  :root[data-skin] body { background-attachment: scroll; }
+/* The skin's backdrop is a layer of its own, fixed to the window and painted
+   once. Painted onto the page with background-attachment: fixed, it had to be
+   redrawn under everything that changed on top of it, so every selected
+   square, move and arrow repainted a board-sized patch of gradients (and
+   scrolling repainted the whole window). On its own layer nothing above it
+   touches it, and on iOS, which ignored fixed attachment, it now stays put. */
+:root[data-skin] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-attachment: scroll !important;
+  will-change: transform;
 }
 /* Previews are small cards: no fixed attachment there either. */
 .skin-surface[data-skin] { background-attachment: scroll; }

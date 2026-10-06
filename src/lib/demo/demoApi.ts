@@ -104,6 +104,21 @@ function save() {
 }
 
 const delay = () => new Promise<void>((r) => setTimeout(r, 40))
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+
+/**
+ * A slow connection on demand, for trying how the app behaves on a real
+ * network: localStorage 'demo-latency' (ms per round trip). A save lands on
+ * the "server" partway through, at a slightly random moment, so two quick
+ * saves can arrive out of order the way real requests can.
+ */
+function latency(): number {
+  try {
+    return Number(localStorage.getItem('demo-latency')) || 0
+  } catch {
+    return 0
+  }
+}
 
 // students --------------------------------------------------------------------
 
@@ -362,10 +377,12 @@ export async function listLibrary(): Promise<LibraryEntry[]> {
 
 export async function getLessonBundle(lessonPlanId: string): Promise<LessonBundle> {
   await delay()
+  await wait(latency() / 2)
   const plan = await getLessonPlan(lessonPlanId)
   const sections = await listSections(lessonPlanId)
   const puzzlesBySection: Record<string, Puzzle[]> = {}
   for (const s of sections) puzzlesBySection[s.id] = await listPuzzles(s.id)
+  await wait(latency() / 2)
   return { plan, sections, puzzlesBySection }
 }
 
@@ -375,8 +392,10 @@ export async function listPuzzles(sectionId: string): Promise<Puzzle[]> {
 
 export async function getPuzzle(id: string): Promise<Puzzle> {
   await delay()
+  await wait(latency() / 2)
   const puzzle = db().puzzles.find((p) => p.id === id)
   if (!puzzle) throw new Error('Puzzle not found')
+  await wait(latency() / 2)
   return puzzle
 }
 
@@ -404,8 +423,11 @@ export async function createPuzzle(sectionId: string, initial: PuzzlePatch = {})
 }
 
 export async function updatePuzzle(id: string, patch: PuzzlePatch) {
+  const lag = latency()
+  if (lag) await wait(lag * (0.2 + Math.random() * 0.6))
   db().puzzles = db().puzzles.map((p) => (p.id === id ? { ...p, ...patch } : p))
   save()
+  if (lag) await wait(lag / 2)
 }
 
 export async function deletePuzzle(id: string) {

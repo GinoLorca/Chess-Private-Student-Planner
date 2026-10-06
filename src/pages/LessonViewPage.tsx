@@ -288,15 +288,19 @@ function PuzzleView({
   // Answer annotations are hints; the student only sees them once revealed.
   // The eye closed = the quiz alone, whatever the step: start position, no arrows, no moves.
   const showAnnotations = revealed && atStart && !notesHidden
+  // Drawing on the saved annotations (the start, shown) changes them; any
+  // other drawing is a sketch for this step only: mid-line, or before the
+  // answer is revealed, so a student's board never gives the answer away.
   const sketchHere = sketch && sketch.step === step ? sketch : null
-  const boardArrows = showAnnotations
-    ? puzzle.arrows
-    : [...(current.arrow && revealed && !notesHidden ? [current.arrow] : []), ...(sketchHere?.arrows ?? [])]
+  const moveArrow = !atStart && current.arrow && revealed && !notesHidden ? current.arrow : null
+  const boardArrows = showAnnotations ? puzzle.arrows : [...(moveArrow ? [moveArrow] : []), ...(sketchHere?.arrows ?? [])]
   const boardHighlights = showAnnotations ? puzzle.highlights : (sketchHere?.highlights ?? [])
   const setArrows = (arrows: BoardArrow[]) =>
-    atStart ? update.mutate({ arrows }) : setSketch({ step, arrows, highlights: sketchHere?.highlights ?? [] })
+    showAnnotations
+      ? update.mutate({ arrows })
+      : setSketch({ step, arrows: arrows.filter((a) => a !== moveArrow), highlights: sketchHere?.highlights ?? [] })
   const setHighlights = (highlights: BoardHighlight[]) =>
-    atStart ? update.mutate({ highlights }) : setSketch({ step, highlights, arrows: sketchHere?.arrows ?? [] })
+    showAnnotations ? update.mutate({ highlights }) : setSketch({ step, highlights, arrows: sketchHere?.arrows ?? [] })
   const lastMove = !atStart && !notesHidden && current.from && current.to ? { from: current.from, to: current.to } : null
 
   const last = steps.length - 1
@@ -425,6 +429,7 @@ function PuzzleView({
             onHighlightsChange={setHighlights}
             onClick={() => (revealed ? next() : undefined)}
             onDrawingChange={onDrawingChange}
+            sketch={!showAnnotations}
             className="shadow-float"
           />
         </motion.div>

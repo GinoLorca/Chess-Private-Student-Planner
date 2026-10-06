@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import clsx from 'clsx'
+import type { BoardArrow, BoardHighlight } from '../types/domain'
 import { useLesson, usePuzzle, usePuzzleMutations, useStudent } from '../lib/queries'
 import { normalizeFen } from '../lib/fen'
 import { lineSteps, stepLabel } from '../lib/solution'
@@ -51,6 +52,9 @@ export function PuzzlePage() {
   })
   useClicker({ next, prev, hold: toggleHidden })
   const [flipped] = useFlip()
+  // Marks drawn on the starting position are saved with it; on a move of
+  // the answer they're a sketch for that move, gone when the board moves on.
+  const [sketch, setSketch] = useState<{ at: string; arrows: BoardArrow[]; highlights: BoardHighlight[] }>({ at: '', arrows: [], highlights: [] })
 
   if (isLoading && !puzzle) return <LoadingPage />
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
@@ -66,6 +70,9 @@ export function PuzzlePage() {
   const current = steps[Math.min(shownStep, last)]
   const atStart = shownStep === 0
   const lastMove = !atStart && current?.from && current?.to ? { from: current.from, to: current.to } : null
+  const sketchAt = `${puzzle.id}:${shownStep}`
+  const here = sketch.at === sketchAt ? sketch : { at: sketchAt, arrows: [], highlights: [] }
+  const moveArrow = !atStart && current?.arrow ? current.arrow : null
 
   return (
     <Page
@@ -108,13 +115,17 @@ export function PuzzlePage() {
           ) : (
             <DrawableBoard
               fen={atStart || !current ? fen : current.fen}
-              arrows={hidden ? [] : atStart ? puzzle.arrows : current?.arrow ? [current.arrow] : []}
-              highlights={hidden || !atStart ? [] : puzzle.highlights}
+              arrows={atStart ? puzzle.arrows : [...(moveArrow ? [moveArrow] : []), ...here.arrows]}
+              highlights={atStart ? puzzle.highlights : here.highlights}
               lastMove={lastMove}
               orientation={orientation}
-              onArrowsChange={(arrows) => atStart && !hidden && update.mutate({ arrows })}
-              onHighlightsChange={(highlights) => atStart && !hidden && update.mutate({ highlights })}
-              onClick={last > 0 && !hidden ? next : undefined}
+              onArrowsChange={(arrows) =>
+                // The move's own arrow is shown, not drawn: it stays out of the sketch.
+                atStart ? update.mutate({ arrows }) : setSketch({ ...here, arrows: arrows.filter((a) => a !== moveArrow) })
+              }
+              onHighlightsChange={(highlights) => (atStart ? update.mutate({ highlights }) : setSketch({ ...here, highlights }))}
+              sketch={!atStart}
+              onClick={last > 0 ? next : undefined}
             />
           )}
           {last > 0 && !hidden && (

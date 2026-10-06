@@ -46,13 +46,19 @@ interface Options {
   resetKey?: string
   /** A touch press just turned into drawing: drop any selection the press made. */
   onHold?: () => void
+  /**
+   * A plain left click wipes the marks (the Repertoire Lab gesture). On by
+   * default only for a sketch; marks saved with a position are taken off
+   * one at a time instead, never by a click meant for the board.
+   */
+  clearOnClick?: boolean
   enabled?: boolean
 }
 
 /**
  * The Repertoire Lab gesture on any board: right-drag draws an arrow,
  * right-click a square highlights it, the same again removes it, and a plain
- * left click wipes everything drawn. Hold Z / R / F / C while dragging for
+ * left click wipes a sketch (see clearOnClick). Hold Z / R / F / C while dragging for
  * green / red / blue / yellow; green with nothing held. A trackpad
  * two-finger tap counts as the right button.
  *
@@ -69,6 +75,7 @@ export function useRightClickDraw({
   onHighlightsChange,
   resetKey = '',
   onHold,
+  clearOnClick,
   enabled = true,
 }: Options): RightClickDraw {
   const [preview, setPreview] = useState<BoardArrow | null>(null)
@@ -79,6 +86,7 @@ export function useRightClickDraw({
 
   // No save handlers: a sketch of the board's own, gone with the position.
   const local = !onArrowsChange
+  const wipes = clearOnClick ?? local
   const [sketch, setSketch] = useState<{ key: string; arrows: BoardArrow[]; highlights: BoardHighlight[] }>({ key: resetKey, arrows: [], highlights: [] })
   const own = sketch.key === resetKey ? sketch : { key: resetKey, arrows: [], highlights: [] }
   const marks = local ? own : { arrows, highlights }
@@ -215,10 +223,10 @@ export function useRightClickDraw({
     if (!enabled) return false
     if (e.pointerType !== 'mouse') return e.isPrimary ? onTouchDown(e) : false
     if (e.button === 0) {
-      // A plain left click wipes this position's marks; the board's own
-      // left-click handling carries on as usual.
-      if (marks.arrows.length) setArrows([])
-      if (marks.highlights.length) setHighlights([])
+      // A plain left click wipes a sketch; the board's own left-click
+      // handling carries on as usual.
+      if (wipes && marks.arrows.length) setArrows([])
+      if (wipes && marks.highlights.length) setHighlights([])
       return false
     }
     if (!isSecondaryButton(e)) return false

@@ -161,7 +161,8 @@ export function MoveBoard({
         onContextMenu={draw.onContextMenu}
         overlay={
           targets.size > 0 && (
-            <div className="pointer-events-none absolute inset-0 grid grid-cols-8 grid-rows-8">
+            // Its own layer: showing a piece's moves mustn't repaint every square beneath.
+            <div className="pointer-events-none absolute inset-0 grid grid-cols-8 grid-rows-8 will-change-transform">
               {Array.from({ length: 64 }, (_, i) => {
                 const x = i % 8
                 const y = Math.floor(i / 8)

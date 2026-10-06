@@ -315,10 +315,18 @@ export function usePuzzle(puzzleId: string | undefined) {
 
 export function usePuzzleMutations(puzzleId: string, planId?: string) {
   const qc = useQueryClient()
+  const key = ['puzzle', puzzleId]
   const update = useMutation({
+    // One position's saves go one at a time, in the order they were made:
+    // drawing marks quickly on a slow connection could otherwise land out
+    // of order, and an older set of arrows overwrite a newer one.
+    mutationKey: key,
+    scope: { id: `puzzle-${puzzleId}` },
     mutationFn: (patch: api.PuzzlePatch) => api.updatePuzzle(puzzleId, patch),
     onMutate: async (patch) => {
+      // A read already on its way would land after this change and wipe it.
       await qc.cancelQueries({ queryKey: keys.puzzle(puzzleId) })
+      if (planId) await qc.cancelQueries({ queryKey: keys.lesson(planId) })
       const prev = qc.getQueryData<Puzzle>(keys.puzzle(puzzleId))
       if (prev) qc.setQueryData<Puzzle>(keys.puzzle(puzzleId), { ...prev, ...patch })
       // The lesson views read from the bundle, so patch the copy there as well.
@@ -341,6 +349,10 @@ export function usePuzzleMutations(puzzleId: string, planId?: string) {
       if (planId && ctx?.prevBundle) qc.setQueryData(keys.lesson(planId), ctx.prevBundle)
     },
     onSettled: () => {
+      // Re-read only after the last save in the queue: reading between two
+      // saves brings back the server's copy without the newest marks, which
+      // then vanish from the board for a moment (or for good).
+      if (qc.isMutating({ mutationKey: key }) > 1) return
       qc.invalidateQueries({ queryKey: keys.puzzle(puzzleId) })
       if (planId) qc.invalidateQueries({ queryKey: keys.lesson(planId) })
     },

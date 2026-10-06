@@ -45,13 +45,15 @@ function retryChange(failures: number, error: unknown): boolean {
   return failures < 3
 }
 
-const queryClient = new QueryClient({
+const queryClient: QueryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
       gcTime: CACHE_LIFE,
       retry: 1,
-      refetchOnWindowFocus: true,
+      // Coming back to the app re-reads what's stale, but not while a save is
+      // still on its way: the server's older copy would wipe the change.
+      refetchOnWindowFocus: (): boolean => queryClient.isMutating() === 0,
       // Offline, a query with cached data shows it and waits; one without
       // pauses instead of failing, and runs the moment the connection returns.
       networkMode: 'online',

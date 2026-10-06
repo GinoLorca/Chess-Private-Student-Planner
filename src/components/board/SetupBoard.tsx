@@ -111,9 +111,15 @@ export function SetupBoard({
     const startY = e.clientY
     let dragging = false
     const target = e.currentTarget as HTMLElement
-    target.setPointerCapture(e.pointerId)
+    const id = e.pointerId
+    try {
+      target.setPointerCapture(id)
+    } catch {
+      // the pointer is already gone
+    }
 
     const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== id) return
       // A finger that rested on the board has become a pen; the piece stays put.
       if (draw.claimed()) return
       if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return
@@ -124,11 +130,12 @@ export function SetupBoard({
       if (el) el.style.transform = `translate(${ev.clientX}px, ${ev.clientY}px) translate(-50%, -50%)`
     }
     const onUp = (ev: PointerEvent) => {
-      target.removeEventListener('pointermove', onMove)
-      target.removeEventListener('pointerup', onUp)
-      target.removeEventListener('pointercancel', onUp)
+      if (ev.pointerId !== id) return
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
       setDrag(null)
-      if (draw.claimed()) return
+      if (draw.claimed() || ev.type === 'pointercancel') return
       if (!dragging) {
         if (from === 'tray') setHeld(held?.from === 'tray' && held.code === code ? null : { code, from: 'tray' })
         else tapSquare(from)
@@ -139,9 +146,10 @@ export function SetupBoard({
       else if (from !== 'tray') remove(from)
       setHeld(null)
     }
-    target.addEventListener('pointermove', onMove)
-    target.addEventListener('pointerup', onUp)
-    target.addEventListener('pointercancel', onUp)
+    // Followed on the whole window, whatever the browser does with capture.
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
   }
 
   function onBoardPointerDown(e: React.PointerEvent<HTMLDivElement>) {

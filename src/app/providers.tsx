@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { onlineManager, QueryClient } from '@tanstack/react-query'
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import { PersistQueryClientProvider, type PersistedClient } from '@tanstack/react-query-persist-client'
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
 import { del, get, set } from 'idb-keyval'
 import { registerOfflineMutations } from '../lib/queries'
@@ -81,13 +81,51 @@ registerOfflineMutations(queryClient)
  * localStorage's few megabytes (every lesson, the schedule, codes, ratings),
  * with localStorage as the fallback where IndexedDB isn't available. The
  * first read moves a copy saved by the older localStorage version across.
+ *
+ * Saving is kept off the moments the coach is using the app: the cache is
+ * handed over as it is (IndexedDB stores objects, so it isn't turned into
+ * one long string first) and written when the page is idle, never in the
+ * middle of a tap or a drag. A save still waiting is written at once when
+ * the app is put away, so nothing is lost.
  */
 const CACHE_KEY = 'lesson-planner-cache'
+type Stored = string | object
+let pending: { key: string; value: Stored } | null = null
+let idleHandle: number | null = null
+
+async function write(key: string, value: Stored) {
+  try {
+    await set(key, value)
+  } catch {
+    try {
+      localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value))
+    } catch {
+      // Out of room everywhere: the app still works, it just won't remember this copy.
+    }
+  }
+}
+
+function flush() {
+  if (idleHandle !== null) {
+    if (typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(idleHandle)
+    else clearTimeout(idleHandle)
+    idleHandle = null
+  }
+  const next = pending
+  pending = null
+  if (next) void write(next.key, next.value)
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flush)
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flush())
+}
+
 const deviceStorage = {
   async getItem(key: string): Promise<string | null> {
     try {
-      const value = await get<string>(key)
-      if (value != null) return value
+      const value = await get<Stored>(key)
+      if (value != null) return value as string
       const legacy = localStorage.getItem(key)
       if (legacy != null) {
         await set(key, legacy)
@@ -102,18 +140,16 @@ const deviceStorage = {
       }
     }
   },
-  async setItem(key: string, value: string) {
-    try {
-      await set(key, value)
-    } catch {
-      try {
-        localStorage.setItem(key, value)
-      } catch {
-        // Out of room everywhere: the app still works, it just won't remember this copy.
-      }
+  setItem(key: string, value: string) {
+    pending = { key, value }
+    if (idleHandle === null) {
+      // Safari before 18 has no requestIdleCallback: a short wait does instead.
+      idleHandle =
+        typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(flush, { timeout: 4000 }) : Number(setTimeout(flush, 1500))
     }
   },
   async removeItem(key: string) {
+    pending = null
     try {
       await del(key)
     } catch {
@@ -127,7 +163,15 @@ const deviceStorage = {
   },
 }
 
-const persister = createAsyncStoragePersister({ storage: deviceStorage, key: CACHE_KEY, throttleTime: 1000 })
+const persister = createAsyncStoragePersister({
+  storage: deviceStorage,
+  key: CACHE_KEY,
+  throttleTime: 1000,
+  // Stored as an object (see deviceStorage); a copy saved as text by an
+  // earlier version still reads back.
+  serialize: (client) => client as unknown as string,
+  deserialize: (stored) => (typeof stored === 'string' ? (JSON.parse(stored) as PersistedClient) : (stored as unknown as PersistedClient)),
+})
 
 export function QueryProvider({ children }: { children: ReactNode }) {
   return (

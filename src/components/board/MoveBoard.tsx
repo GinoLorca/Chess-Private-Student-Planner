@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { useMemo, useRef, useState } from 'react'
 import { Chess, type Square } from 'chess.js'
 import { Board } from './Board'
@@ -116,35 +117,45 @@ export function MoveBoard({
 
     setSelected(square)
     const code = `${piece.color}${piece.type.toUpperCase()}`
+    const id = e.pointerId
     const target = e.currentTarget
-    target.setPointerCapture(e.pointerId)
+    try {
+      target.setPointerCapture(id)
+    } catch {
+      // the pointer is already gone
+    }
     const startX = e.clientX
     const startY = e.clientY
-    let dragging = false
+    let moved = false
+    // The piece lifts the moment it's pressed and follows the pointer, the
+    // way lichess's board does: nothing waits for the pointer to travel
+    // first. React hears about it once; after that the piece is moved
+    // directly, so the board isn't re-rendered on every pointer move.
+    setDrag({ code, x: startX, y: startY, from: square })
     const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== id) return
       // A finger that rested has become a pen; the piece stays put.
       if (draw.claimed()) return
-      if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return
-      // React hears about the drag once, when it starts; after that the piece
-      // under the finger is moved directly, so the board isn't re-rendered
-      // on every pointer move.
-      if (!dragging) setDrag({ code, x: ev.clientX, y: ev.clientY, from: square })
-      dragging = true
+      if (!moved && Math.hypot(ev.clientX - startX, ev.clientY - startY) >= DRAG_THRESHOLD) moved = true
       placeGhost(ev.clientX, ev.clientY)
     }
     const onUp = (ev: PointerEvent) => {
-      target.removeEventListener('pointermove', onMove)
-      target.removeEventListener('pointerup', onUp)
-      target.removeEventListener('pointercancel', onUp)
+      if (ev.pointerId !== id) return
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
       setDrag(null)
-      if (!dragging || draw.claimed()) return
+      // Pressed and let go in place: it's a selection, the piece drops back.
+      if (!moved || draw.claimed() || ev.type === 'pointercancel') return
       const to = squareAtPoint(ev.clientX, ev.clientY, boardRef.current)
       if (to && to !== square && tryMove(square, to)) return
       setSelected(square)
     }
-    target.addEventListener('pointermove', onMove)
-    target.addEventListener('pointerup', onUp)
-    target.addEventListener('pointercancel', onUp)
+    // Listened for on the whole window, not just the board: the pointer
+    // is followed wherever it goes, whatever the browser does with capture.
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
   }
 
   const DragPiece = drag ? pieces[drag.code] : null
@@ -185,15 +196,16 @@ export function MoveBoard({
           </svg>
         }
       />
-      {drag && DragPiece && (
-        <div
-          ref={ghostRef}
-          className="pointer-events-none fixed top-0 left-0 z-50 h-16 w-16 drop-shadow-lg will-change-transform"
-          style={{ transform: `translate(${drag.x}px, ${drag.y}px) translate(-50%, -50%)` }}
-        >
-          <DragPiece />
-        </div>
-      )}
+      {/* The lifted piece's layer is always there, hidden, so lifting a
+          piece only puts the picture in it rather than building it first. */}
+      <div
+        ref={ghostRef}
+        aria-hidden
+        className={clsx('pointer-events-none fixed top-0 left-0 z-50 h-16 w-16 drop-shadow-lg will-change-transform', !drag && 'invisible')}
+        style={drag ? { transform: `translate(${drag.x}px, ${drag.y}px) translate(-50%, -50%)` } : undefined}
+      >
+        {DragPiece && <DragPiece />}
+      </div>
       <Modal open={Boolean(promotion)} onClose={() => setPromotion(null)} title="Promote to" variant="dialog">
         <div className="grid grid-cols-4 gap-2">
           {(['q', 'r', 'b', 'n'] as const).map((p) => {

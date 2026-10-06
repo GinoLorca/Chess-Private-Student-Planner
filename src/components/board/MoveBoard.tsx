@@ -4,7 +4,7 @@ import { Board } from './Board'
 import { squareAtPoint, DRAG_THRESHOLD } from './pointer'
 import { useRightClickDraw } from './useRightClickDraw'
 import { usePieceSet } from '../../state/PieceSetContext'
-import { normalizeFen, type Orientation } from '../../lib/fen'
+import { normalizeFen, squareToCell, type Orientation } from '../../lib/fen'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
 import { Modal } from '../ui/Modal'
 
@@ -67,10 +67,19 @@ export function MoveBoard({
     }
   }, [fen])
 
-  const targets = useMemo(() => {
-    if (!chess || !selected) return new Set<string>()
-    return new Set(chess.moves({ square: selected as Square, verbose: true }).map((m) => m.to as string))
-  }, [chess, selected])
+  // Every piece's moves, worked out when the position appears rather than
+  // when a piece is pressed, so selecting one shows its moves at once.
+  const legal = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    if (!chess) return map
+    for (const m of chess.moves({ verbose: true })) {
+      const set = map.get(m.from) ?? new Set<string>()
+      set.add(m.to)
+      map.set(m.from, set)
+    }
+    return map
+  }, [chess])
+  const targets = (selected && legal.get(selected)) || NO_TARGETS
 
   function tryMove(from: string, to: string, promotionPiece?: string): boolean {
     if (!chess) return false
@@ -154,38 +163,26 @@ export function MoveBoard({
         arrows={draw.arrows}
         highlights={draw.highlights}
         lastMove={lastMove}
-        selected={draw.from ?? selected}
+        selected={draw.from}
         hiddenSquares={drag ? [drag.from] : undefined}
         interactive
         onPointerDown={onPointerDown}
         onContextMenu={draw.onContextMenu}
         overlay={
-          targets.size > 0 && (
-            // Its own layer: showing a piece's moves mustn't repaint every square beneath.
-            <div className="pointer-events-none absolute inset-0 grid grid-cols-8 grid-rows-8 will-change-transform">
-              {Array.from({ length: 64 }, (_, i) => {
-                const x = i % 8
-                const y = Math.floor(i / 8)
-                const file = orientation === 'white' ? x : 7 - x
-                const rank = orientation === 'white' ? 7 - y : y
-                const sq = `${'abcdefgh'[file]}${rank + 1}`
-                if (!targets.has(sq)) return <div key={sq} />
-                const capture = chess?.get(sq as Square)
-                return (
-                  <div key={sq} className="grid place-items-center">
-                    <span
-                      className="block rounded-full"
-                      style={
-                        capture
-                          ? { width: '88%', height: '88%', boxShadow: 'inset 0 0 0 0.3em var(--board-select)' }
-                          : { width: '32%', height: '32%', background: 'var(--board-select)' }
-                      }
-                    />
-                  </div>
-                )
-              })}
-            </div>
-          )
+          // The selected piece and its moves, drawn on a layer of their own
+          // that's always there: pressing a piece repaints only this, never
+          // the squares and pieces beneath (dear with the textured skins).
+          <svg className="pointer-events-none absolute inset-0 h-full w-full will-change-transform" viewBox="0 0 8 8" aria-hidden>
+            {selected && <SelectRing square={selected} orientation={orientation} />}
+            {[...targets].map((sq) => {
+              const c = squareToCell(sq, orientation)
+              return chess?.get(sq as Square) ? (
+                <circle key={sq} cx={c.x + 0.5} cy={c.y + 0.5} r={0.405} fill="none" stroke="var(--board-select)" strokeWidth={0.07} />
+              ) : (
+                <circle key={sq} cx={c.x + 0.5} cy={c.y + 0.5} r={0.16} fill="var(--board-select)" />
+              )
+            })}
+          </svg>
         }
       />
       {drag && DragPiece && (
@@ -218,4 +215,12 @@ export function MoveBoard({
       </Modal>
     </>
   )
+}
+
+const NO_TARGETS: ReadonlySet<string> = new Set()
+
+/** The pressed piece's square, outlined the way a selected square always was. */
+function SelectRing({ square, orientation }: { square: string; orientation: Orientation }) {
+  const c = squareToCell(square, orientation)
+  return <rect x={c.x + 0.04} y={c.y + 0.04} width={0.92} height={0.92} fill="none" stroke="var(--board-select)" strokeWidth={0.08} />
 }

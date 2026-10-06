@@ -192,6 +192,18 @@ body {
   text-wrap: balance;
 }
 
+/* The speed check's "Skin effects off": the board and page without the
+   skin's glows, filters, textures and backdrop, to compare against. */
+.speed-plain .board-piece {
+  filter: none !important;
+}
+.speed-plain .board-sq {
+  background-image: none !important;
+}
+.speed-plain body::before {
+  display: none !important;
+}
+
 /* The lesson sheet prints as the PDF the coach used to assemble by hand. */
 @media print {
   :root {

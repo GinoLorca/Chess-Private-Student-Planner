@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { onlineManager, type QueryClient } from '@tanstack/react-query'
 import * as api from './data'
 import { keys } from './queries'
+import { quietBackground } from './speedCheck'
 import { FOLDER_KINDS, type Note } from '../types/domain'
 
 /**
@@ -25,7 +26,7 @@ export function useOnline(): boolean {
 
 /** Pull every student's lessons into the cache. Cheap when cached; skipped when offline. */
 export async function prefetchAll(qc: QueryClient) {
-  if (!onlineManager.isOnline()) return
+  if (!onlineManager.isOnline() || quietBackground()) return
   const fresh = { staleTime: 5 * 60_000 }
   const students = await qc.fetchQuery({ queryKey: keys.students, queryFn: api.listStudents, ...fresh })
   await Promise.all([

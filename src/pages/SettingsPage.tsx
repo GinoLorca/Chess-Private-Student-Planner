@@ -20,6 +20,7 @@ import { FOLDER_COLORS } from '../lib/colors'
 import { describeTrigger, keyLabel, loadToggle, saveToggle, type Trigger } from '../lib/clicker'
 import { DEFAULT_SHORTCUT_NAME, loadShortcutName, saveShortcutName } from '../lib/schedule'
 import { setShowEarnings, useShowEarnings } from '../lib/earnings'
+import { setSpeedCheck, speedCheckOn } from '../lib/speedCheck'
 import { Check, Moon, Sun, Trash, Upload } from '../components/ui/Icons'
 
 const APPEARANCES: { id: Appearance; label: string }[] = [
@@ -203,6 +204,9 @@ export function SettingsPage() {
         Cancelling or moving a lesson on the Schedule writes a reminder. Its Add to Reminders button sends it on.
       </p>
       <RemindersCard />
+
+      <SectionLabel tone="page">Troubleshooting</SectionLabel>
+      <SpeedCheckCard />
 
       <SectionLabel tone="page">Account</SectionLabel>
       <Card className="flex items-center justify-between gap-3 p-4">
@@ -710,6 +714,30 @@ function EarningsSwitch() {
           {o.label}
         </button>
       ))}
+    </Card>
+  )
+}
+
+/** Turns on the board speed check: a small panel timing each press of a piece, with a report to send. */
+function SpeedCheckCard() {
+  const [on, setOn] = useState(speedCheckOn)
+  return (
+    <Card className="flex items-center justify-between gap-3 p-4">
+      <div className="min-w-0">
+        <p className="text-[15px] font-semibold text-ink">Board speed check</p>
+        <p className="text-[13px] text-ink-3">Times each press and drag of a piece on this device.</p>
+      </div>
+      <Button
+        variant={on ? 'primary' : 'secondary'}
+        onClick={() => {
+          setSpeedCheck(!on)
+          setOn(!on)
+          // The panel starts with the page; a reload brings it up (or takes it away).
+          window.location.reload()
+        }}
+      >
+        {on ? 'On' : 'Turn on'}
+      </Button>
     </Card>
   )
 }

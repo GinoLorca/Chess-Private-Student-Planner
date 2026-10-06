@@ -4,6 +4,7 @@ import { PersistQueryClientProvider, type PersistedClient } from '@tanstack/reac
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
 import { del, get, set } from 'idb-keyval'
 import { registerOfflineMutations } from '../lib/queries'
+import { noteCacheUpdate, noteSave, quietBackground } from '../lib/speedCheck'
 
 // ---------------------------------------------------------------------------
 // Data: cached + persisted so an open lesson survives a dead Wi-Fi room.
@@ -53,7 +54,7 @@ const queryClient: QueryClient = new QueryClient({
       retry: 1,
       // Coming back to the app re-reads what's stale, but not while a save is
       // still on its way: the server's older copy would wipe the change.
-      refetchOnWindowFocus: (): boolean => queryClient.isMutating() === 0,
+      refetchOnWindowFocus: (): boolean => queryClient.isMutating() === 0 && !quietBackground(),
       // Offline, a query with cached data shows it and waits; one without
       // pauses instead of failing, and runs the moment the connection returns.
       networkMode: 'online',
@@ -75,6 +76,11 @@ if (import.meta.env.DEV) (window as unknown as { __qc?: QueryClient }).__qc = qu
 // if the app is closed in between: each kind has its function registered here,
 // so a change restored from storage knows how to send itself.
 registerOfflineMutations(queryClient)
+
+// Data arriving, counted by the speed check while a piece is pressed.
+queryClient.getQueryCache().subscribe((e) => {
+  if (e.type === 'updated' && e.action.type === 'success') noteCacheUpdate()
+})
 
 /**
  * Where the cache lives on the device: IndexedDB, which holds far more than
@@ -113,7 +119,9 @@ function flush() {
   }
   const next = pending
   pending = null
-  if (next) void write(next.key, next.value)
+  if (!next) return
+  const t0 = performance.now()
+  void write(next.key, next.value).then(() => noteSave(performance.now() - t0))
 }
 
 if (typeof window !== 'undefined') {
@@ -141,6 +149,8 @@ const deviceStorage = {
     }
   },
   setItem(key: string, value: string) {
+    // The speed check's "Background off" holds saves back while it's on.
+    if (quietBackground()) return
     pending = { key, value }
     if (idleHandle === null) {
       // Safari before 18 has no requestIdleCallback: a short wait does instead.

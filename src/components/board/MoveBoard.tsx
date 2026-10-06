@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Chess, type Square } from 'chess.js'
 import { Board } from './Board'
 import { squareAtPoint, DRAG_THRESHOLD } from './pointer'
@@ -8,6 +8,7 @@ import { usePieceSet } from '../../state/PieceSetContext'
 import { normalizeFen, squareToCell, type Orientation } from '../../lib/fen'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
 import { Modal } from '../ui/Modal'
+import { markRendered } from '../../lib/speedCheck'
 
 interface MoveBoardProps {
   fen: string
@@ -157,6 +158,15 @@ export function MoveBoard({
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onUp)
   }
+
+  // The speed check (Settings → Troubleshooting) times these; nothing otherwise.
+  useLayoutEffect(() => {
+    if (selected) markRendered('selected')
+  }, [selected])
+  const lifted = Boolean(drag)
+  useLayoutEffect(() => {
+    if (lifted) markRendered('lifted')
+  }, [lifted])
 
   const DragPiece = drag ? pieces[drag.code] : null
   function placeGhost(x: number, y: number) {

@@ -44,7 +44,7 @@ export function MoveBoard({
   const boardRef = useRef<HTMLDivElement>(null)
   const ghostRef = useRef<HTMLDivElement>(null)
   const [selected, setSelected] = useState<string | null>(null)
-  const [drag, setDrag] = useState<{ code: string; x: number; y: number; from: string } | null>(null)
+  const [drag, setDrag] = useState<{ code: string; x: number; y: number; from: string; size: number } | null>(null)
   const [promotion, setPromotion] = useState<{ from: string; to: string } | null>(null)
   // Drawing works on every move board: saved through the handlers when
   // given, otherwise a sketch that goes when the position moves on.
@@ -132,16 +132,31 @@ export function MoveBoard({
     // way lichess's board does: nothing waits for the pointer to travel
     // first. React hears about it once; after that the piece is moved
     // directly, so the board isn't re-rendered on every pointer move.
-    setDrag({ code, x: startX, y: startY, from: square })
+    // Lifted at the size it sits on the board (a square less its inset).
+    const size = ((boardRef.current?.clientWidth ?? 512) / 8) * 0.88
+    setDrag({ code, x: startX, y: startY, from: square, size })
+    // Moves can come far faster than the screen redraws (trackpads above
+    // all): the latest is noted every time and the piece moved once a
+    // frame, as Chess Arcade does, so the work never piles up mid-drag.
+    let frame = 0
+    let lastX = startX
+    let lastY = startY
+    const paint = () => {
+      frame = 0
+      placeGhost(lastX, lastY)
+    }
     const onMove = (ev: PointerEvent) => {
       if (ev.pointerId !== id) return
       // A finger that rested has become a pen; the piece stays put.
       if (draw.claimed()) return
       if (!moved && Math.hypot(ev.clientX - startX, ev.clientY - startY) >= DRAG_THRESHOLD) moved = true
-      placeGhost(ev.clientX, ev.clientY)
+      lastX = ev.clientX
+      lastY = ev.clientY
+      if (!frame) frame = requestAnimationFrame(paint)
     }
     const onUp = (ev: PointerEvent) => {
       if (ev.pointerId !== id) return
+      if (frame) cancelAnimationFrame(frame)
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
@@ -212,7 +227,7 @@ export function MoveBoard({
         ref={ghostRef}
         aria-hidden
         className={clsx('pointer-events-none fixed top-0 left-0 z-50 h-16 w-16 drop-shadow-lg will-change-transform', !drag && 'invisible')}
-        style={drag ? { transform: `translate(${drag.x}px, ${drag.y}px) translate(-50%, -50%)` } : undefined}
+        style={drag ? { width: drag.size, height: drag.size, transform: `translate(${drag.x}px, ${drag.y}px) translate(-50%, -50%)` } : undefined}
       >
         {DragPiece && <DragPiece />}
       </div>

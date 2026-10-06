@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { useEffect, useRef } from 'react'
 import type { Orientation } from '../../lib/fen'
 import type { Solve } from '../../hooks/useSolve'
 import { MoveBoard } from './MoveBoard'
@@ -9,19 +9,23 @@ import { Eye, Refresh } from '../ui/Icons'
 export function SolveBoardView({ solve, orientation, className }: { solve: Solve; orientation: Orientation; className?: string }) {
   const { current, wrong, misses, solved, tryMove } = solve
   const lastMove = current.from && current.to ? { from: current.from, to: current.to } : null
+  const ref = useRef<HTMLDivElement>(null)
+  // A wrong move shakes the board. As a transform-only animation the
+  // browser runs it on the GPU; moved from script frame by frame, Safari
+  // redrew the whole board (every square and glowing piece) on every frame
+  // of it, the stutter Chess Arcade found in its own miss flash.
+  useEffect(() => {
+    if (!wrong || !misses || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    ref.current?.animate(SHAKE, { duration: 400, easing: 'ease-out' })
+  }, [wrong, misses])
   return (
-    <motion.div
-      initial={{ x: 0 }}
-      animate={{ x: wrong ? [0, -12, 12, -7, 7, 0] : 0 }}
-      transition={{ duration: 0.4 }}
-      key={misses}
-      className={className}
-      data-swipe-own
-    >
+    <div ref={ref} className={className} data-swipe-own>
       <MoveBoard fen={current.fen} orientation={orientation} lastMove={lastMove} onMove={tryMove} disabled={solved} />
-    </motion.div>
+    </div>
   )
 }
+
+const SHAKE: Keyframe[] = [0, -12, 12, -7, 7, 0].map((x) => ({ transform: `translateX(${x}px)` }))
 
 /** The moves played so far, the last wrong try struck through, and the stamp once it's played out. */
 export function SolveStatus({

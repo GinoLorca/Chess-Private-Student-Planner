@@ -3,6 +3,7 @@ import type { PieceImages } from '../../types/domain'
 import { classicPieceSet } from './classic'
 import { bauhausPieceSet } from './bauhaus'
 import { wavyPieceSet } from './wavy'
+import { imagePieces } from './imagePieces'
 
 /** wK…bP → a component that fills its square. */
 export type PieceRenderers = Record<string, () => ReactNode>
@@ -34,19 +35,13 @@ export function normalizePieceSetId(value: string): string {
   return value === 'arcade' ? 'bauhaus' : value
 }
 
-/** Renderers for an imported set: each square shows the matching image. */
+/** Renderers for an imported set: each square shows the matching picture (see imagePieces). */
 export function renderersFromImages(images: PieceImages): PieceRenderers {
-  return Object.fromEntries(
-    PIECE_CODES.map((code) => [
-      code,
-      () => (
-        <img
-          src={images[code]}
-          alt=""
-          draggable={false}
-          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-        />
-      ),
-    ]),
-  )
+  let set = fromImages.get(images)
+  if (!set) {
+    set = imagePieces(Object.fromEntries(PIECE_CODES.map((code) => [code, images[code] ?? ''])))
+    fromImages.set(images, set)
+  }
+  return set
 }
+const fromImages = new WeakMap<PieceImages, PieceRenderers>()

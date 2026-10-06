@@ -126,11 +126,22 @@ export function SetupBoard({
       // React hears about the drag once; the piece then follows the pointer directly.
       if (!dragging) setDrag({ code, x: ev.clientX, y: ev.clientY })
       dragging = true
+      // Moved once a frame, however fast the moves come.
+      lastX = ev.clientX
+      lastY = ev.clientY
+      if (!frame) frame = requestAnimationFrame(paint)
+    }
+    let frame = 0
+    let lastX = startX
+    let lastY = startY
+    const paint = () => {
+      frame = 0
       const el = ghostRef.current
-      if (el) el.style.transform = `translate(${ev.clientX}px, ${ev.clientY}px) translate(-50%, -50%)`
+      if (el) el.style.transform = `translate(${lastX}px, ${lastY}px) translate(-50%, -50%)`
     }
     const onUp = (ev: PointerEvent) => {
       if (ev.pointerId !== id) return
+      if (frame) cancelAnimationFrame(frame)
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)

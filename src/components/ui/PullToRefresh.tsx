@@ -35,8 +35,10 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
 
     const begin = (target: EventTarget | null, clientY: number): boolean => {
       if (phaseRef.current === 'refreshing' || phaseRef.current === 'done') return false
-      if (window.scrollY > 0) return false
+      // The board first: reading the scroll position makes Safari lay the
+      // page out there and then, and a press on a piece has just changed it.
       if (target instanceof Element && target.closest(OWN_DRAG)) return false
+      if (window.scrollY > 0) return false
       active = true
       pulling = false
       startY = clientY

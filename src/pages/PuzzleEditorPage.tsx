@@ -16,7 +16,7 @@ import { MoveBoard } from '../components/board/MoveBoard'
 import { ImportSheet } from '../components/import/ImportSheet'
 import { EngineCheck } from '../components/import/EngineCheck'
 import { draftExplanation } from '../lib/ai'
-import { answerProblem } from '../lib/solution'
+import { answerProblem, stepLabel } from '../lib/solution'
 import { useClicker } from '../hooks/useClicker'
 import { opposite, useFlip } from '../hooks/useFlip'
 import { Check, ChevronDown, ChevronRight, Plus, Sparkle, Warning } from '../components/ui/Icons'
@@ -229,6 +229,41 @@ function Editor({
     apply({ solution: puzzle.solution.map((m, j) => (j === i ? { ...m, comment } : m)) })
   }
 
+  /**
+   * The puzzle starts later in its own line: the position after the first
+   * `count` moves becomes the start, the other side is to move, and the
+   * rest of the line (notes and all) is the answer. For a line recorded
+   * from the mistake rather than the punishment of it (a course's
+   * "Bxf4? Rf1!"), so it becomes the opponent's puzzle in one go.
+   */
+  function startAfter(count: number) {
+    const played = puzzle.solution.slice(0, count)
+    const rest = puzzle.solution.slice(count)
+    const last = played[played.length - 1]
+    if (!last || rest.length === 0) return
+    const nextFen = normalizeFen(last.fen)
+    const side = sideToMoveOf(nextFen)
+    const name = (c: 'w' | 'b') => (c === 'w' ? 'White' : 'Black')
+    // A question that says the old side is to move no longer fits: back to
+    // the suggested one, with the chips to pick from.
+    const promptForOldSide = new RegExp(`^\\s*${name(puzzle.side_to_move)} to (move|play)`, 'i').test(puzzle.quiz_prompt)
+    const moves = played.map((m, i) => `${stepLabel(puzzle, i + 1)}${m.san}`).join(' ')
+    const ok = window.confirm(
+      `Start the puzzle after ${moves}?\n\n` +
+        `${name(side)} will be to move, and the answer will start with ${rest[0].san}. ` +
+        (promptForOldSide ? `The question says ${name(puzzle.side_to_move)} is to move, so it goes back to the suggested one.` : 'The question stays as it is.'),
+    )
+    if (!ok) return
+    setView(0)
+    apply({
+      starting_fen: nextFen,
+      side_to_move: side,
+      solution: rest,
+      ...(puzzle.label === played[0].san ? { label: rest[0].san } : {}),
+      ...(promptForOldSide ? { quiz_prompt: '' } : {}),
+    })
+  }
+
   function useLine(line: SolutionMove[]) {
     apply({ solution: line, label: autoLabel(line) })
   }
@@ -340,6 +375,11 @@ function Editor({
                   </Button>
                 </div>
               )}
+              {shown > 0 && shown < puzzle.solution.length && (
+                <Button variant="ghost" size="sm" onClick={() => startAfter(shown)} className="mt-1 w-full">
+                  Start the puzzle here ({sideToMoveOf(puzzle.solution[shown - 1].fen) === 'w' ? 'White' : 'Black'} to move)
+                </Button>
+              )}
             </div>
           )}
         </PaperCard>
@@ -385,7 +425,9 @@ function Editor({
                 ) : (
                   <ol className="mt-2 space-y-1.5">
                     {puzzle.solution.map((m, i) => (
-                      <li key={i} className="flex items-center gap-2">
+                      // Keyed by position too: the notes are uncontrolled, and
+                      // starting the puzzle later moves every move up the list.
+                      <li key={`${i}:${m.fen}`} className="flex items-center gap-2">
                         <button
                           onClick={() => setView(i + 1)}
                           aria-current={shown === i + 1 ? 'step' : undefined}

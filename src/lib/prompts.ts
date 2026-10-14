@@ -33,7 +33,7 @@ export function quizPromptChips(side: 'w' | 'b'): string[] {
     `${s} to move. Can you take it?`,
     `${s} to move. Which piece is undefended?`,
     `${s} to move. Is castling safe here?`,
-    `Is ${s}'s last move a mistake? Punish it.`,
+    `Is ${o}'s last move a mistake? Punish it.`,
     `Compare two candidate moves. Which is better, and why?`,
   ]
 }

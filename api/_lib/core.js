@@ -30,8 +30,8 @@ import { DEFAULT_TIMEZONE, addDays, checkTimezone, departure, lessonsBetween, is
  * @typedef {{ from: string, to: string, color?: string }} ArrowInput
  * @typedef {{ square: string, color?: string }} HighlightInput
  * @typedef {{
- *   fen: string, source_url?: string, label?: string, question?: string, note?: string, answer?: string,
- *   move_notes?: string[], arrows?: ArrowInput[], highlights?: HighlightInput[]
+ *   fen: string, setup_moves?: string, source_url?: string, label?: string, question?: string, note?: string,
+ *   answer?: string, move_notes?: string[], arrows?: ArrowInput[], highlights?: HighlightInput[]
  * }} PositionInput
  * @typedef {{ db: Db, appOrigin: string, now?: Date }} ToolContext
  */
@@ -50,12 +50,17 @@ const POSITION_SCHEMA = {
       type: 'string',
       description: 'The position. The placement alone is fine; White to move is assumed unless the FEN says otherwise.',
     },
+    setup_moves: {
+      type: 'string',
+      description:
+        'Moves already played before the student\'s turn, as SAN separated by spaces: usually the one opponent move the puzzle answers, e.g. the mistake to punish ("Bxf4"). They\'re played from fen, and the student starts from the position after them, with the other side to move. Leave out when the student moves first in fen.',
+    },
     source_url: { type: 'string', description: 'Where it came from (a Lichess study, an article...). Shown as the source link.' },
     label: { type: 'string', description: 'Short name, e.g. the key move. Defaults to the first answer move.' },
     question: {
       type: 'string',
       description:
-        'What to ask the student, in plain coaching words ("White to move. What is Black threatening, and how do you stop it?"). Always fill this in; a blank falls back to a generic prompt.',
+        'What to ask the student, in plain coaching words ("White to move. What is Black threatening, and how do you stop it?"). It must name the side that is to move in the position the student sees (after setup_moves). Always fill this in; a blank falls back to a generic prompt.',
     },
     note: {
       type: 'string',
@@ -64,7 +69,8 @@ const POSITION_SCHEMA = {
     },
     answer: {
       type: 'string',
-      description: 'The answer line as SAN moves separated by spaces, e.g. "Rf8 Bxh4 b4". Move numbers are ignored. Validated against the position.',
+      description:
+        'The answer line as SAN moves separated by spaces, e.g. "Rf8 Bxh4 b4": the move the student should find, for the side to move, then the replies in turn. Never start it with a mistake: when a course shows a tempting error and its refutation ("30...Bxf4? 31.Rf1!"), the puzzle is the refutation, so put the error in setup_moves and start the answer with the refutation ("Rf1 Rxg3+ Qxg3+ Bxg3 Rxf5"). Move numbers are ignored. Validated against the position.',
     },
     move_notes: {
       type: 'array',
@@ -174,7 +180,7 @@ export const TOOLS = [
   {
     name: 'create_lesson',
     description:
-      'Create the next lesson for a student from a list of positions (FENs). Fill every position completely: fen, answer (the line), move_notes, question, note, label, source_url, arrows and highlights. The coach may open Coach view or Present with no preparation, so each position must teach itself: the answer stepped through with a note per move, arrows and marked squares on the board, and the explanation. When a position was taken from a course, carry the course\'s comment on the move into the note; when the source has none, write it yourself. Returns the lesson id and the link to open it in the app.',
+      'Create the next lesson for a student from a list of positions (FENs). Fill every position completely: fen, answer (the line), move_notes, question, note, label, source_url, arrows and highlights. The student plays the side to move, and the answer starts with the move they should find; for an exercise that punishes a mistake, the mistake goes in setup_moves. The coach may open Coach view or Present with no preparation, so each position must teach itself: the answer stepped through with a note per move, arrows and marked squares on the board, and the explanation. When a position was taken from a course, carry the course\'s comment on the move into the note; when the source has none, write it yourself. Returns the lesson id and the link to open it in the app.',
     inputSchema: {
       type: 'object',
       required: ['student_id', 'positions'],
@@ -268,6 +274,17 @@ export function normalizeFen(raw) {
 }
 
 /**
+ * The position the student sees: `fen` after any setup moves.
+ * @param {string} fen
+ * @param {unknown} setup
+ */
+function startingFen(fen, setup) {
+  if (setup === undefined || setup === null || !String(setup).trim()) return fen
+  const moves = replayAnswer(fen, String(setup).replace(/[?!]+/g, ''))
+  return moves.length ? moves[moves.length - 1].fen : fen
+}
+
+/**
  * Replay SAN moves from a position; move numbers and result markers are ignored.
  * `notes`, when given, is one comment per move in the same order.
  * @param {string} fen
@@ -307,8 +324,17 @@ export function replayAnswer(fen, answer, notes) {
  */
 export function toRow(p, order) {
   if (!p || typeof p.fen !== 'string') throw new ToolError(`Position ${order + 1} needs a fen`)
-  const fen = normalizeFen(p.fen)
+  const fen = startingFen(normalizeFen(p.fen), p.setup_moves)
   const solution = p.answer && String(p.answer).trim() ? replayAnswer(fen, p.answer, p.move_notes) : []
+  // The student plays the first answer move, so it must be the one to find,
+  // not a course's "Bxf4?" with the punishment after it.
+  const first = String(p.answer ?? '').trim().split(/\s+/).map((t) => t.replace(/^\d+\.+/, '')).find(Boolean) ?? ''
+  if (/\?$/.test(first) && !/!\?$/.test(first)) {
+    throw new ToolError(
+      `Position ${order + 1}: the answer starts with "${first}", marked as a mistake. The answer is what the student should play. ` +
+        `If the puzzle is punishing that move, pass it as setup_moves and start the answer with the reply.`,
+    )
+  }
   const url = p.source_url ? String(p.source_url).trim() : ''
   const what = `Position ${order + 1}`
   return {

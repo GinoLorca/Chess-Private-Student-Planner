@@ -24,6 +24,7 @@ export const keys = {
   places: ['places'] as const,
   rateMissing: ['rateMissing'] as const,
   codesMissing: ['codesMissing'] as const,
+  notesMissing: ['notesMissing'] as const,
   paymentsMissing: ['paymentsMissing'] as const,
   payments: ['payments'] as const,
 }
@@ -421,6 +422,11 @@ export function useReminders(enabled = true) {
 /** Whether 0012 (more door codes, each position's covered dot) is still to be run. */
 export function useCodesMissing(enabled = true) {
   return useQuery({ queryKey: keys.codesMissing, queryFn: api.codesMigrationMissing, enabled, staleTime: 60 * 60_000 })
+}
+
+/** Whether the column for the coach's own notes is still to be added (migration 0013). */
+export function useNotesMissing(enabled = true) {
+  return useQuery({ queryKey: keys.notesMissing, queryFn: api.notesMigrationMissing, enabled, staleTime: 60 * 60_000 })
 }
 
 /** Whether the hourly-rate column is still to be added (migration 0010). */

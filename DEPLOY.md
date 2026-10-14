@@ -215,7 +215,8 @@ Lesson N and returns its link and the annotate link), `add_positions(lesson_id, 
 - `get_position(position)`: one position as the coach sees it, given its id or any link to it
   from the app (a share link `…/#/p/<id>`, a position page, a lesson view with `?p=<id>`): whose
   move it is, the question, the answer with real move numbers, who plays each move and its
-  note, the note (explanation), arrows and marked squares by pen name, the student and lesson,
+  note, the note (explanation), your own notes (`my_notes`), arrows and marked squares by pen
+  name, the student and lesson,
   and links to open and edit it. `checks` lists anything that looks wrong, such as an answer
   that no longer replays or a question naming the other side as to move. For reviewing a
   position from a link, by an agent or a Claude Code session given the key.

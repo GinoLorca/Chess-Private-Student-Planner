@@ -134,6 +134,8 @@ export interface Puzzle {
   done?: boolean
   /** Gone over with the student yet: the red, yellow or green dot (migration 0012). */
   status?: LessonStatus
+  /** The coach's own notes from solving it by hand; never shown to the student (migration 0013). */
+  coach_notes?: string
 }
 
 export interface CustomBoard {

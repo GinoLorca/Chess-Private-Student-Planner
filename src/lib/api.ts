@@ -495,6 +495,8 @@ export interface PuzzlePatch {
   done?: boolean
   /** Gone over with the student yet (migration 0012). */
   status?: LessonStatus
+  /** The coach's own notes (migration 0013). */
+  coach_notes?: string
 }
 
 /** A blank position, or one pre-filled from an import. */
@@ -738,6 +740,14 @@ export async function codesMigrationMissing(): Promise<boolean> {
     supabase.from('puzzles').select('status').limit(1),
   ])
   return Boolean((places.error && /extra_codes/.test(places.error.message)) || (puzzles.error && /status/.test(puzzles.error.message)))
+}
+
+export const NOTES_MIGRATION = '0013_coach_notes.sql'
+
+/** True when the database lacks 0013's column for the coach's own notes on a position. */
+export async function notesMigrationMissing(): Promise<boolean> {
+  const { error } = await supabase.from('puzzles').select('coach_notes').limit(1)
+  return Boolean(error && /coach_notes/.test(error.message))
 }
 
 export async function listStudentPlaces(): Promise<StudentPlace[]> {

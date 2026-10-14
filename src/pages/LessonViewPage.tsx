@@ -25,6 +25,7 @@ import { Check, ChevronLeft, ChevronRight, Close, Document, Eye, EyeOff } from '
 import { useHideToggle } from '../hooks/useHideToggle'
 import { useFlip } from '../hooks/useFlip'
 import { useResumeState } from '../lib/resume'
+import { MyNotes } from '../components/lesson/MyNotes'
 
 type Mode = 'coach' | 'present' | 'learn'
 
@@ -576,7 +577,7 @@ function PuzzleView({
         {revealed && puzzle.summary && !notesHidden && (
           <PaperCard className="p-4" ruled tilt={-0.4}>
             <div className="flex items-center justify-between">
-              <SectionLabel className="mb-0">{mode === 'coach' ? 'Your notes' : 'Explanation'}</SectionLabel>
+              <SectionLabel className="mb-0">Explanation</SectionLabel>
               <IconButton label={notesHidden ? 'Show explanation' : 'Hide explanation'} onClick={onToggleNotes} className="-mr-2">
                 {notesHidden ? <EyeOff /> : <Eye />}
               </IconButton>
@@ -586,6 +587,13 @@ function PuzzleView({
             ) : (
               <p className="mt-1 text-[16px] leading-[28px] whitespace-pre-wrap text-ink">{puzzle.summary}</p>
             )}
+          </PaperCard>
+        )}
+
+        {/* The coach's own notes: Coach view only, never on the student's screen. */}
+        {mode === 'coach' && (
+          <PaperCard className="p-4" ruled tilt={0.3}>
+            <MyNotes key={puzzle.id} puzzle={puzzle} lessonPlanId={lessonPlanId} hidden={!revealed || notesHidden} />
           </PaperCard>
         )}
 

@@ -17,6 +17,7 @@ import { ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Play } from '../compone
 import { useHideToggle } from '../hooks/useHideToggle'
 import { opposite, useFlip } from '../hooks/useFlip'
 import { useResumeState } from '../lib/resume'
+import { MyNotes } from '../components/lesson/MyNotes'
 
 /**
  * One position. It opens with the eye closed: the answer and explanation
@@ -203,6 +204,10 @@ export function PuzzlePage() {
               )}
             </Card>
           )}
+
+          <Card className="p-4">
+            <MyNotes key={puzzle.id} puzzle={puzzle} lessonPlanId={lessonPlanId} hidden={hidden} />
+          </Card>
 
           {puzzle.reference_url && (
             <a

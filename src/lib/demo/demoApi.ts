@@ -573,13 +573,17 @@ export async function missingScheduleTables(): Promise<string[]> {
   return []
 }
 
-export { RATE_MIGRATION, CODES_MIGRATION } from '../api'
+export { RATE_MIGRATION, CODES_MIGRATION, NOTES_MIGRATION } from '../api'
 
 export async function rateColumnMissing(): Promise<boolean> {
   return false
 }
 
 export async function codesMigrationMissing(): Promise<boolean> {
+  return false
+}
+
+export async function notesMigrationMissing(): Promise<boolean> {
   return false
 }
 

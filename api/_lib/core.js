@@ -237,7 +237,7 @@ export const TOOLS = [
   {
     name: 'get_position',
     description:
-      "Read one position as the coach sees it, to review or fix it: whose move it is, the question, the answer line with each move's note, the explanation, the arrows and marked squares, the source, and which student and lesson it's in, with links to open and edit it. Pass the position's id or any app link to it (a share link like …/#/p/<id>, a position page, or a lesson view with ?p=<id>). `checks` lists anything that looks wrong: an answer that doesn't replay, or a question that names the other side as to move.",
+      "Read one position as the coach sees it, to review or fix it: whose move it is, the question, the answer line with each move's note, the explanation, the coach's own notes (my_notes), the arrows and marked squares, the source, and which student and lesson it's in, with links to open and edit it. Pass the position's id or any app link to it (a share link like …/#/p/<id>, a position page, or a lesson view with ?p=<id>). `checks` lists anything that looks wrong: an answer that doesn't replay, or a question that names the other side as to move.",
     inputSchema: {
       type: 'object',
       required: ['position'],
@@ -552,6 +552,8 @@ export function describePosition(found, appOrigin) {
     fen,
     question,
     note: p.summary ?? '',
+    // The coach's own notes from solving it by hand (migration 0013); not shown to students.
+    my_notes: p.coach_notes ?? '',
     answer_line: answer.map((m) => m.move).join(' '),
     answer,
     arrows: (Array.isArray(p.arrows) ? p.arrows : []).map((a) => ({ from: a.startSquare, to: a.endSquare, color: penName(a.color) })),

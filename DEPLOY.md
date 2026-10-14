@@ -210,7 +210,15 @@ A GET on the URL says whether the key is configured yet.
 **The tools.** `list_students` (ids and names), `list_lessons(student_id)` (each lesson with
 positions done / total and its link), `create_lesson(student_id, positions, title?)` (makes
 Lesson N and returns its link and the annotate link), `add_positions(lesson_id, positions)`,
-and two for the schedule:
+`get_position(position)`, and two for the schedule:
+
+- `get_position(position)`: one position as the coach sees it, given its id or any link to it
+  from the app (a share link `…/#/p/<id>`, a position page, a lesson view with `?p=<id>`): whose
+  move it is, the question, the answer with real move numbers, who plays each move and its
+  note, the note (explanation), arrows and marked squares by pen name, the student and lesson,
+  and links to open and edit it. `checks` lists anything that looks wrong, such as an answer
+  that no longer replays or a question naming the other side as to move. For reviewing a
+  position from a link, by an agent or a Claude Code session given the key.
 
 - `next_lesson(travel_minutes?, buffer_minutes?, within_days?, timezone?)`: the next lesson that
   is on (cancelled and moved-away ones skipped): the student, when it starts (ISO time with the
@@ -235,10 +243,14 @@ time from there to `place.address` of `next_lesson` (by the way I'm travelling),
 the address and door code). If `lesson` is null there's nothing to go to. Never send me to a
 lesson whose status isn't `on`."*
 
-**A position** is `{ fen, source_url?, label?, question?, note?, answer?, move_notes?, arrows?,
-highlights? }`. Only `fen` is required; the placement alone is fine. `answer` is the line as
-moves ("Rf8 Bxh4 b4", move numbers optional), checked against the position, so an impossible
-line is rejected instead of saved. `move_notes` is one short comment per move of that line,
+**A position** is `{ fen, setup_moves?, source_url?, label?, question?, note?, answer?,
+move_notes?, arrows?, highlights? }`. Only `fen` is required; the placement alone is fine.
+`answer` is the line as moves ("Rf8 Bxh4 b4", move numbers optional), checked against the
+position, so an impossible line is rejected instead of saved. It starts with the move the
+student should find, for the side to move. For an exercise that punishes a mistake (a
+course's "30...Bxf4? 31.Rf1!"), the mistake goes in `setup_moves` ("Bxf4"): it's played first
+and the student, now the other side, answers it; an answer whose first move is marked `?` is
+rejected with that advice. `move_notes` is one short comment per move of that line,
 shown under the move as you step through it in Coach view. `arrows` are
 `{ from: "d1", to: "d8", color? }` and `highlights` are `{ square: "g8", color? }`, drawn on
 the starting position and shown once the answer is revealed; colours are the app's four pens,

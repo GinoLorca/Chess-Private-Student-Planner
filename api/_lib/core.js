@@ -3,7 +3,7 @@ import { DEFAULT_TIMEZONE, addDays, checkTimezone, departure, lessonsBetween, is
 
 /**
  * The agent connector, independent of transport and storage: MCP framing
- * (JSON-RPC over HTTP, stateless), the four tools, and the position checks.
+ * (JSON-RPC over HTTP, stateless), the tools, and the position checks.
  * `db` is whatever stores lessons; see supabaseDb.js for the real one.
  *
  * Plain JavaScript on purpose: Vercel runs it as-is, with nothing to compile.
@@ -25,8 +25,15 @@ import { DEFAULT_TIMEZONE, addDays, checkTimezone, departure, lessonsBetween, is
  *   createLesson(studentId: string, title: string): Promise<{ id: string, number: number, sectionId: string }>,
  *   targetSection(lessonId: string): Promise<{ studentId: string, number: number, sectionId: string, nextOrder: number }>,
  *   insertPuzzles(sectionId: string, rows: PuzzleRow[]): Promise<void>,
+ *   getPosition(id: string): Promise<StoredPosition | null>,
  *   listSchedule(): Promise<{ students: StudentRow[], slots: any[], changes: any[], places: any[] }>
  * }} Db
+ * @typedef {{
+ *   puzzle: Record<string, any>,
+ *   section: { id: string, title: string } | null,
+ *   lesson: { id: string, number: number, title: string, status?: string } | null,
+ *   student: { id: string, name: string } | null
+ * }} StoredPosition
  * @typedef {{ from: string, to: string, color?: string }} ArrowInput
  * @typedef {{ square: string, color?: string }} HighlightInput
  * @typedef {{
@@ -227,6 +234,16 @@ export const TOOLS = [
       properties: { lesson_id: { type: 'string' }, positions: { type: 'array', minItems: 1, items: POSITION_SCHEMA } },
     },
   },
+  {
+    name: 'get_position',
+    description:
+      "Read one position as the coach sees it, to review or fix it: whose move it is, the question, the answer line with each move's note, the explanation, the arrows and marked squares, the source, and which student and lesson it's in, with links to open and edit it. Pass the position's id or any app link to it (a share link like …/#/p/<id>, a position page, or a lesson view with ?p=<id>). `checks` lists anything that looks wrong: an answer that doesn't replay, or a question that names the other side as to move.",
+    inputSchema: {
+      type: 'object',
+      required: ['position'],
+      properties: { position: { type: 'string', description: 'The position id, or a link to it from the app.' } },
+    },
+  },
 ]
 
 export class ToolError extends Error {}
@@ -408,6 +425,12 @@ export async function callTool(name, args, ctx) {
         annotate_url: `${lessonUrl(target.studentId, lessonId)}/annotate`,
       }
     }
+    case 'get_position': {
+      const id = positionId(str(args.position, 'position'))
+      const found = await db.getPosition(id)
+      if (!found) throw new ToolError(`No position with id ${id} in this account`)
+      return describePosition(found, appOrigin)
+    }
     case 'get_schedule':
     case 'next_lesson': {
       const tz = zone(args.timezone)
@@ -439,6 +462,109 @@ export async function callTool(name, args, ctx) {
     }
     default:
       throw new ToolError(`Unknown tool "${name}"`)
+  }
+}
+
+const ID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
+
+/**
+ * The position id in whatever was given: the id itself, a share link
+ * (#/p/<id>), a position page (…/puzzles/<id>) or a lesson view (?p=<id>).
+ * Any other id-like text is taken as it is.
+ * @param {string} v
+ */
+export function positionId(v) {
+  const named = /[#/]p\/([^/?#&\s]+)|\/puzzles\/([^/?#&\s]+)|[?&]p=([^&#\s]+)/.exec(v)
+  const id = named ? decodeURIComponent(named[1] ?? named[2] ?? named[3]) : v
+  if (ID.test(id)) return /** @type {RegExpExecArray} */ (ID.exec(id))[0].toLowerCase()
+  if (/^[\w-]+$/.test(id)) return id
+  throw new ToolError(`"${v}" isn't a position id or a link to one`)
+}
+
+const PEN_OF_HEX = Object.fromEntries(Object.entries(PENS).map(([name, hex]) => [hex.toLowerCase(), name]))
+/** A stored colour back as the pen name it was drawn with, else as stored. @param {unknown} c */
+function penName(c) {
+  const hex = String(c ?? '').toLowerCase()
+  return PEN_OF_HEX[hex] ?? PEN_OF_HEX[hex.slice(0, 7)] ?? (hex || 'green')
+}
+
+const STATUS_WORDS = { planned: 'not given yet (red)', in_progress: 'in progress (yellow)', taught: 'taught (green)' }
+
+/**
+ * A stored position as an agent reads it: the fields in the words used to
+ * write one (question, note, answer), with move numbers from the FEN and a
+ * list of anything that looks wrong.
+ * @param {StoredPosition} found
+ * @param {string} appOrigin
+ */
+export function describePosition(found, appOrigin) {
+  const { puzzle: p, section, lesson, student } = found
+  const fen = String(p.starting_fen ?? '')
+  const side = p.side_to_move === 'b' ? 'b' : 'w'
+  const sideName = side === 'w' ? 'White' : 'Black'
+  const otherName = side === 'w' ? 'Black' : 'White'
+  const fields = fen.trim().split(/\s+/)
+  const firstNumber = Math.max(1, Number(fields[5]) || 1)
+  /** @param {number} i */
+  const label = (i) => {
+    const half = i + (side === 'b' ? 1 : 0)
+    const n = firstNumber + Math.floor(half / 2)
+    return half % 2 === 0 ? `${n}.` : `${n}...`
+  }
+  /** @type {Array<Record<string, any>>} */
+  const solution = Array.isArray(p.solution) ? p.solution : []
+  const answer = solution.map((m, i) => ({
+    move: `${label(i)}${m.san}`,
+    san: m.san,
+    by: (i % 2 === 0) === (side === 'w') ? 'White' : 'Black',
+    note: m.comment ?? '',
+    ...(m.arrow ? { arrow: { from: m.arrow.startSquare, to: m.arrow.endSquare, color: penName(m.arrow.color) } } : {}),
+    fen_after: m.fen,
+  }))
+
+  const checks = []
+  if (answer.length === 0) checks.push('No answer recorded.')
+  try {
+    const chess = new Chess(fen.split(' ').length >= 2 ? fen : `${fen} ${side} - - 0 1`)
+    for (const [i, m] of solution.entries()) {
+      try {
+        chess.move(m.san)
+      } catch {
+        checks.push(`The answer stops replaying at move ${i + 1} (${label(i)}${m.san}): not legal there.`)
+        break
+      }
+    }
+  } catch {
+    checks.push('The starting position is not a legal FEN.')
+  }
+  const question = String(p.quiz_prompt ?? '').trim()
+  if (new RegExp(`^\\s*${otherName}\\b[^.?!]*\\bto (move|play)`, 'i').test(question)) {
+    checks.push(`The question says ${otherName} is to move, but it's ${sideName} to move in this position.`)
+  }
+  if (!question) checks.push('No question: the app asks its generic one for this section.')
+  if (!String(p.summary ?? '').trim()) checks.push('No explanation (note).')
+
+  const base = student && lesson ? `${appOrigin}/#/students/${student.id}/lessons/${lesson.id}` : null
+  return {
+    id: p.id,
+    label: p.label ?? '',
+    side_to_move: sideName,
+    fen,
+    question,
+    note: p.summary ?? '',
+    answer_line: answer.map((m) => m.move).join(' '),
+    answer,
+    arrows: (Array.isArray(p.arrows) ? p.arrows : []).map((a) => ({ from: a.startSquare, to: a.endSquare, color: penName(a.color) })),
+    highlights: (Array.isArray(p.highlights) ? p.highlights : []).map((h) => ({ square: h.square, color: penName(h.color) })),
+    status: /** @type {Record<string, string>} */ (STATUS_WORDS)[p.status ?? 'planned'] ?? String(p.status),
+    source_url: p.reference_url ?? null,
+    student: student ? { id: student.id, name: student.name } : null,
+    lesson: lesson ? { id: lesson.id, number: lesson.number, title: lesson.title ?? '' } : null,
+    section: section?.title ?? null,
+    share_url: `${appOrigin}/#/p/${p.id}`,
+    url: base ? `${base}/puzzles/${p.id}` : null,
+    edit_url: base ? `${base}/puzzles/${p.id}/edit` : null,
+    checks,
   }
 }
 
@@ -480,7 +606,7 @@ function positions(v) {
 // ---------------------------------------------------------------------------
 
 export const PROTOCOL_VERSION = '2025-03-26'
-export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.2.0' }
+export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.3.0' }
 
 /**
  * One JSON-RPC message in, one response out; notifications (no id) return null.

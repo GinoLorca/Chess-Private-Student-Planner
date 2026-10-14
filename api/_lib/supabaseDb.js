@@ -159,6 +159,28 @@ function supabaseDb(sb) {
       return { students: students.data ?? [], slots: slots.data ?? [], changes: changes.data ?? [], places: places.data ?? [] }
     },
 
+    async getPosition(id) {
+      // Flat lookups, as for the lesson list: the position, then where it sits.
+      const { data: puzzle, error: e1 } = await sb.from('puzzles').select('*').eq('id', id).maybeSingle()
+      if (e1) {
+        // Not an id Postgres accepts (a typo'd link): the same as not found.
+        if (e1.code === '22P02') return null
+        throw describe(e1, 'Reading the position')
+      }
+      if (!puzzle) return null
+      const { data: section, error: e2 } = await sb.from('lesson_sections').select('id, title, lesson_plan_id').eq('id', puzzle.section_id).maybeSingle()
+      if (e2) throw describe(e2, 'Reading its section')
+      const { data: lesson, error: e3 } = section
+        ? await sb.from('lesson_plans').select('id, number, title, student_id').eq('id', section.lesson_plan_id).maybeSingle()
+        : { data: null, error: null }
+      if (e3) throw describe(e3, 'Reading its lesson')
+      const { data: student, error: e4 } = lesson
+        ? await sb.from('students').select('id, name').eq('id', lesson.student_id).maybeSingle()
+        : { data: null, error: null }
+      if (e4) throw describe(e4, 'Reading its student')
+      return { puzzle, section: section ? { id: section.id, title: section.title } : null, lesson, student }
+    },
+
     async insertPuzzles(sectionId, rows) {
       if (rows.length === 0) return
       // `done` is left to the column default so the insert works before migration 0006 too.

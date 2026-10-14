@@ -150,6 +150,19 @@ function Editor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
+  // Put away mid-edit (another app, the lock button): saved at once, since
+  // iOS may close the app before the half second is up.
+  useEffect(() => {
+    const flush = () => {
+      if (document.visibilityState !== 'hidden' || !timer.current) return
+      window.clearTimeout(timer.current)
+      timer.current = null
+      save(pending.current)
+      pending.current = {}
+    }
+    document.addEventListener('visibilitychange', flush)
+    return () => document.removeEventListener('visibilitychange', flush)
+  })
 
   // The answer board sits at the end of the recorded line unless a move in
   // the list is being viewed (click a move, or the clicker / arrow keys);

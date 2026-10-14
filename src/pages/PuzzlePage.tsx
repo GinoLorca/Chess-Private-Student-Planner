@@ -16,6 +16,7 @@ import { useSolve } from '../hooks/useSolve'
 import { ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Play } from '../components/ui/Icons'
 import { useHideToggle } from '../hooks/useHideToggle'
 import { opposite, useFlip } from '../hooks/useFlip'
+import { useResumeState } from '../lib/resume'
 
 /**
  * One position. It opens with the eye closed: the answer and explanation
@@ -31,12 +32,14 @@ export function PuzzlePage() {
   const { update } = usePuzzleMutations(puzzleId, lessonPlanId)
 
   const steps = useMemo(() => (puzzle ? lineSteps(puzzle) : []), [puzzle])
-  const [step, setStep] = useState(0)
+  // The move the answer is stepped to, the eye and the flip come back as
+  // they were if iOS closes the app while this position is open.
+  const [step, setStep] = useResumeState(`pos:${puzzleId}:step`, 0)
   const last = Math.max(0, steps.length - 1)
-  const next = useCallback(() => setStep((s) => Math.min(last, s + 1)), [last])
-  const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
+  const next = useCallback(() => setStep((s) => Math.min(last, s + 1)), [last, setStep])
+  const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [setStep])
   // The eye hides the answer and explanation: tap it, long-press a clicker button, or press B.
-  const [hidden, toggleHidden, setHidden] = useHideToggle(true)
+  const [hidden, toggleHidden, setHidden] = useHideToggle(true, `pos:${puzzleId}:eye`)
   // Each position opens with the eye closed: the answer hidden, the board ready to solve.
   const [openedId, setOpenedId] = useState(puzzleId)
   if (openedId !== puzzleId) {
@@ -51,7 +54,7 @@ export function PuzzlePage() {
     setHidden(false)
   })
   useClicker({ next, prev, hold: toggleHidden })
-  const [flipped] = useFlip()
+  const [flipped] = useFlip(`pos:${puzzleId}:flip`)
   // Marks drawn on the starting position are saved with it; on a move of
   // the answer they're a sketch for that move, gone when the board moves on.
   const [sketch, setSketch] = useState<{ at: string; arrows: BoardArrow[]; highlights: BoardHighlight[] }>({ at: '', arrows: [], highlights: [] })

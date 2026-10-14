@@ -7,6 +7,7 @@ import { AppearanceProvider, QueryProvider } from './app/providers'
 import { LoadingPage } from './components/ui/Page'
 import { OfflineBar } from './components/ui/OfflineBar'
 import { Prefetcher } from './app/Prefetcher'
+import { ResumeTracker } from './app/ResumeTracker'
 import { ReminderSweep } from './components/schedule/ReminderSweep'
 import { SpeedCheckPanel } from './components/ui/SpeedCheckPanel'
 import { PullToRefresh } from './components/ui/PullToRefresh'
@@ -43,6 +44,7 @@ function App() {
             <PieceSetProvider>
               <HashRouter>
                 <OfflineBar />
+                <ResumeTracker />
                 <Prefetcher />
                 <ReminderSweep />
                 <SpeedCheckPanel />

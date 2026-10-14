@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import { isTextTarget, isToggleKey, isToggleMouse, loadToggle } from '../lib/clicker'
+import { useResumeState } from '../lib/resume'
 
 /**
  * Hidden / shown for the explanation on a board page, flipped by the eye
  * button or by the clicker's taught third button (see src/lib/clicker.ts).
- * Starts shown unless told otherwise.
+ * Starts shown unless told otherwise. With a resume key it comes back as it
+ * was when the app is reopened onto this screen (see src/lib/resume.ts).
  */
-export function useHideToggle(startHidden = false): [boolean, () => void, (hidden: boolean) => void] {
-  const [hidden, setHidden] = useState(startHidden)
-  const toggle = useCallback(() => setHidden((h) => !h), [])
+export function useHideToggle(startHidden = false, resumeKey: string | null = null): [boolean, () => void, (hidden: boolean) => void] {
+  const [hidden, setHidden] = useResumeState(resumeKey, startHidden)
+  const toggle = useCallback(() => setHidden((h) => !h), [setHidden])
   useEffect(() => {
     const custom = loadToggle()
     const onKey = (e: KeyboardEvent) => {

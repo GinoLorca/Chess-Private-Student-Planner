@@ -24,6 +24,7 @@ import { FOLDER_COLORS, onColor } from '../lib/colors'
 import { Check, ChevronLeft, ChevronRight, Close, Document, Eye, EyeOff } from '../components/ui/Icons'
 import { useHideToggle } from '../hooks/useHideToggle'
 import { useFlip } from '../hooks/useFlip'
+import { useResumeState } from '../lib/resume'
 
 type Mode = 'coach' | 'present' | 'learn'
 
@@ -62,7 +63,7 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   const solved = useSessionSet(`learn-solved-${lessonPlanId}`)
   const shown = useSessionSet(`learn-shown-${lessonPlanId}`)
   // The eye in the top bar (or the clicker's third button) hides the notes across positions.
-  const [notesHidden, toggleNotes] = useHideToggle()
+  const [notesHidden, toggleNotes] = useHideToggle(false, `${mode}:${lessonPlanId}:eye`)
 
   // Once the lesson loads, land on the requested puzzle (deep link from a position page).
   useEffect(() => {
@@ -246,11 +247,13 @@ function PuzzleView({
       <StatusDot status={puzzle.status} what="Position" onTap={() => setPuzzleStatus.mutate({ puzzle, status: nextStatus(puzzle.status) })} className="-my-2 -ml-2" />
     ) : null
   const steps = useMemo(() => lineSteps(puzzle), [puzzle])
-  const [step, setStep] = useState(0)
+  // The move stepped to, the answer shown and the flip come back as they
+  // were if iOS closes the app while this position is up.
+  const [step, setStep] = useResumeState(`${mode}:${puzzle.id}:step`, 0)
   // Right-drag drawings: on the starting position they're saved with the
   // puzzle; mid-line they're a sketch for this step only.
   const [sketch, setSketch] = useState<{ step: number; arrows: BoardArrow[]; highlights: BoardHighlight[] } | null>(null)
-  const [revealed, setRevealed] = useState(mode === 'coach')
+  const [revealed, setRevealed] = useResumeState(`${mode}:${puzzle.id}:revealed`, mode === 'coach')
   // Learn view: the answer stays hidden and the board is live until the line
   // is played out (solved) or given up (shown). Needs a legal recorded line.
   const canSolve = mode === 'learn' && canSolveLine(steps)
@@ -269,7 +272,7 @@ function PuzzleView({
   const [outcome, setOutcome] = useState<'solved' | 'shown' | null>(null)
   const [wrong, setWrong] = useState<string | null>(null)
   const [misses, setMisses] = useState(0)
-  const [flipped, flip] = useFlip()
+  const [flipped, flip] = useFlip(`${mode}:${puzzle.id}:flip`)
   // A finger drawing on the board mustn't also swipe to the next position:
   // the drag holds off while it draws, and a press that drew never turns the page.
   const [boardDrawing, setBoardDrawing] = useState(false)
@@ -331,8 +334,8 @@ function PuzzleView({
     }, 550)
   }
 
-  const next = useCallback(() => setStep((s) => Math.min(steps.length - 1, s + 1)), [steps.length])
-  const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
+  const next = useCallback(() => setStep((s) => Math.min(steps.length - 1, s + 1)), [steps.length, setStep])
+  const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [setStep])
 
   // One clicker button walks the whole lesson: reveal, each answer move,
   // then the next position. The other button walks it back.
@@ -348,7 +351,7 @@ function PuzzleView({
     } else if (!revealed) setRevealed(true)
     else if (!atEnd) next()
     else onSwipe(1)
-  }, [solving, outcome, revealed, atEnd, next, onSwipe])
+  }, [solving, outcome, revealed, atEnd, next, onSwipe, setStep, setRevealed])
   const backward = useCallback(() => {
     if (step > 0) prev()
     else onSwipe(-1)

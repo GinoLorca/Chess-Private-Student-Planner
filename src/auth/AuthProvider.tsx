@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { isDemo, supabase } from '../lib/supabase'
+import { clearResume } from '../lib/resume'
 
 interface AuthContextValue {
   session: Session | null
@@ -46,6 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     if (isDemo) return
+    // Signed out on purpose: the next sign-in starts at the front page.
+    clearResume()
     await supabase.auth.signOut()
   }
 

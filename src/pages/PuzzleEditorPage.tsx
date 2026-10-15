@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import clsx from 'clsx'
 import type { Puzzle, SolutionMove } from '../types/domain'
 import type { PuzzlePatch } from '../lib/data'
@@ -19,7 +19,8 @@ import { draftExplanation } from '../lib/ai'
 import { answerProblem, stepLabel } from '../lib/solution'
 import { useClicker } from '../hooks/useClicker'
 import { opposite, useFlip } from '../hooks/useFlip'
-import { Check, ChevronDown, ChevronRight, Plus, Sparkle, Warning } from '../components/ui/Icons'
+import { Check, ChevronDown, ChevronRight, Plus, Sparkle, Target, Warning } from '../components/ui/Icons'
+import { analysisHref } from '../lib/analysisLink'
 import { Chip, ChipRow } from '../components/ui/Chip'
 import { defaultQuizPrompt, explanationStarters, quizPromptChips } from '../lib/prompts'
 
@@ -88,6 +89,7 @@ function Editor({
   saving: boolean
 }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [puzzle, setPuzzle] = useState<Puzzle>(initial)
   const [showMore, setShowMore] = useState(Boolean(initial.reference_url || initial.reference_label))
   const [tab, setTab] = useState<Tab>(initial.starting_fen === 'start' && initial.solution.length === 0 ? 'position' : 'answer')
@@ -300,7 +302,24 @@ function Editor({
       back={back}
       width="wide"
       className="pt-6"
-      actions={<span className="pr-2 text-[13px] text-on-bg-2">{saving ? 'Saving…' : 'Saved'}</span>}
+      actions={
+        <>
+          <span className="pr-2 text-[13px] text-on-bg-2">{saving ? 'Saving…' : 'Saved'}</span>
+          {/* Whatever is on the editor's board: the set-up position, or the move the answer is stepped to. */}
+          <Link
+            to={analysisHref({
+              fen: tab === 'answer' ? answerFen : fen,
+              orientation,
+              back: location.pathname + location.search,
+              title: puzzle.label,
+            })}
+          >
+            <Button variant="ghost" size="sm" icon={<Target size={16} />}>
+              Analyze
+            </Button>
+          </Link>
+        </>
+      }
     >
       <FolderTab color={color} name={studentName} aside={aside} />
       <FolderBody color={color} className="pb-5">

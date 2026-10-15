@@ -605,13 +605,18 @@ function Editor({
             </div>
           </PaperCard>
 
+          {/* On a phone the "next" label is longer than half the row, so Done
+              keeps its own width there and the label wraps to two lines
+              instead of pushing the page sideways. */}
           <div className="flex gap-2">
-            <Button variant="secondary" size="lg" className="flex-1" icon={<Check size={18} />} onClick={() => finish('lesson')}>
+            <Button variant="secondary" size="lg" className="flex-none sm:flex-1" icon={<Check size={18} />} onClick={() => finish('lesson')}>
               Done
             </Button>
             {next ? (
-              <Button variant="primary" size="lg" className="flex-1" icon={<ChevronRight size={18} />} onClick={() => finish('next')}>
-                Next without explanation{next.label ? `: ${next.label}` : ''}
+              <Button variant="primary" size="lg" className="min-w-0 flex-1" icon={<ChevronRight size={18} className="shrink-0" />} onClick={() => finish('next')}>
+                <span className="line-clamp-2 text-center leading-tight whitespace-normal">
+                  Next without explanation{next.label ? `: ${next.label}` : ''}
+                </span>
               </Button>
             ) : (
               <Button variant="primary" size="lg" className="flex-1" icon={<Plus size={18} />} onClick={() => finish('another')}>

@@ -42,8 +42,13 @@ function listen() {
 
 /** The pen a drag ending now would use: a held pen key wins, else the default. */
 export function currentPen(): Pen {
+  return heldPen() ?? DEFAULT_PEN
+}
+
+/** The pen whose key is held right now, if any. */
+export function heldPen(): Pen | null {
   listen()
-  return PENS.find((p) => held.has(p.key)) ?? DEFAULT_PEN
+  return PENS.find((p) => held.has(p.key)) ?? null
 }
 
 listen()

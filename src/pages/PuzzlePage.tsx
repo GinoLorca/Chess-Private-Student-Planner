@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight } from '../types/domain'
 import { useLesson, usePuzzle, usePuzzleMutations, useStudent } from '../lib/queries'
@@ -13,7 +13,8 @@ import { Button, IconButton } from '../components/ui/Button'
 import { DrawableBoard } from '../components/board/DrawableBoard'
 import { SolveBoardView, SolveStatus } from '../components/board/SolveBoard'
 import { useSolve } from '../hooks/useSolve'
-import { ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Play } from '../components/ui/Icons'
+import { ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Play, Target } from '../components/ui/Icons'
+import { analysisHref } from '../lib/analysisLink'
 import { useHideToggle } from '../hooks/useHideToggle'
 import { opposite, useFlip } from '../hooks/useFlip'
 import { useResumeState } from '../lib/resume'
@@ -27,6 +28,7 @@ import { MyNotes } from '../components/lesson/MyNotes'
  */
 export function PuzzlePage() {
   const { studentId = '', lessonPlanId = '', puzzleId = '' } = useParams()
+  const location = useLocation()
   const { data: student } = useStudent(studentId)
   const { data: lesson } = useLesson(lessonPlanId)
   const { data: puzzle, isLoading } = usePuzzle(puzzleId)
@@ -89,6 +91,12 @@ export function PuzzlePage() {
             {hidden ? <EyeOff /> : <Eye />}
           </IconButton>
           <CopyLinkButton puzzleId={puzzle.id} />
+          {/* The position as the student sees it, on Repertoire Lab's analysis board. */}
+          <Link to={analysisHref({ fen, orientation, back: location.pathname + location.search, title: hidden ? '' : puzzle.label })}>
+            <Button variant="ghost" size="sm" icon={<Target size={16} />}>
+              Analyze
+            </Button>
+          </Link>
           <Link to={`${base}/coach?p=${puzzle.id}`}>
             <Button variant="ghost" size="sm" icon={<Play size={16} />}>
               Coach view

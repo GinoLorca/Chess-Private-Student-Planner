@@ -50,6 +50,19 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          {
+            // The analysis board's engine (Stockfish's WASM and its 40 MB
+            // network) and move sounds: fetched the first time the board
+            // opens, then kept, so it works with no connection after that.
+            // The files never change under the same name.
+            urlPattern: ({ url }) => url.pathname.startsWith('/stockfish/') || url.pathname.startsWith('/sounds/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'analysis-engine',
+              expiration: { maxEntries: 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
         navigateFallback: 'index.html',
         // Supabase calls are cached by the query layer (localStorage persister),

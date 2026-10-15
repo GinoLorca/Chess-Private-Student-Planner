@@ -58,6 +58,12 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   Reminders card, and a count on the calendar button). *Add to Reminders* sends it to Apple
   Reminders through the share sheet, or through a shortcut that fills in the due date too
   (Settings → Apple Reminders).
+- **Analysis board** — *Analyze* on a position (and in Coach view) opens it on Repertoire Lab's
+  analysis board, carried over as it is there: its board in the skin's colours, Stockfish 16 on
+  the device (the evaluation bar, three lines and their arrows), the Lichess opening explorer,
+  a move list that keeps variations, the pens, and its keyboard (←/→, X to flip, E for the
+  engine, 1/2/3 for alternatives). The engine downloads once (about 40 MB) and then works
+  offline. None of the lesson's own arrows come with the position.
 - **Schedule for agents** — the connector's `next_lesson` and `get_schedule` tools give an agent
   (Muse's Hugo) the next lesson that's on, its start time with the time zone, the address and
   door codes, and, given the travel time from where the coach is, when to leave. See DEPLOY.md.

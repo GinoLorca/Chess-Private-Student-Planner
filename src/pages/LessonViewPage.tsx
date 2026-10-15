@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight, Puzzle } from '../types/domain'
@@ -7,7 +7,7 @@ import { useCodesMissing, useLesson, useLessonContentMutations, usePuzzleMutatio
 import { StatusDot } from '../components/lesson/StatusDot'
 import { nextStatus } from '../lib/lessonStatus'
 import { canSolveLine, lineSteps, sameMove, stepLabel } from '../lib/solution'
-import { pieceList, type Orientation, type SideSetup } from '../lib/fen'
+import { normalizeFen, pieceList, type Orientation, type SideSetup } from '../lib/fen'
 import { useSessionSet } from '../hooks/useSessionSet'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { useClicker } from '../hooks/useClicker'
@@ -26,6 +26,7 @@ import { useHideToggle } from '../hooks/useHideToggle'
 import { useFlip } from '../hooks/useFlip'
 import { useResumeState } from '../lib/resume'
 import { MyNotes } from '../components/lesson/MyNotes'
+import { analysisHref } from '../lib/analysisLink'
 
 type Mode = 'coach' | 'present' | 'learn'
 
@@ -239,6 +240,7 @@ function PuzzleView({
   onToggleNotes: () => void
 }) {
   const { lessonPlanId = '' } = useParams()
+  const location = useLocation()
   const { update } = usePuzzleMutations(puzzle.id, lessonPlanId)
   // Coach and Present carry the position's red / yellow / green dot, to mark it as it's gone over.
   const { setPuzzleStatus } = useLessonContentMutations(lessonPlanId)
@@ -390,6 +392,19 @@ function PuzzleView({
           </p>
           <div className="flex-1" />
           <Caption className="hidden pb-1 lg:flex" dot={dot} position={position} label={revealed && !notesHidden ? puzzle.label : ''} toMove={toMove} />
+          {mode === 'coach' && (
+            <Link
+              to={analysisHref({
+                fen: normalizeFen(puzzle.starting_fen, puzzle.side_to_move),
+                orientation,
+                back: location.pathname + location.search,
+                title: puzzle.label,
+              })}
+              className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg"
+            >
+              Analyze
+            </Link>
+          )}
           <button onClick={flip} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg">
             Flip board
           </button>

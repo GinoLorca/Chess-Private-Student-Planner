@@ -399,6 +399,7 @@ function PuzzleView({
                 orientation,
                 back: location.pathname + location.search,
                 title: puzzle.label,
+                line: puzzle.solution.map((m) => m.san),
               })}
               className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg"
             >

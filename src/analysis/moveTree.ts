@@ -21,6 +21,18 @@ const nid = () => `n${run}${(seq += 1)}`
 
 export const newRoot = (): MoveNode => ({ id: 'root', san: null, children: [] })
 
+/** A plain list of moves becomes a trunk with no branches. */
+export function makeTree(sans: string[] = []): MoveNode {
+  const root = newRoot()
+  let node = root
+  for (const san of sans) {
+    const child: MoveNode = { id: nid(), san, children: [] }
+    node.children.push(child)
+    node = child
+  }
+  return root
+}
+
 export function findNode(root: MoveNode, id: string): MoveNode | null {
   if (!id || id === 'root') return root
   const stack = [root]

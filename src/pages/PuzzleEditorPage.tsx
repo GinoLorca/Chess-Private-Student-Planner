@@ -305,13 +305,16 @@ function Editor({
       actions={
         <>
           <span className="pr-2 text-[13px] text-on-bg-2">{saving ? 'Saving…' : 'Saved'}</span>
-          {/* Whatever is on the editor's board: the set-up position, or the move the answer is stepped to. */}
+          {/* The position with its line, open where the editor's board is: the
+              set-up position, or the move the answer is stepped to. */}
           <Link
             to={analysisHref({
-              fen: tab === 'answer' ? answerFen : fen,
+              fen,
               orientation,
               back: location.pathname + location.search,
               title: puzzle.label,
+              line: puzzle.solution.map((m) => m.san),
+              at: tab === 'answer' ? shown : 0,
             })}
           >
             <Button variant="ghost" size="sm" icon={<Target size={16} />}>

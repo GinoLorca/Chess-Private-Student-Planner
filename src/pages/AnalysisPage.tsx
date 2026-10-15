@@ -28,7 +28,8 @@ import {
   keepMainLineOnly,
   lastMainLineAncestor,
   lineThrough,
-  newRoot,
+  mainLineFrom,
+  makeTree,
   nodePath,
   promote,
   promoteOne,
@@ -94,10 +95,26 @@ export function AnalysisPage() {
       return START_FEN
     }
   }, [params])
+  // The position's own line, as far as it plays legally from the FEN.
+  const line = useMemo(() => {
+    const out: string[] = []
+    const game = new Chess(fen)
+    for (const san of (params.get('line') ?? '').split(/\s+/).filter(Boolean)) {
+      try {
+        out.push(game.move(san).san)
+      } catch {
+        break
+      }
+    }
+    return out
+  }, [fen, params])
+  const at = Math.max(0, Math.min(line.length, Number(params.get('at')) || 0))
   return (
     <AnalysisBoard
-      key={fen}
+      key={`${fen}|${line.join(' ')}`}
       baseFen={fen}
+      line={line}
+      startAt={at}
       startOrientation={params.get('o') === 'black' ? 'black' : 'white'}
       back={safeBack(params.get('back'))}
       title={params.get('title') ?? ''}
@@ -105,7 +122,23 @@ export function AnalysisPage() {
   )
 }
 
-function AnalysisBoard({ baseFen, startOrientation, back, title }: { baseFen: string; startOrientation: 'white' | 'black'; back: string; title: string }) {
+function AnalysisBoard({
+  baseFen,
+  line,
+  startAt,
+  startOrientation,
+  back,
+  title,
+}: {
+  baseFen: string
+  /** The position's recorded line, loaded as the main line. */
+  line: string[]
+  /** The move of it the board opens on: 0 for the position itself. */
+  startAt: number
+  startOrientation: 'white' | 'black'
+  back: string
+  title: string
+}) {
   const { skin } = useVisuals()
   const { resolved } = useAppearance()
   const palette = useMemo(() => paletteFor(skin, resolved), [skin, resolved])
@@ -118,9 +151,11 @@ function AnalysisBoard({ baseFen, startOrientation, back, title }: { baseFen: st
   // The line is a tree: playing something else from an earlier move keeps
   // what came after as a variation. `head` is the move the board is on. All
   // of it comes back if iOS closes the app while the board is open.
-  const key = `analysis:${baseFen}`
-  const [tree, setTree] = useResumeState<MoveNode>(`${key}:tree`, newRoot)
-  const [head, setHead] = useResumeState(`${key}:head`, 'root')
+  const key = `analysis:${baseFen}:${line.join(' ')}`
+  // The line sent with the position is the main line, ready to step through.
+  const [sentTree] = useState(() => makeTree(line))
+  const [tree, setTree] = useResumeState<MoveNode>(`${key}:tree`, sentTree)
+  const [head, setHead] = useResumeState(`${key}:head`, () => (startAt > 0 ? mainLineFrom(sentTree)[startAt - 1].id : 'root'))
   const [orientation, setOrientation] = useResumeState<'white' | 'black'>(`${key}:o`, startOrientation)
   // Arrows and squares drawn with the pens, kept per position.
   const [annotations, setAnnotations] = useResumeState<Record<string, Marks>>(`${key}:marks`, {})
@@ -809,9 +844,9 @@ function AnalysisBoard({ baseFen, startOrientation, back, title }: { baseFen: st
               </button>
               <button onClick={() => setOrientation((o) => (o === 'white' ? 'black' : 'white'))}>⇅ Flip</button>
               <button
-                title="Back to the position as it was sent here, with no moves"
+                title="Back to the position and its line as they were sent here"
                 onClick={() => {
-                  setTree(newRoot())
+                  setTree(sentTree)
                   setHead('root')
                   setAnnotations({})
                   setVariationHighlights({})

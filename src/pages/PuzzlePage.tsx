@@ -91,8 +91,16 @@ export function PuzzlePage() {
             {hidden ? <EyeOff /> : <Eye />}
           </IconButton>
           <CopyLinkButton puzzleId={puzzle.id} />
-          {/* The position as the student sees it, on Repertoire Lab's analysis board. */}
-          <Link to={analysisHref({ fen, orientation, back: location.pathname + location.search, title: hidden ? '' : puzzle.label })}>
+          {/* The position as the student sees it, on Repertoire Lab's analysis board, with its line to step through. */}
+          <Link
+            to={analysisHref({
+              fen,
+              orientation,
+              back: location.pathname + location.search,
+              title: hidden ? '' : puzzle.label,
+              line: puzzle.solution.map((m) => m.san),
+            })}
+          >
             <Button variant="ghost" size="sm" icon={<Target size={16} />}>
               Analyze
             </Button>

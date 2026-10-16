@@ -128,7 +128,7 @@ const Square = memo(function Square({
       // Each square draws half the line; neighbours meet to make one stroke.
       style={SQUARE_LINE}
     >
-      {last && <div className="absolute inset-0" style={LAST_MOVE} />}
+      {last && <div className="board-last absolute inset-0" />}
       {highlight && <div className="absolute inset-0" style={{ background: highlight }} />}
       {selected && <div className="absolute inset-0" style={SELECTED} />}
       {Piece && (
@@ -151,5 +151,4 @@ const Square = memo(function Square({
 })
 
 const SQUARE_LINE: CSSProperties = { boxShadow: 'inset 0 0 0 0.14cqw var(--board-line)' }
-const LAST_MOVE: CSSProperties = { background: 'var(--board-last-move)' }
 const SELECTED: CSSProperties = { boxShadow: 'inset 0 0 0 0.35em var(--board-select)' }

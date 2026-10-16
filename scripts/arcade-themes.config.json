@@ -1,0 +1,186 @@
+{
+  "_readme": [
+    "The app's own touches on each Chess Arcade theme, read by scripts/import-arcade-themes.mjs.",
+    "Everything else (colours, patterns, artwork, board, pieces, fonts, sounds) comes from Chess Arcade itself.",
+    "Per theme, all optional: label (else Arcade's), description, suggestedPieceSet, dark (nocturnal: its light mode is dark chrome),",
+    "display (a font-family, else the one Arcade sets on its titles), analysisFromRepertoireLab (the analysis board keeps",
+    "Repertoire Lab's palette for it), tokens (CSS variables in both modes: folder stamps, sticky note, clip, corners),",
+    "lightTokens / darkTokens (the same, one mode only). A theme Arcade has that isn't listed here imports with defaults."
+  ],
+  "themes": {
+    "felt": {
+      "description": "Green baize, cream cards, brass.",
+      "suggestedPieceSet": "classic",
+      "analysisFromRepertoireLab": true,
+      "tokens": {
+        "--on-bg": "#fdfaf1",
+        "--on-bg-2": "#cfc6a6",
+        "--accent-on-bg": "#e0b13c",
+        "--stamp-taught": "#8a6a16",
+        "--stamp-progress": "#b6392f",
+        "--clip": "#8a6a16"
+      }
+    },
+    "hustler": {
+      "description": "Park concrete, stone tables, black-and-white marble.",
+      "suggestedPieceSet": "wavy",
+      "analysisFromRepertoireLab": true,
+      "tokens": {
+        "--radius-md": "4px",
+        "--radius-lg": "4px",
+        "--radius-xl": "5px",
+        "--radius-2xl": "5px",
+        "--radius-3xl": "6px",
+        "--stamp-taught": "#3f8a76",
+        "--stamp-progress": "#b7651a",
+        "--sticky": "#f2d24b",
+        "--sticky-ink": "#1c1e20",
+        "--clip": "#585d61"
+      }
+    },
+    "bauhaus": {
+      "description": "Primaries over paper, hard black rules, no corners.",
+      "suggestedPieceSet": "bauhaus",
+      "analysisFromRepertoireLab": true,
+      "tokens": {
+        "--radius-sm": "0",
+        "--radius-md": "0",
+        "--radius-lg": "0",
+        "--radius-xl": "0",
+        "--radius-2xl": "0",
+        "--radius-3xl": "0",
+        "--radius-4xl": "0",
+        "--accent": "#1a4fa0",
+        "--accent-strong": "#143c7a",
+        "--accent-ink": "#ffffff",
+        "--accent-soft": "#c6d9f2",
+        "--accent-on-bg": "#1a4fa0",
+        "--stamp-taught": "#1a4fa0",
+        "--stamp-progress": "#d8232a",
+        "--stamp-planned": "#141414",
+        "--sticky": "#f2c200",
+        "--sticky-ink": "#141414",
+        "--clip": "#141414",
+        "--paper-head-rule": "#d8232a"
+      }
+    },
+    "gameboy": {
+      "description": "Grey plastic, magenta buttons, the DMG green screen.",
+      "suggestedPieceSet": "classic",
+      "analysisFromRepertoireLab": true,
+      "tokens": {
+        "--radius-md": "8px",
+        "--radius-lg": "8px",
+        "--radius-xl": "10px",
+        "--radius-2xl": "10px",
+        "--radius-3xl": "12px",
+        "--stamp-taught": "#b8236b",
+        "--stamp-progress": "#c2701a",
+        "--stamp-planned": "#1c1d14",
+        "--sticky": "#9bbc0f",
+        "--sticky-ink": "#0f380f",
+        "--clip": "#5f6350",
+        "--paper-rule": "rgba(15, 56, 15, 0.14)",
+        "--paper-head-rule": "rgba(15, 56, 15, 0.35)",
+        "--font-stamp": "var(--font-display)"
+      }
+    },
+    "outerspace": {
+      "description": "Void black, one red-orange flare, amber CRT glass.",
+      "suggestedPieceSet": "classic",
+      "analysisFromRepertoireLab": true,
+      "tokens": {
+        "--radius-md": "3px",
+        "--radius-lg": "3px",
+        "--radius-xl": "6px",
+        "--radius-2xl": "6px",
+        "--radius-3xl": "8px",
+        "--stamp-taught": "#4fd6c4",
+        "--stamp-progress": "#ffb347",
+        "--stamp-planned": "rgba(0, 0, 0, 0.6)",
+        "--sticky": "#262d3d",
+        "--sticky-ink": "#ffb347",
+        "--clip": "#4fd6c4",
+        "--paper-head-rule": "rgba(255, 90, 54, 0.6)",
+        "--font-stamp": "var(--font-display)"
+      },
+      "dark": true
+    },
+    "drivethru": {
+      "description": "Red-and-white counter tile, mustard trim, golden and grape pieces.",
+      "tokens": {
+        "--stamp-taught": "var(--good)",
+        "--stamp-progress": "var(--bad)",
+        "--stamp-planned": "var(--ink-soft)",
+        "--sticky": "#ffc72c",
+        "--sticky-ink": "#2a1810",
+        "--clip": "var(--bad)",
+        "--radius-md": "10px",
+        "--radius-lg": "12px",
+        "--radius-xl": "16px",
+        "--radius-2xl": "18px",
+        "--radius-3xl": "22px"
+      }
+    },
+    "rose": {
+      "description": "Blush satin, raspberry, pearl and plum pieces, Bodoni italics.",
+      "tokens": {
+        "--stamp-taught": "var(--brass)",
+        "--stamp-progress": "var(--hanging)",
+        "--stamp-planned": "var(--ink-soft)",
+        "--clip": "#c58b7a",
+        "--radius-md": "8px",
+        "--radius-lg": "10px",
+        "--radius-xl": "14px",
+        "--radius-2xl": "14px",
+        "--radius-3xl": "18px"
+      },
+      "lightTokens": {
+        "--sticky": "#fbe3ea",
+        "--sticky-ink": "#3a1a2a"
+      },
+      "darkTokens": {
+        "--sticky": "#4a2a3d",
+        "--sticky-ink": "#f8e6ec"
+      }
+    },
+    "chessbook": {
+      "description": "A printed diagram on cream paper, ink pieces, Garamond.",
+      "tokens": {
+        "--stamp-taught": "var(--brass)",
+        "--stamp-progress": "var(--hanging)",
+        "--stamp-planned": "var(--ink-soft)",
+        "--clip": "var(--ink-soft)",
+        "--radius-md": "3px",
+        "--radius-lg": "3px",
+        "--radius-xl": "3px",
+        "--radius-2xl": "4px",
+        "--radius-3xl": "4px"
+      },
+      "lightTokens": {
+        "--sticky": "#f3ead2",
+        "--sticky-ink": "#1c1a17"
+      },
+      "darkTokens": {
+        "--sticky": "#2c2720",
+        "--sticky-ink": "#e9e1cf"
+      }
+    },
+    "uptown": {
+      "description": "Station tile, black signs, each piece on its own line.",
+      "tokens": {
+        "--stamp-taught": "var(--good)",
+        "--stamp-progress": "var(--hanging)",
+        "--stamp-planned": "var(--ink)",
+        "--sticky": "#fccc0a",
+        "--sticky-ink": "#141517",
+        "--clip": "#141517",
+        "--radius-md": "4px",
+        "--radius-lg": "4px",
+        "--radius-xl": "6px",
+        "--radius-2xl": "6px",
+        "--radius-3xl": "8px"
+      }
+    }
+  }
+}

@@ -206,17 +206,25 @@ account or key needed — and says whether it agrees with your first move.
 ## Skins
 
 Settings → Skin switches the whole app between the planner's own **Folder** look and the
-Chess Arcade skins (Tournament Felt, Hustler, Bauhaus, Game Boy, Outer Space, Drive-Thru, Rose,
-Chess Book, Uptown Express), ported token for token: colours, page background, board squares and
+Chess Arcade skins (Tournament Felt, Hustler, Bauhaus, Game Boy, Outer Space, Drive-Thru, Rosé,
+Chess Book, Uptown Express), straight from Arcade: colours, page background, board squares and
 textures, piece treatment, display font and corner radii. Light and dark work inside each skin.
 The layout never changes with the skin.
 
-Drive-Thru, Rose, Chess Book and Uptown Express come whole: their artwork behind the app (or their
-pattern, switched per device under the skin picker), coloured pieces (choosing one puts the
-**Theme Staunton** set on; Uptown Express gives each officer its line colour), and a nine-event
-sound set. Settings → Sounds switches sounds on or off per device: moves, captures, checks,
-promotions and mates on every board, a solved position, a given-up one and the start of Present
-or Learn, in the skin's own voice where it has one.
+Drive-Thru, Rosé, Chess Book and Uptown Express come whole: coloured pieces (choosing one puts
+the **Theme Staunton** set on; Uptown Express gives each officer its line colour) and a
+nine-event sound set. Bauhaus, Game Boy, Drive-Thru and Rosé ship artwork behind the app, which
+can be switched to the theme's pattern per device under the skin picker. Settings → Sounds
+switches sounds on or off per device: moves, captures, checks, promotions and mates on every
+board, a solved position, a given-up one and the start of Present or Learn, in the skin's own
+voice where it has one.
+
+Every Chess Arcade theme is generated from Arcade's own source, never ported by hand: run
+`npm run arcade:import -- --from <chess-arcade checkout>` (add `--check` to see what's new or out
+of date first, `--prune` to drop artwork or sounds Arcade no longer ships). It writes
+`src/skins.arcade.css`, `src/lib/arcadeThemes.generated.ts`, the artwork and the sounds; the
+app's own touches per theme are in `scripts/arcade-themes.config.json` and `src/skins.css`. The
+project skill `.claude/skills/import-arcade-theme` walks through it.
 
 ## Piece sets and board colours
 

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { ARCADE_THEMES } from './arcadeThemes.generated'
 
 /**
  * Skins: the app's own Folder look, plus the Chess Arcade skins ported token
@@ -22,17 +23,11 @@ export interface Skin {
 
 export const FOLDER_SKIN = 'folder'
 
+// Folder is the app's own; every other skin is a Chess Arcade theme, generated
+// by scripts/import-arcade-themes.mjs (see src/lib/arcadeThemes.generated.ts).
 export const SKINS: Skin[] = [
   { id: FOLDER_SKIN, label: 'Folder', description: 'Manila folders, index cards, a sticky note. The default.', suggestedPieceSet: 'bauhaus' },
-  { id: 'felt', label: 'Tournament Felt', description: 'Green baize, cream cards, brass.', suggestedPieceSet: 'classic' },
-  { id: 'hustler', label: 'Hustler', description: 'Park concrete, stone tables, black-and-white marble.', suggestedPieceSet: 'wavy' },
-  { id: 'bauhaus', label: 'Bauhaus', description: 'Primaries over paper, hard black rules, no corners.', suggestedPieceSet: 'bauhaus' },
-  { id: 'gameboy', label: 'Game Boy', description: 'Grey plastic, magenta buttons, the DMG green screen.', suggestedPieceSet: 'classic' },
-  { id: 'outerspace', label: 'Outer Space', description: 'Void black, one red-orange flare, amber CRT glass.', suggestedPieceSet: 'classic', dark: true },
-  { id: 'drivethru', label: 'Drive-Thru', description: 'Red-and-white counter tile, mustard trim, golden and grape pieces.', suggestedPieceSet: 'staunton', art: true, themePieces: true },
-  { id: 'rose', label: 'Rose', description: 'Blush satin, raspberry, pearl and plum pieces, Bodoni italics.', suggestedPieceSet: 'staunton', art: true, themePieces: true },
-  { id: 'chessbook', label: 'Chess Book', description: 'A printed diagram on cream paper, ink pieces, Garamond.', suggestedPieceSet: 'staunton', art: true, themePieces: true },
-  { id: 'uptown', label: 'Uptown Express', description: 'Station tile, black signs, each piece on its own line.', suggestedPieceSet: 'staunton', art: true, themePieces: true },
+  ...ARCADE_THEMES.map(({ id, label, description, suggestedPieceSet, dark, art, themePieces }) => ({ id, label, description, suggestedPieceSet, dark, art, themePieces })),
 ]
 
 export function isSkinId(value: string): boolean {

@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './skins.arcade.css';
 @import './skins.css';
 
 /* ---------------------------------------------------------------------------
@@ -252,6 +253,10 @@ body {
 
 /* Board squares take their colour from classes (not inline styles) so a skin
    can lay a texture over them. */
+/* The move just played: a wash, unless the skin draws its own (skins.arcade.css). */
+.board-last {
+  background: var(--board-last-move);
+}
 .board-sq.light {
   background-color: var(--board-light);
 }

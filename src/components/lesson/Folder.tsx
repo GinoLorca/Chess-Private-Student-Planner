@@ -260,6 +260,7 @@ export function IndexCard({
           <div className="w-[88px] shrink-0 sm:w-[104px]">
             <Board
               fen={normalizeFen(puzzle.starting_fen, puzzle.side_to_move)}
+              orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'}
               arrows={puzzle.arrows}
               highlights={puzzle.highlights}
               coordinates={false}

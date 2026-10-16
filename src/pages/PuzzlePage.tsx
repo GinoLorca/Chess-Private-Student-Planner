@@ -13,7 +13,7 @@ import { Button, IconButton } from '../components/ui/Button'
 import { DrawableBoard } from '../components/board/DrawableBoard'
 import { SolveBoardView, SolveStatus } from '../components/board/SolveBoard'
 import { useSolve } from '../hooks/useSolve'
-import { ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Play, Target } from '../components/ui/Icons'
+import { ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, Pencil, Play, Target } from '../components/ui/Icons'
 import { analysisHref } from '../lib/analysisLink'
 import { useHideToggle } from '../hooks/useHideToggle'
 import { opposite, useFlip } from '../hooks/useFlip'
@@ -296,7 +296,8 @@ export function PuzzlePage() {
               rel="noreferrer"
               className="block text-[14px] font-medium text-accent-on-bg underline-offset-2 hover:underline"
             >
-              {puzzle.reference_label || puzzle.reference_url} ↗
+              {puzzle.reference_label || puzzle.reference_url}
+              <ExternalLink size={13} className="ml-1 inline-block align-[-1px]" />
             </a>
           )}
         </div>

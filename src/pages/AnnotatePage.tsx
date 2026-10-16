@@ -14,7 +14,7 @@ import { PaperCard } from '../components/lesson/Folder'
 import { Button, IconButton } from '../components/ui/Button'
 import { CopyLinkButton } from '../components/ui/CopyLink'
 import { LoadingPage, Page, SectionLabel } from '../components/ui/Page'
-import { Check, ChevronRight, Close } from '../components/ui/Icons'
+import { Check, ChevronRight, Close, ExternalLink } from '../components/ui/Icons'
 
 /**
  * The annotation workbench: one position at a time, the rest queued on the
@@ -288,8 +288,8 @@ function Bench({
             <SectionLabel>Source</SectionLabel>
             <CopyLinkButton puzzleId={puzzle.id} className="-mt-1 mb-1" label="Copy this position's link" />
             {puzzle.reference_url && (
-              <a href={puzzle.reference_url} target="_blank" rel="noreferrer" className="mb-2 text-[12px] font-semibold text-accent">
-                Open ↗
+              <a href={puzzle.reference_url} target="_blank" rel="noreferrer" className="mb-2 inline-flex items-center gap-1 text-[12px] font-semibold text-accent">
+                Open <ExternalLink size={12} />
               </a>
             )}
           </div>

@@ -834,10 +834,10 @@ function AnalysisBoard({
                 <SkipStartIcon />
               </button>
               <button aria-label="Back one move" onClick={() => setPly((p) => Math.max(0, p - 1))}>
-                ◀
+                <StepBackIcon />
               </button>
               <button aria-label="Forward one move" onClick={() => setPly((p) => Math.min(moves.length, p + 1))}>
-                ▶
+                <StepForwardIcon />
               </button>
               <button title="End" aria-label="End" onClick={() => setPly(moves.length)}>
                 <SkipEndIcon />
@@ -1099,6 +1099,16 @@ const SkipStartIcon = () => (
   <Icon size={16}>
     <path d="M18.5 5.5v13L8 12z" fill="currentColor" stroke="none" />
     <path d="M6 5.5v13" />
+  </Icon>
+)
+const StepBackIcon = () => (
+  <Icon size={16}>
+    <path d="M16.5 5.5v13L6 12z" fill="currentColor" stroke="none" />
+  </Icon>
+)
+const StepForwardIcon = () => (
+  <Icon size={16}>
+    <path d="M7.5 5.5v13L18 12z" fill="currentColor" stroke="none" />
   </Icon>
 )
 const SkipEndIcon = () => (

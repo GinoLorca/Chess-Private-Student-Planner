@@ -21,7 +21,7 @@ import { Button, IconButton } from '../components/ui/Button'
 import { LoadingPage, Page, SectionLabel } from '../components/ui/Page'
 import { PaperCard, StickyNote } from '../components/lesson/Folder'
 import { FOLDER_COLORS, onColor } from '../lib/colors'
-import { Check, ChevronLeft, ChevronRight, Close, Document, Eye, EyeOff } from '../components/ui/Icons'
+import { Check, ChevronLeft, ChevronRight, Close, Document, ExternalLink, Eye, EyeOff } from '../components/ui/Icons'
 import { useHideToggle } from '../hooks/useHideToggle'
 import { useFlip } from '../hooks/useFlip'
 import { useResumeState } from '../lib/resume'
@@ -694,7 +694,8 @@ function PuzzleView({
             rel="noreferrer"
             className="block px-1 text-[13px] font-medium text-accent underline-offset-2 hover:underline"
           >
-            {puzzle.reference_label || puzzle.reference_url} ↗
+            {puzzle.reference_label || puzzle.reference_url}
+            <ExternalLink size={12} className="ml-1 inline-block align-[-1px]" />
           </a>
         )}
       </div>

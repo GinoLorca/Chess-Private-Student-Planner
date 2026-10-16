@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight } from '../types/domain'
@@ -19,6 +19,9 @@ import { useHideToggle } from '../hooks/useHideToggle'
 import { opposite, useFlip } from '../hooks/useFlip'
 import { useResumeState } from '../lib/resume'
 import { MyNotes } from '../components/lesson/MyNotes'
+import { findMentions } from '../lib/moveMentions'
+import { useMoveDemo } from '../hooks/useMoveDemo'
+import { LineBar, MoveText } from '../components/lesson/MoveText'
 
 /**
  * One position. It opens with the eye closed: the answer and explanation
@@ -35,6 +38,14 @@ export function PuzzlePage() {
   const { update } = usePuzzleMutations(puzzleId, lessonPlanId)
 
   const steps = useMemo(() => (puzzle ? lineSteps(puzzle) : []), [puzzle])
+  // The moves and squares named in the explanation and the answer's comments, to show on the board.
+  const mentions = useMemo(
+    () =>
+      puzzle
+        ? findMentions(puzzle, [{ text: puzzle.summary, at: 0 }, ...puzzle.solution.map((m, i) => ({ text: m.comment ?? '', at: i + 1 }))])
+        : [],
+    [puzzle],
+  )
   // The move the answer is stepped to, the eye and the flip come back as
   // they were if iOS closes the app while this position is open.
   const [step, setStep] = useResumeState(`pos:${puzzleId}:step`, 0)
@@ -56,7 +67,19 @@ export function PuzzlePage() {
     setStep(at)
     setHidden(false)
   })
-  useClicker({ next, prev, hold: toggleHidden })
+  const boardRef = useRef<HTMLDivElement>(null)
+  const demo = useMoveDemo({
+    start: puzzle ? normalizeFen(puzzle.starting_fen, puzzle.side_to_move) : '',
+    step,
+    setStep,
+    boardRef,
+    reset: `${puzzleId}:${hidden}`,
+  })
+  // While a side line from the text is up, the clicker and arrow keys walk it.
+  const { forward: demoForward, back: demoBack } = demo
+  const stepForward = useCallback(() => demoForward() || next(), [demoForward, next])
+  const stepBack = useCallback(() => demoBack() || prev(), [demoBack, prev])
+  useClicker({ next: stepForward, prev: stepBack, hold: toggleHidden })
   const [flipped] = useFlip(`pos:${puzzleId}:flip`)
   // Marks drawn on the starting position are saved with it; on a move of
   // the answer they're a sketch for that move, gone when the board moves on.
@@ -76,9 +99,16 @@ export function PuzzlePage() {
   const current = steps[Math.min(shownStep, last)]
   const atStart = shownStep === 0
   const lastMove = !atStart && current?.from && current?.to ? { from: current.from, to: current.to } : null
-  const sketchAt = `${puzzle.id}:${shownStep}`
+  // A side line or threat from the text, up in place of the answer.
+  const showing = hidden ? null : demo.view
+  // Drawings on the starting position are saved with it; anything else is a sketch.
+  const editable = atStart && !showing
+  const sketchAt = `${puzzle.id}:${showing ? showing.key : shownStep}`
   const here = sketch.at === sketchAt ? sketch : { at: sketchAt, arrows: [], highlights: [] }
   const moveArrow = !atStart && current?.arrow ? current.arrow : null
+  const shownArrows = showing ? showing.arrows : moveArrow ? [moveArrow] : []
+  const mark = demo.mark
+  const unmarked = (list: BoardHighlight[]) => list.filter((h) => !(mark && h.square === mark.square && h.color === mark.color))
 
   return (
     <Page
@@ -101,13 +131,14 @@ export function PuzzlePage() {
               line: puzzle.solution.map((m) => m.san),
             })}
           >
-            <Button variant="ghost" size="sm" icon={<Target size={16} />}>
-              Analyze
+            {/* Icons alone on a phone, so the top bar fits. */}
+            <Button variant="ghost" size="sm" icon={<Target size={16} />} aria-label="Analyze" title="Analyze">
+              <span className="hidden sm:inline">Analyze</span>
             </Button>
           </Link>
           <Link to={`${base}/coach?p=${puzzle.id}`}>
-            <Button variant="ghost" size="sm" icon={<Play size={16} />}>
-              Coach view
+            <Button variant="ghost" size="sm" icon={<Play size={16} />} aria-label="Coach view" title="Coach view">
+              <span className="hidden sm:inline">Coach view</span>
             </Button>
           </Link>
           <Link to={`${base}/puzzles/${puzzle.id}/edit`}>
@@ -121,7 +152,7 @@ export function PuzzlePage() {
       {/* iPad and iPhone get the larger board. A Mac (a mouse or trackpad) keeps its own sizes, larger in a wide window, and never
           taller than the window, so the whole board is always in view. */}
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start pointer-fine:lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] pointer-fine:min-[1280px]:max-w-[1300px] pointer-fine:min-[1280px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <div className="mx-auto w-full max-w-[644px] pointer-fine:max-w-[min(560px,calc(100svh-190px))] pointer-fine:min-[1280px]:max-w-[min(665px,calc(100svh-190px))]">
+        <div className="mx-auto w-full min-w-0 max-w-[644px] pointer-fine:max-w-[min(560px,calc(100svh-190px))] pointer-fine:min-[1280px]:max-w-[min(665px,calc(100svh-190px))]">
           {/* The title sits on its own paper strip so it reads on any skin's background. */}
           <div className="mb-2 flex items-baseline justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-2.5 shadow-card">
             <h1 className="min-w-0 truncate text-[24px] font-bold tracking-tight text-ink">{hidden ? 'Position' : puzzle.label || 'Untitled position'}</h1>
@@ -129,26 +160,32 @@ export function PuzzlePage() {
           </div>
           {/* The starting position carries the saved annotations; each answer
               move shows its own arrow. Drawings are saved only on the start. */}
+          <div ref={boardRef}>
           {hidden ? (
             // The answer hidden, the board is live: play the line out.
             <SolveBoardView solve={solve} orientation={orientation} />
           ) : (
             <DrawableBoard
-              fen={atStart || !current ? fen : current.fen}
-              arrows={atStart ? puzzle.arrows : [...(moveArrow ? [moveArrow] : []), ...here.arrows]}
-              highlights={atStart ? puzzle.highlights : here.highlights}
-              lastMove={lastMove}
+              fen={showing ? showing.fen : atStart || !current ? fen : current.fen}
+              arrows={editable ? puzzle.arrows : [...shownArrows, ...here.arrows]}
+              highlights={[...(editable ? puzzle.highlights : here.highlights), ...(mark ? [mark] : [])]}
+              lastMove={showing ? showing.lastMove : lastMove}
               orientation={orientation}
               onArrowsChange={(arrows) =>
                 // The move's own arrow is shown, not drawn: it stays out of the sketch.
-                atStart ? update.mutate({ arrows }) : setSketch({ ...here, arrows: arrows.filter((a) => a !== moveArrow) })
+                editable ? update.mutate({ arrows }) : setSketch({ ...here, arrows: arrows.filter((a) => !shownArrows.includes(a)) })
               }
-              onHighlightsChange={(highlights) => (atStart ? update.mutate({ highlights }) : setSketch({ ...here, highlights }))}
-              sketch={!atStart}
-              onClick={last > 0 ? next : undefined}
+              onHighlightsChange={(highlights) =>
+                editable ? update.mutate({ highlights: unmarked(highlights) }) : setSketch({ ...here, highlights: unmarked(highlights) })
+              }
+              sketch={!editable}
+              onClick={showing ? stepForward : last > 0 ? next : undefined}
             />
           )}
-          {last > 0 && !hidden && (
+          </div>
+          {showing ? (
+            <LineBar demo={demo} puzzle={puzzle} className="mt-3" />
+          ) : last > 0 && !hidden && (
             <div className="mt-3 flex items-center gap-2">
               <Button variant="secondary" size="md" icon={<ChevronLeft size={18} />} onClick={prev} disabled={atStart}>
                 Back
@@ -185,22 +222,33 @@ export function PuzzlePage() {
               <p className="text-[15px] text-ink-3">No solution recorded yet.</p>
             ) : (
               <ol className="-mx-2 space-y-0.5">
-                {puzzle.solution.map((move, i) => (
-                  <li key={i}>
-                    <button
-                      onClick={() => setStep(i + 1)}
-                      aria-current={step === i + 1 ? 'step' : undefined}
-                      className={clsx(
-                        'flex w-full items-baseline gap-3 rounded-lg px-2 py-1 text-left transition',
-                        step === i + 1 ? 'bg-accent-soft' : 'hover:bg-surface-2',
-                      )}
+                {puzzle.solution.map((move, i) => {
+                  const on = step === i + 1 && !showing
+                  return (
+                    // The whole row steps the answer there; moves named in its comment sit above that.
+                    <li
+                      key={i}
+                      className={clsx('relative flex items-baseline gap-3 rounded-lg px-2 py-1 transition', on ? 'bg-accent-soft' : 'hover:bg-surface-2')}
                     >
-                      <span className="w-8 shrink-0 text-right font-mono text-[13px] text-ink-3 tabular-nums">{stepLabel(puzzle, i + 1)}</span>
-                      <span className="font-mono text-[17px] font-semibold text-ink">{move.san}</span>
-                      {move.comment && !hidden && <span className="text-[14px] text-ink-2">{move.comment}</span>}
-                    </button>
-                  </li>
-                ))}
+                      <button
+                        onClick={() => {
+                          demo.close()
+                          setStep(i + 1)
+                        }}
+                        aria-current={on ? 'step' : undefined}
+                        className="flex shrink-0 items-baseline gap-3 text-left after:absolute after:inset-0 after:rounded-lg"
+                      >
+                        <span className="w-8 shrink-0 text-right font-mono text-[13px] text-ink-3 tabular-nums">{stepLabel(puzzle, i + 1)}</span>
+                        <span className="font-mono text-[17px] font-semibold text-ink">{move.san}</span>
+                      </button>
+                      {move.comment && !hidden && (
+                        <span className="text-[14px] text-ink-2">
+                          <MoveText text={move.comment} mentions={mentions[i + 1] ?? []} demo={demo} />
+                        </span>
+                      )}
+                    </li>
+                  )
+                })}
               </ol>
             )}
           </Card>
@@ -216,7 +264,11 @@ export function PuzzlePage() {
               {hidden ? (
                 <p className="mt-1 text-[14px] text-ink-3">Answer and explanation hidden.</p>
               ) : (
-                puzzle.summary && <p className="mt-2 text-[16px] leading-relaxed whitespace-pre-wrap text-ink">{puzzle.summary}</p>
+                puzzle.summary && (
+                  <p className="mt-2 text-[16px] leading-relaxed whitespace-pre-wrap text-ink">
+                    <MoveText text={puzzle.summary} mentions={mentions[0] ?? []} demo={demo} />
+                  </p>
+                )
               )}
             </Card>
           )}

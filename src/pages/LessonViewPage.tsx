@@ -27,6 +27,9 @@ import { useFlip } from '../hooks/useFlip'
 import { useResumeState } from '../lib/resume'
 import { MyNotes } from '../components/lesson/MyNotes'
 import { analysisHref } from '../lib/analysisLink'
+import { findMentions } from '../lib/moveMentions'
+import { useMoveDemo } from '../hooks/useMoveDemo'
+import { LineBar, MoveText } from '../components/lesson/MoveText'
 
 type Mode = 'coach' | 'present' | 'learn'
 
@@ -254,13 +257,20 @@ function PuzzleView({
   // were if iOS closes the app while this position is up.
   const [step, setStep] = useResumeState(`${mode}:${puzzle.id}:step`, 0)
   // Right-drag drawings: on the starting position they're saved with the
-  // puzzle; mid-line they're a sketch for this step only.
-  const [sketch, setSketch] = useState<{ step: number; arrows: BoardArrow[]; highlights: BoardHighlight[] } | null>(null)
+  // puzzle; mid-line they're a sketch for this position only.
+  const [sketch, setSketch] = useState<{ at: string; arrows: BoardArrow[]; highlights: BoardHighlight[] } | null>(null)
   const [revealed, setRevealed] = useResumeState(`${mode}:${puzzle.id}:revealed`, mode === 'coach')
   // Learn view: the answer stays hidden and the board is live until the line
   // is played out (solved) or given up (shown). Needs a legal recorded line.
   const canSolve = mode === 'learn' && canSolveLine(steps)
   const solving = canSolve && !revealed
+  // The moves and squares named in the explanation and comments, to show on the board.
+  const mentions = useMemo(
+    () => findMentions(puzzle, [{ text: puzzle.summary, at: 0 }, ...puzzle.solution.map((m, i) => ({ text: m.comment ?? '', at: i + 1 }))]),
+    [puzzle],
+  )
+  const boardRef = useRef<HTMLDivElement>(null)
+  const demo = useMoveDemo({ start: steps[0].fen, step, setStep, boardRef, reset: `${revealed}:${notesHidden}` })
   // The eye closed on a revealed position: the board goes live so the line can still be played.
   const hiddenNow = useRef(notesHidden)
   useEffect(() => {
@@ -293,21 +303,36 @@ function PuzzleView({
 
   // Answer annotations are hints; the student only sees them once revealed.
   // The eye closed = the quiz alone, whatever the step: start position, no arrows, no moves.
-  const showAnnotations = revealed && atStart && !notesHidden
+  // A side line or threat tapped in the text, up in place of the answer.
+  const showing = revealed && !notesHidden && !solving ? demo.view : null
+  const showAnnotations = revealed && atStart && !notesHidden && !showing
+  const demoUp = Boolean(showing)
+  const { forward: demoForward, back: demoBack } = demo
   // Drawing on the saved annotations (the start, shown) changes them; any
-  // other drawing is a sketch for this step only: mid-line, or before the
-  // answer is revealed, so a student's board never gives the answer away.
-  const sketchHere = sketch && sketch.step === step ? sketch : null
+  // other drawing is a sketch for this position only: mid-line, a side line,
+  // or before the answer is revealed, so a student's board never gives the answer away.
+  const sketchAt = showing ? showing.key : `step:${step}`
+  const sketchHere = sketch && sketch.at === sketchAt ? sketch : null
   const moveArrow = !atStart && current.arrow && revealed && !notesHidden ? current.arrow : null
-  const boardArrows = showAnnotations ? puzzle.arrows : [...(moveArrow ? [moveArrow] : []), ...(sketchHere?.arrows ?? [])]
-  const boardHighlights = showAnnotations ? puzzle.highlights : (sketchHere?.highlights ?? [])
+  const shownArrows = showing ? showing.arrows : moveArrow ? [moveArrow] : []
+  // A square tapped in the text, while the text is up.
+  const mark = revealed && !notesHidden ? demo.mark : null
+  const unmarked = (list: BoardHighlight[]) => list.filter((h) => !(mark && h.square === mark.square && h.color === mark.color))
+  const boardArrows = showAnnotations ? puzzle.arrows : [...shownArrows, ...(sketchHere?.arrows ?? [])]
+  const boardHighlights = [...(showAnnotations ? puzzle.highlights : (sketchHere?.highlights ?? [])), ...(mark ? [mark] : [])]
   const setArrows = (arrows: BoardArrow[]) =>
     showAnnotations
       ? update.mutate({ arrows })
-      : setSketch({ step, arrows: arrows.filter((a) => a !== moveArrow), highlights: sketchHere?.highlights ?? [] })
+      : setSketch({ at: sketchAt, arrows: arrows.filter((a) => !shownArrows.includes(a)), highlights: sketchHere?.highlights ?? [] })
   const setHighlights = (highlights: BoardHighlight[]) =>
-    showAnnotations ? update.mutate({ highlights }) : setSketch({ step, highlights, arrows: sketchHere?.arrows ?? [] })
-  const lastMove = !atStart && !notesHidden && current.from && current.to ? { from: current.from, to: current.to } : null
+    showAnnotations
+      ? update.mutate({ highlights: unmarked(highlights) })
+      : setSketch({ at: sketchAt, highlights: unmarked(highlights), arrows: sketchHere?.arrows ?? [] })
+  const lastMove = showing
+    ? showing.lastMove
+    : !atStart && !notesHidden && current.from && current.to
+      ? { from: current.from, to: current.to }
+      : null
 
   const last = steps.length - 1
   const finish = (kind: 'solved' | 'shown') => {
@@ -344,6 +369,8 @@ function PuzzleView({
   // then the next position. The other button walks it back.
   const atEnd = step === steps.length - 1
   const forward = useCallback(() => {
+    // A side line from the text walks first.
+    if (demoUp && demoForward()) return
     if (solving) {
       // While solving, the clicker never gives the answer away: it moves on
       // to the explanation once solved, or to the next position.
@@ -354,11 +381,12 @@ function PuzzleView({
     } else if (!revealed) setRevealed(true)
     else if (!atEnd) next()
     else onSwipe(1)
-  }, [solving, outcome, revealed, atEnd, next, onSwipe, setStep, setRevealed])
+  }, [demoUp, demoForward, solving, outcome, revealed, atEnd, next, onSwipe, setStep, setRevealed])
   const backward = useCallback(() => {
+    if (demoUp && demoBack()) return
     if (step > 0) prev()
     else onSwipe(-1)
-  }, [step, prev, onSwipe])
+  }, [demoUp, demoBack, step, prev, onSwipe])
   useClicker({ next: forward, prev: backward, exit: onExit, hold: onToggleNotes })
 
   // Square brackets jump a whole position either way, whatever the step.
@@ -379,7 +407,7 @@ function PuzzleView({
           moves up beside the section tab, giving the board its height. A Mac
           (a mouse or trackpad) keeps the smaller board it had before. */}
       <div
-        className="mx-auto w-full [--board-max:736px] [--board-reserve:236px] lg:[--board-reserve:176px] pointer-fine:[--board-max:640px] pointer-fine:lg:[--board-reserve:236px]"
+        className="mx-auto w-full min-w-0 [--board-max:736px] [--board-reserve:236px] lg:[--board-reserve:176px] pointer-fine:[--board-max:640px] pointer-fine:lg:[--board-reserve:236px]"
         style={{ maxWidth: 'min(var(--board-max), calc(100svh - var(--board-reserve)))' }}
       >
         <div className="flex items-end gap-3 pl-3">
@@ -410,6 +438,7 @@ function PuzzleView({
             Flip board
           </button>
         </div>
+        <div ref={boardRef}>
         {solving ? (
           // A live board: a swipe container would fight piece drags, so the
           // board owns its pointer and the page turns from anywhere else.
@@ -440,20 +469,22 @@ function PuzzleView({
           data-swipe-own
         >
           <DrawableBoard
-            fen={notesHidden ? steps[0].fen : current.fen}
+            fen={showing ? showing.fen : notesHidden ? steps[0].fen : current.fen}
             orientation={orientation}
             arrows={boardArrows}
             highlights={boardHighlights}
             lastMove={lastMove}
             onArrowsChange={setArrows}
             onHighlightsChange={setHighlights}
-            onClick={() => (revealed ? next() : undefined)}
+            onClick={() => (showing ? demo.forward() : revealed ? next() : undefined)}
             onDrawingChange={onDrawingChange}
             sketch={!showAnnotations}
             className="shadow-float"
           />
         </motion.div>
         )}
+        </div>
+        {showing && <LineBar demo={demo} puzzle={puzzle} className="mt-2" />}
         <Caption className="mt-2 flex lg:hidden" dot={dot} position={position} label={revealed && !notesHidden ? puzzle.label : ''} toMove={toMove} />
       </div>
 
@@ -554,7 +585,10 @@ function PuzzleView({
                   {steps.slice(1).map((s) => (
                     <button
                       key={s.index}
-                      onClick={() => setStep(s.index)}
+                      onClick={() => {
+                        demo.close()
+                        setStep(s.index)
+                      }}
                       className={clsx(
                         'h-10 rounded-xl px-3 font-mono text-[16px] font-semibold transition',
                         s.index === step
@@ -569,16 +603,32 @@ function PuzzleView({
                     </button>
                   ))}
                 </div>
-                {current.comment && !notesHidden && <p className="mt-3 text-[15px] leading-relaxed text-ink">{current.comment}</p>}
+                {current.comment && !notesHidden && (
+                  <p className="mt-3 text-[15px] leading-relaxed text-ink">
+                    <MoveText text={current.comment} mentions={mentions[step] ?? []} demo={demo} />
+                  </p>
+                )}
                 <div className="mt-3 flex gap-2">
-                  <Button variant="secondary" size="md" onClick={prev} disabled={atStart} icon={<ChevronLeft size={18} />}>
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    onClick={() => {
+                      demo.close()
+                      prev()
+                    }}
+                    disabled={atStart}
+                    icon={<ChevronLeft size={18} />}
+                  >
                     Back
                   </Button>
                   <Button
                     variant="soft"
                     size="md"
                     className="flex-1"
-                    onClick={next}
+                    onClick={() => {
+                      demo.close()
+                      next()
+                    }}
                     disabled={step === steps.length - 1}
                   >
                     {atStart ? 'Play first move' : step === steps.length - 1 ? 'End of line' : 'Next move'}
@@ -601,7 +651,9 @@ function PuzzleView({
             {notesHidden ? (
               <p className="text-[14px] text-ink-3">Hidden.</p>
             ) : (
-              <p className="mt-1 text-[16px] leading-[28px] whitespace-pre-wrap text-ink">{puzzle.summary}</p>
+              <p className="mt-1 text-[16px] leading-[28px] whitespace-pre-wrap text-ink">
+                <MoveText text={puzzle.summary} mentions={mentions[0] ?? []} demo={demo} />
+              </p>
             )}
           </PaperCard>
         )}

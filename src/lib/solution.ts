@@ -14,7 +14,7 @@ export interface LineStep {
   arrow?: BoardArrow
 }
 
-const MOVE_ARROW = '#15781b'
+export const MOVE_ARROW = '#15781b'
 
 /**
  * Walk the recorded answer from the starting position, working out which

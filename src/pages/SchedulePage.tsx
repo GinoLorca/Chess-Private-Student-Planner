@@ -90,7 +90,8 @@ export function SchedulePage() {
 
   const students = useMemo(() => new Map((studentList ?? []).map((s) => [s.id, s])), [studentList])
   const places = useMemo(() => new Map((placesQ.data ?? []).map((p) => [p.student_id, p])), [placesQ.data])
-  const occurrences = weekOccurrences(start, slots.data ?? [], changes.data ?? [])
+  // Lessons of a folder private on this device stay off the week, as the folder does.
+  const occurrences = weekOccurrences(start, slots.data ?? [], changes.data ?? []).filter((o) => students.has(o.studentId))
 
   const [opened, setOpened] = useState<Occurrence | null>(null)
   const [quick, setQuick] = useState<Occurrence | null>(null)

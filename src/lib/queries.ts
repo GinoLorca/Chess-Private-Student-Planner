@@ -1,7 +1,9 @@
+import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import * as api from './data'
 import type { LessonPayment, FolderKind, LessonPlan, LessonSection, LessonStatus, LessonTemplate, NewLessonInit, Note, Puzzle, Reminder, ScheduleChange, ScheduleSlot, Student, StudentPlace } from '../types/domain'
 import { reminderFor } from './schedule'
+import { usePrivateFolders } from './privateFolders'
 
 export const keys = {
   students: ['students'] as const,
@@ -56,11 +58,24 @@ export function useUscfHistory(memberId: string | null | undefined) {
 // ---------------------------------------------------------------------------
 
 /** Every position across every student, for the library page. */
+/** Every position across the students, less the folders private on this device. */
 export function useLibrary() {
-  return useQuery({ queryKey: keys.library, queryFn: api.listLibrary })
+  const hidden = usePrivateFolders()
+  const q = useQuery({ queryKey: keys.library, queryFn: api.listLibrary })
+  const data = useMemo(() => (hidden.length && q.data ? q.data.filter((e) => !hidden.includes(e.studentId)) : q.data), [q.data, hidden])
+  return { ...q, data }
 }
 
+/** The student folders, less those private on this device (Settings → Private folders). */
 export function useStudents() {
+  const hidden = usePrivateFolders()
+  const q = useAllStudents()
+  const data = useMemo(() => (hidden.length && q.data ? q.data.filter((s) => !hidden.includes(s.id)) : q.data), [q.data, hidden])
+  return { ...q, data }
+}
+
+/** Every student folder, private ones included: for Settings, where they're hidden and shown. */
+export function useAllStudents() {
   return useQuery({ queryKey: keys.students, queryFn: api.listStudents })
 }
 

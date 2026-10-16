@@ -8,6 +8,7 @@ import { LoadingPage } from './components/ui/Page'
 import { OfflineBar } from './components/ui/OfflineBar'
 import { Prefetcher } from './app/Prefetcher'
 import { ResumeTracker } from './app/ResumeTracker'
+import { PrivateFolderGate } from './app/PrivateFolderGate'
 import { ReminderSweep } from './components/schedule/ReminderSweep'
 import { SpeedCheckPanel } from './components/ui/SpeedCheckPanel'
 import { PullToRefresh } from './components/ui/PullToRefresh'
@@ -46,6 +47,7 @@ function App() {
               <HashRouter>
                 <OfflineBar />
                 <ResumeTracker />
+                <PrivateFolderGate />
                 <Prefetcher />
                 <ReminderSweep />
                 <SpeedCheckPanel />

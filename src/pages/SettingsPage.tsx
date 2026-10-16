@@ -7,7 +7,8 @@ import { PieceSetOverrideContext, usePieceSet } from '../state/PieceSetContext'
 import { BOARD_THEMES, resolveBoard } from '../lib/boardThemes'
 import { FOLDER_SKIN, SKINS } from '../lib/skins'
 import { START_FEN } from '../lib/fen'
-import { useCustomPieceSetMutations } from '../lib/queries'
+import { useAllStudents, useCustomPieceSetMutations } from '../lib/queries'
+import { setFolderPrivate, usePrivateFolders } from '../lib/privateFolders'
 import { imagesFromFiles, readPieceFiles, type ImportedPieceFile } from '../lib/pieceImport'
 import type { CustomPieceSet } from '../types/domain'
 import { Page, Card, SectionLabel } from '../components/ui/Page'
@@ -198,6 +199,13 @@ export function SettingsPage() {
         Hourly rates, each lesson's fee, and the week's and month's totals. Hide them on a device you show to parents.
       </p>
       <EarningsSwitch />
+
+      <SectionLabel tone="page">Private folders</SectionLabel>
+      <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">
+        Hide a folder on this device, like your own study folder while you teach. It's gone from Students, the Schedule and the Library
+        here until you switch it back. Each device keeps its own choice.
+      </p>
+      <PrivateFoldersCard />
 
       <SectionLabel tone="page">Apple Reminders</SectionLabel>
       <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">
@@ -714,6 +722,40 @@ function EarningsSwitch() {
           {o.label}
         </button>
       ))}
+    </Card>
+  )
+}
+
+/** Each folder with a switch to hide it on this device (Settings → Private folders). */
+function PrivateFoldersCard() {
+  const { data: students = [] } = useAllStudents()
+  const hidden = usePrivateFolders()
+  if (students.length === 0) return <Card className="mb-8 p-4 text-[14px] text-ink-3">No folders yet.</Card>
+  return (
+    <Card className="mb-8 divide-y divide-line overflow-hidden">
+      {students.map((s) => {
+        const on = hidden.includes(s.id)
+        return (
+          <button
+            key={s.id}
+            role="switch"
+            aria-checked={on}
+            onClick={() => setFolderPrivate(s.id, !on)}
+            className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-surface-2"
+          >
+            <span className="h-3.5 w-3.5 shrink-0 rounded-[4px]" style={{ background: s.color }} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[15px] font-semibold text-ink">{s.name}</span>
+              <span className="block text-[12px] text-ink-3">{on ? 'Hidden on this device' : 'Shown'}</span>
+            </span>
+            <span className={clsx('relative h-7 w-12 shrink-0 rounded-full transition-colors', on ? 'bg-accent' : 'bg-surface-3')}>
+              <span
+                className={clsx('absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform', on && 'translate-x-5')}
+              />
+            </span>
+          </button>
+        )
+      })}
     </Card>
   )
 }

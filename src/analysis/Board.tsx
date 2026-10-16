@@ -3,7 +3,7 @@ import { Chessboard } from 'react-chessboard'
 import { TouchBackend } from 'react-dnd-touch-backend'
 import { Chess } from 'chess.js'
 import { checkedKingSquare, CHECK_STYLE, LAST_MOVE_STYLE } from './legalMoves'
-import { DEFAULT_PIECE_DARK, DEFAULT_PIECE_LIGHT, pieceSet } from './pieces'
+import { DEFAULT_PIECE_DARK, DEFAULT_PIECE_LIGHT, pieceSet, useThemePieces } from './pieces'
 import type { Palette } from './palette'
 
 type ChessboardProps = ComponentProps<typeof Chessboard>
@@ -54,8 +54,10 @@ export function Board({
 }) {
   // Only hand react-chessboard a custom set when it differs from its own, so
   // an untouched board keeps the package's pieces exactly as they were.
+  const themed = useThemePieces()
   const customPieces =
-    palette.pieceLight === DEFAULT_PIECE_LIGHT && palette.pieceDark === DEFAULT_PIECE_DARK ? undefined : pieceSet(palette.pieceLight, palette.pieceDark)
+    themed ??
+    (palette.pieceLight === DEFAULT_PIECE_LIGHT && palette.pieceDark === DEFAULT_PIECE_DARK ? undefined : pieceSet(palette.pieceLight, palette.pieceDark))
 
   const lastFrom = lastMove?.from
   const lastTo = lastMove?.to

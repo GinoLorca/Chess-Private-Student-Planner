@@ -3,12 +3,13 @@ import type { PieceImages } from '../../types/domain'
 import { classicPieceSet } from './classic'
 import { bauhausPieceSet } from './bauhaus'
 import { wavyPieceSet } from './wavy'
+import { stauntonPieceSet } from './staunton'
 import { imagePieces } from './imagePieces'
 
 /** wK…bP → a component that fills its square. */
 export type PieceRenderers = Record<string, () => ReactNode>
 
-export type PieceSetId = 'classic' | 'bauhaus' | 'wavy'
+export type PieceSetId = 'classic' | 'bauhaus' | 'wavy' | 'staunton'
 
 export const DEFAULT_PIECE_SET: PieceSetId = 'classic'
 
@@ -16,18 +17,20 @@ export const PIECE_SETS: Record<PieceSetId, PieceRenderers> = {
   classic: classicPieceSet as PieceRenderers,
   bauhaus: bauhausPieceSet as PieceRenderers,
   wavy: wavyPieceSet as PieceRenderers,
+  staunton: stauntonPieceSet as PieceRenderers,
 }
 
 export const PIECE_SET_OPTIONS: { id: PieceSetId; label: string; description: string }[] = [
   { id: 'classic', label: 'Classic', description: 'The original hand-drawn set' },
   { id: 'bauhaus', label: 'Bauhaus Set', description: 'Charcoal and ivory, clean outlines' },
   { id: 'wavy', label: 'Wavy', description: 'Soft rounded coach set' },
+  { id: 'staunton', label: 'Theme Staunton', description: "Chess Arcade's set, coloured by the skin" },
 ]
 
 export const PIECE_CODES = ['wK', 'wQ', 'wR', 'wB', 'wN', 'wP', 'bK', 'bQ', 'bR', 'bB', 'bN', 'bP'] as const
 
 export function isPieceSetId(value: string): value is PieceSetId {
-  return value === 'classic' || value === 'bauhaus' || value === 'wavy'
+  return value === 'classic' || value === 'bauhaus' || value === 'wavy' || value === 'staunton'
 }
 
 /** Settings saved before the Bauhaus set replaced the old Arcade set still resolve. */

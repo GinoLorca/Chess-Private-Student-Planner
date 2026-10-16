@@ -12,7 +12,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Big+Shoulders+Display:wght@600;700;800&family=Jost:wght@400;500;600;700&family=Press+Start+2P&family=Bebas+Neue&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Big+Shoulders+Display:wght@600;700;800&family=Jost:wght@400;500;600;700&family=Press+Start+2P&family=Bebas+Neue&family=Lilita+One&family=Bodoni+Moda:ital,opsz,wght@1,6..96,600;1,6..96,700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>Private Chess Lesson Planner</title>
     <script>
@@ -24,6 +24,8 @@
           if (dark) document.documentElement.setAttribute('data-theme', 'dark');
           var skin = localStorage.getItem('skin');
           if (skin && skin !== 'folder') document.documentElement.setAttribute('data-skin', skin);
+          var artOff = localStorage.getItem('skin-art-off');
+          if (artOff) document.documentElement.setAttribute('data-art-off', artOff);
         } catch (e) {}
       })();
     </script>

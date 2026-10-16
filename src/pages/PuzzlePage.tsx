@@ -22,6 +22,7 @@ import { MyNotes } from '../components/lesson/MyNotes'
 import { findMentions } from '../lib/moveMentions'
 import { useMoveDemo } from '../hooks/useMoveDemo'
 import { LineBar, MoveText } from '../components/lesson/MoveText'
+import { useEventSound, useMoveSound } from '../analysis/sound'
 
 /**
  * One position. It opens with the eye closed: the answer and explanation
@@ -80,6 +81,17 @@ export function PuzzlePage() {
   const stepForward = useCallback(() => demoForward() || next(), [demoForward, next])
   const stepBack = useCallback(() => demoBack() || prev(), [demoBack, prev])
   useClicker({ next: stepForward, prev: stepBack, hold: toggleHidden })
+  // A move shown makes its sound: stepping the answer, a side line, a move
+  // played with the eye closed. Keyed by the position, so opening or closing
+  // the eye on the same position is quiet. Solving it plays the win.
+  const d = demo.demo
+  const shown = hidden
+    ? { fen: solve.current?.fen, san: solve.current?.san }
+    : demo.view
+      ? { fen: demo.view.fen, san: d?.kind === 'line' && d.ply >= 0 ? d.line.plies[d.ply].san : undefined }
+      : { fen: steps[step]?.fen, san: step > 0 ? steps[step]?.san : undefined }
+  useMoveSound(shown.fen ?? '', shown.san)
+  useEventSound(solve.solved, 'win')
   const [flipped] = useFlip(`pos:${puzzleId}:flip`)
   // Marks drawn on the starting position are saved with it; on a move of
   // the answer they're a sketch for that move, gone when the board moves on.

@@ -1,8 +1,10 @@
 // Repertoire Lab's move sounds (src/lib/sound.js there): the recorded move,
-// capture, check and checkmate sounds it ships, the Game Boy and Hustler
-// skins' own where they brought one, and the synthesized wooden knocks as the
-// fallback for anything not covered (castling has no recording). Everything
-// goes through Web Audio.
+// capture, check and checkmate sounds it ships, the Chess Arcade skins' own
+// where they brought one, and the synthesized wooden knocks as the fallback
+// for anything not covered (castling has no recording). Everything goes
+// through Web Audio. Shared by every board in the app, not just analysis.
+
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 
 type Ctx = AudioContext
 
@@ -126,14 +128,25 @@ function scheduleFor(c: Ctx, san: string) {
   }
 }
 
-type SoundKey = 'move' | 'capture' | 'castle' | 'check' | 'checkmate' | 'promote'
+type SoundKey = 'move' | 'capture' | 'castle' | 'check' | 'checkmate' | 'promote' | 'win' | 'lose' | 'matchStart'
+/** Chess Arcade's nine events, less the moves: a solved position, a given-up one, a lesson starting. */
+export type EventSound = 'win' | 'lose' | 'matchStart'
 
 const DEFAULT_SOUNDS: Partial<Record<SoundKey, string>> = {
   move: '/sounds/move.mp3',
   capture: '/sounds/capture.mp3',
   check: '/sounds/check.mp3',
   checkmate: '/sounds/checkmate.mp3',
+  win: '/sounds/win.mp3',
+  lose: '/sounds/lose.mp3',
+  matchStart: '/sounds/matchStart.mp3',
 }
+
+/** A full nine-event set, as the newer Chess Arcade themes ship them. */
+const fullSet = (skin: string): Record<SoundKey, string> =>
+  Object.fromEntries(
+    (['move', 'capture', 'castle', 'check', 'checkmate', 'promote', 'win', 'lose', 'matchStart'] as const).map((k) => [k, `/sounds/themes/${skin}/${k}.mp3`]),
+  ) as Record<SoundKey, string>
 
 // The sound sets that came over with the Chess Arcade themes. A theme that
 // brought its own voice for an event uses it; anything else falls through to
@@ -151,6 +164,49 @@ const SKIN_SOUNDS: Record<string, Partial<Record<SoundKey, string>>> = {
     move: '/sounds/themes/hustler/move.mp3',
     capture: '/sounds/themes/hustler/capture.mp3',
   },
+  // Synthesized for Chess Arcade: tray clack and register ka-ching; satin and
+  // bells; page turns and a pen; rail joints, door chimes and a busker.
+  drivethru: fullSet('drivethru'),
+  rose: fullSet('rose'),
+  chessbook: fullSet('chessbook'),
+  uptown: fullSet('uptown'),
+}
+
+// ---------------------------------------------------------------------------
+// Settings → Sounds: on or off for this device (on unless switched off).
+// ---------------------------------------------------------------------------
+const ON_KEY = 'sounds-on'
+const ON_EVENT = 'sounds-on-change'
+let onFallback = true
+export function soundsOn(): boolean {
+  try {
+    return localStorage.getItem(ON_KEY) !== '0'
+  } catch {
+    return onFallback
+  }
+}
+export function setSoundsOn(on: boolean) {
+  onFallback = on
+  try {
+    localStorage.setItem(ON_KEY, on ? '1' : '0')
+  } catch {
+    // held for this visit
+  }
+  window.dispatchEvent(new Event(ON_EVENT))
+}
+export function useSoundsOn(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      window.addEventListener(ON_EVENT, cb)
+      window.addEventListener('storage', cb)
+      return () => {
+        window.removeEventListener(ON_EVENT, cb)
+        window.removeEventListener('storage', cb)
+      }
+    },
+    soundsOn,
+    () => true,
+  )
 }
 
 let soundSkin: string | null = null
@@ -210,9 +266,15 @@ function withAudio(fn: (c: Ctx) => void) {
   }
 }
 
+/** A solved position, a given-up one, or a lesson starting, in the skin's voice. */
+export function playEventSound(key: EventSound) {
+  if (!soundsOn()) return
+  void playRecorded(key)
+}
+
 /** The sound for one move, by its SAN. */
 export function playMoveSound(san: string) {
-  if (!san) return
+  if (!san || !soundsOn()) return
   if (san.endsWith('#')) {
     void playRecorded('checkmate').then((done) => done || withAudio((c) => scheduleFor(c, san)))
     return
@@ -235,4 +297,27 @@ export function playMoveSound(san: string) {
       })
     },
   )
+}
+
+/**
+ * A board's move sound: plays when the position shown changes to one reached
+ * by a move (stepping the answer, playing a move, walking a side line), not
+ * when the board first appears.
+ */
+export function useMoveSound(at: string, san: string | undefined) {
+  const shown = useRef(at)
+  useEffect(() => {
+    if (shown.current === at) return
+    shown.current = at
+    if (san) playMoveSound(san)
+  }, [at, san])
+}
+
+/** An event sound when `happened` turns true: a position solved, the answer given up. */
+export function useEventSound(happened: boolean, key: EventSound) {
+  const was = useRef(happened)
+  useEffect(() => {
+    if (happened && !was.current) playEventSound(key)
+    was.current = happened
+  }, [happened, key])
 }

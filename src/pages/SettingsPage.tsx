@@ -5,7 +5,7 @@ import { useAppearance, type Appearance } from '../app/providers'
 import { PIECE_CODES, PIECE_SETS, PIECE_SET_OPTIONS, renderersFromImages } from '../lib/pieceSets'
 import { PieceSetOverrideContext, usePieceSet } from '../state/PieceSetContext'
 import { BOARD_THEMES, resolveBoard } from '../lib/boardThemes'
-import { FOLDER_SKIN, SKINS } from '../lib/skins'
+import { FOLDER_SKIN, SKINS, setArtOff, useArtOff } from '../lib/skins'
 import { START_FEN } from '../lib/fen'
 import { useAllStudents, useCustomPieceSetMutations } from '../lib/queries'
 import { setFolderPrivate, usePrivateFolders } from '../lib/privateFolders'
@@ -22,6 +22,7 @@ import { describeTrigger, keyLabel, loadToggle, saveToggle, type Trigger } from 
 import { DEFAULT_SHORTCUT_NAME, loadShortcutName, saveShortcutName } from '../lib/schedule'
 import { setShowEarnings, useShowEarnings } from '../lib/earnings'
 import { setSpeedCheck, speedCheckOn } from '../lib/speedCheck'
+import { playMoveSound, setSoundsOn, useSoundsOn } from '../analysis/sound'
 import { Check, Moon, Sun, Trash, Upload } from '../components/ui/Icons'
 
 const APPEARANCES: { id: Appearance; label: string }[] = [
@@ -68,7 +69,8 @@ export function SettingsPage() {
       <SectionLabel tone="page">Skin</SectionLabel>
       <p className="mb-3 text-[14px] text-on-bg-2">
         The whole app in a different material. Folder is the planner's own look; the rest are Chess Arcade's skins,
-        colours, board and piece treatment included.
+        colours, board and piece treatment included. Drive-Thru, Rose, Chess Book and Uptown Express bring their own
+        artwork, coloured pieces and sounds too.
       </p>
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {SKINS.map((sk) => {
@@ -76,7 +78,8 @@ export function SettingsPage() {
           return (
             <button
               key={sk.id}
-              onClick={() => setSkin(sk.id)}
+              // A theme with coloured pieces puts them on with it, in the same save.
+              onClick={() => (sk.themePieces && pieceSetId !== 'staunton' ? updateSettings({ skin: sk.id, piece_set: 'staunton' }) : setSkin(sk.id))}
               aria-pressed={selected}
               className={clsx(
                 'skin-surface relative overflow-hidden rounded-2xl border-2 p-3 text-left transition',
@@ -101,6 +104,14 @@ export function SettingsPage() {
           )
         })}
       </div>
+      {SKINS.find((sk) => sk.id === skin)?.art && <ArtSwitch skin={skin} label={SKINS.find((sk) => sk.id === skin)!.label} />}
+
+      <SectionLabel tone="page">Sounds</SectionLabel>
+      <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">
+        Moves, captures, checks, a solved position and the start of a lesson, in your skin's own voice where it has one
+        (Game Boy, Hustler, Drive-Thru, Rose, Chess Book, Uptown Express). Each device keeps its own choice.
+      </p>
+      <SoundsSwitch />
 
       <SectionLabel tone="page">Board colours</SectionLabel>
       {skin !== FOLDER_SKIN && (
@@ -698,6 +709,62 @@ function RemindersCard() {
         )}
       </div>
     </Card>
+  )
+}
+
+/** Sounds on or off for this device; switching them on plays one so you hear the skin's voice. */
+function SoundsSwitch() {
+  const on = useSoundsOn()
+  return (
+    <Card className="mb-8 flex gap-1 p-1.5">
+      {[
+        { value: true, label: 'Sounds on' },
+        { value: false, label: 'Sounds off' },
+      ].map((o) => (
+        <button
+          key={o.label}
+          onClick={() => {
+            setSoundsOn(o.value)
+            if (o.value) playMoveSound('Nf3')
+          }}
+          aria-pressed={on === o.value}
+          className={clsx(
+            'flex h-11 flex-1 items-center justify-center rounded-xl text-[15px] font-semibold transition',
+            on === o.value ? 'bg-accent text-accent-ink shadow-card' : 'text-ink-2 hover:bg-surface-2',
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </Card>
+  )
+}
+
+/** A theme with artwork: its picture behind the app, or its pattern instead (per device). */
+function ArtSwitch({ skin, label }: { skin: string; label: string }) {
+  const off = useArtOff(skin)
+  return (
+    <div className="-mt-5 mb-8">
+      <p className="mb-2 text-[13px] text-on-bg-2">{label}'s background on this device</p>
+      <Card className="flex gap-1 p-1.5">
+        {[
+          { value: false, label: 'Artwork' },
+          { value: true, label: 'Pattern' },
+        ].map((o) => (
+          <button
+            key={o.label}
+            onClick={() => setArtOff(skin, o.value)}
+            aria-pressed={off === o.value}
+            className={clsx(
+              'flex h-11 flex-1 items-center justify-center rounded-xl text-[15px] font-semibold transition',
+              off === o.value ? 'bg-accent text-accent-ink shadow-card' : 'text-ink-2 hover:bg-surface-2',
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
+      </Card>
+    </div>
   )
 }
 

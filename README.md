@@ -205,14 +205,22 @@ account or key needed — and says whether it agrees with your first move.
 
 ## Skins
 
-Settings → Skin switches the whole app between the planner's own **Folder** look and the five
-Chess Arcade skins (Tournament Felt, Hustler, Bauhaus, Game Boy, Outer Space), ported token for
-token: colours, page background, board squares and textures, piece treatment, display font and
-corner radii. Light and dark work inside each skin. The layout never changes with the skin.
+Settings → Skin switches the whole app between the planner's own **Folder** look and the
+Chess Arcade skins (Tournament Felt, Hustler, Bauhaus, Game Boy, Outer Space, Drive-Thru, Rose,
+Chess Book, Uptown Express), ported token for token: colours, page background, board squares and
+textures, piece treatment, display font and corner radii. Light and dark work inside each skin.
+The layout never changes with the skin.
+
+Drive-Thru, Rose, Chess Book and Uptown Express come whole: their artwork behind the app (or their
+pattern, switched per device under the skin picker), coloured pieces (choosing one puts the
+**Theme Staunton** set on; Uptown Express gives each officer its line colour), and a nine-event
+sound set. Settings → Sounds switches sounds on or off per device: moves, captures, checks,
+promotions and mates on every board, a solved position, a given-up one and the start of Present
+or Learn, in the skin's own voice where it has one.
 
 ## Piece sets and board colours
 
-Settings has three built-in piece sets (Classic, Bauhaus Set, Wavy) and seven board colour presets plus a custom pair. **Import
+Settings has four built-in piece sets (Classic, Bauhaus Set, Wavy, Theme Staunton) and seven board colour presets plus a custom pair. **Import
 piece set** takes the twelve piece images from any set (Chess Arcade or elsewhere): files named
 like `wK.png` or `black_knight.svg` are matched automatically, the rest you assign with a picker.
 Imported sets are stored with your account and sync across devices.

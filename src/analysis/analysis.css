@@ -402,3 +402,29 @@
     drop-shadow(0 0 0.8px rgba(0, 0, 0, 0.75))
     drop-shadow(0 0 1.6px rgba(0, 0, 0, 0.4));
 }
+
+/* The newer Chess Arcade themes on this board. Their pieces are the app's
+   Theme Staunton set (see pieces.tsx), coloured by the skin's --pw-* values. */
+.rl-analysis[data-rl-skin='drivethru'] [data-piece] svg { filter: drop-shadow(0 0 1.3px rgba(255, 250, 240, 0.95)) drop-shadow(0 2px 0 rgba(90, 20, 8, 0.38)); }
+.rl-analysis[data-rl-skin='rose'] [data-piece] svg { filter: drop-shadow(0 1px 1.5px rgba(120, 20, 60, 0.4)); }
+.rl-analysis[data-rl-skin='chessbook'] [data-square-color='black'] {
+  background-image: var(--hatch);
+  background-size: 6px 6px;
+  background-color: var(--board-light) !important;
+}
+.rl-analysis[data-rl-skin='uptown'] [data-square-color='white'] { background-image: var(--ux-sq-tile); background-size: 100% 100%; }
+.rl-analysis[data-rl-skin='uptown'] [data-square-color='black'] { background-image: var(--ux-sq-tile-dark); background-size: 100% 100%; }
+.rl-analysis[data-rl-skin='uptown'] [data-piece] svg { filter: drop-shadow(0 1.2px 0 rgba(0, 0, 0, 0.3)); }
+.rl-analysis[data-rl-skin='uptown'] [data-piece]:has(svg[data-p]:not([data-p$='P'])) > span::after {
+  content: '';
+  position: absolute;
+  left: 32%;
+  right: 32%;
+  top: 88%;
+  height: 7%;
+  min-height: 2.5px;
+  border-radius: 2px;
+  background: var(--ux-tab);
+  box-shadow: 0 0 0 1px rgba(20, 21, 23, 0.9);
+  pointer-events: none;
+}

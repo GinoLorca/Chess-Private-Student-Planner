@@ -30,6 +30,7 @@ import { analysisHref } from '../lib/analysisLink'
 import { findMentions } from '../lib/moveMentions'
 import { useMoveDemo } from '../hooks/useMoveDemo'
 import { LineBar, MoveText } from '../components/lesson/MoveText'
+import { playEventSound, useEventSound, useMoveSound } from '../analysis/sound'
 
 type Mode = 'coach' | 'present' | 'learn'
 
@@ -47,6 +48,10 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   const { data: student } = useStudent(studentId)
   const { data: lesson, isLoading } = useLesson(lessonPlanId)
   useWakeLock()
+  // Present and Learn open with the skin's "match start".
+  useEffect(() => {
+    if (mode !== 'coach') playEventSound('matchStart')
+  }, [mode])
 
   const startId = params.get('p')
   // A shared link (solo) shows one position and nothing about whose lesson it
@@ -308,6 +313,23 @@ function PuzzleView({
   const showAnnotations = revealed && atStart && !notesHidden && !showing
   const demoUp = Boolean(showing)
   const { forward: demoForward, back: demoBack } = demo
+  // A move shown makes its sound, keyed by the position (an eye toggled on
+  // the same position stays quiet). Solved plays the win; "Show me the
+  // answer" the lose.
+  const d = demo.demo
+  const shownFen = showing ? showing.fen : liveHidden ? solve.current.fen : !solving && notesHidden ? steps[0].fen : current.fen
+  const shownSan = showing
+    ? d?.kind === 'line' && d.ply >= 0
+      ? d.line.plies[d.ply].san
+      : undefined
+    : liveHidden
+      ? solve.current.san
+      : !solving && notesHidden
+        ? undefined
+        : current.san
+  useMoveSound(shownFen, shownSan)
+  useEventSound(outcome === 'solved' || solve.solved, 'win')
+  useEventSound(outcome === 'shown', 'lose')
   // Drawing on the saved annotations (the start, shown) changes them; any
   // other drawing is a sketch for this position only: mid-line, a side line,
   // or before the answer is revealed, so a student's board never gives the answer away.

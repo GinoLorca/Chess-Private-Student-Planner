@@ -83,8 +83,10 @@ export const Board = memo(function Board({
     <div
       {...rest}
       data-no-pull
+      // A board without coordinates is a small one (thumbnails, previews): skins keep its frame thin.
+      data-bare={coordinates ? undefined : ''}
       className={clsx(
-        'relative grid aspect-square w-full grid-cols-8 grid-rows-8 overflow-hidden rounded-sm shadow-card select-none [-webkit-touch-callout:none]',
+        'board-frame relative grid aspect-square w-full grid-cols-8 grid-rows-8 overflow-hidden rounded-sm shadow-card select-none [-webkit-touch-callout:none]',
         interactive && 'touch-none',
         className,
       )}

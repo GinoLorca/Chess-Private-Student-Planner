@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { squareCell } from './legalMoves'
-import { pieceSet } from './pieces'
+import { pieceSet, useThemePieces } from './pieces'
 import type { Palette } from './palette'
 
 // Queen first — nearest the pawn's own square, since that's what almost every
@@ -36,6 +36,7 @@ export function PromotionPicker({
   onPick: (piece: 'q' | 'r' | 'b' | 'n') => void
   onCancel: () => void
 }) {
+  const themed = useThemePieces()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCancel()
@@ -45,7 +46,7 @@ export function PromotionPicker({
   }, [onCancel])
 
   if (!square || !boardWidth) return null
-  const pieces = pieceSet(palette.pieceLight, palette.pieceDark)
+  const pieces = themed ?? pieceSet(palette.pieceLight, palette.pieceDark)
   const size = boardWidth / 8
   const cell = squareCell(square, orientation)
   const growingDown = cell.y === 0

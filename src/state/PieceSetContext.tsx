@@ -13,6 +13,7 @@ import {
 } from '../lib/pieceSets'
 import { DEFAULT_BOARD_THEME, applyBoardColors, clearBoardColors, resolveBoard } from '../lib/boardThemes'
 import { FOLDER_SKIN, applySkin, isSkinId } from '../lib/skins'
+import { setSoundSkin, unlockSounds } from '../analysis/sound'
 import type { CustomBoard, CustomPieceSet, UserSettings } from '../types/domain'
 
 interface VisualsContextValue {
@@ -94,6 +95,9 @@ export function PieceSetProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (settings) applySkin(skin)
+    // Every board speaks in the skin's voice, where it has one.
+    setSoundSkin(skin)
+    unlockSounds()
   }, [skin, settings])
 
   const value = useMemo<VisualsContextValue>(

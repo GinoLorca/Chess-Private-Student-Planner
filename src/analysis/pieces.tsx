@@ -1,4 +1,6 @@
 import { createElement, type CSSProperties, type ReactElement, type ReactNode } from 'react'
+import { usePieceSet } from '../state/PieceSetContext'
+import type { PieceRenderers } from '../lib/pieceSets'
 
 // Repertoire Lab's board pieces (src/lib/pieces.jsx there), carried over as is.
 //
@@ -70,4 +72,27 @@ export function pieceSet(light: string, dark: string) {
     cache.set(key, set)
   }
   return set
+}
+
+// The app's Theme Staunton set, when it's the coach's choice: the same
+// pieces as the rest of the app, painted by the skin's --pw-* colours (and
+// tabbed by Uptown Express), in place of this board's own two-colour set.
+const fromApp = new WeakMap<PieceRenderers, Record<string, PieceRenderer>>()
+function boardPieces(renderers: PieceRenderers) {
+  let set = fromApp.get(renderers)
+  if (!set) {
+    const built: Record<string, PieceRenderer> = {}
+    for (const [code, Piece] of Object.entries(renderers)) {
+      built[code] = ({ squareWidth }) => <span style={{ width: squareWidth, height: squareWidth, display: 'block', position: 'relative' }}>{Piece()}</span>
+    }
+    fromApp.set(renderers, built)
+    set = built
+  }
+  return set
+}
+
+/** The theme's own pieces on this board, or undefined to keep its palette's. */
+export function useThemePieces(): Record<string, PieceRenderer> | undefined {
+  const { pieceSetId, pieces } = usePieceSet()
+  return pieceSetId === 'staunton' ? boardPieces(pieces) : undefined
 }

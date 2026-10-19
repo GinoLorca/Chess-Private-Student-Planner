@@ -91,7 +91,7 @@ export function PuzzlePage() {
       ? { fen: demo.view.fen, san: d?.kind === 'line' && d.ply >= 0 ? d.line.plies[d.ply].san : undefined }
       : { fen: steps[step]?.fen, san: step > 0 ? steps[step]?.san : undefined }
   useMoveSound(shown.fen ?? '', shown.san)
-  useEventSound(solve.solved, 'win')
+  useEventSound(solve.solved, 'solved')
   const [flipped] = useFlip(`pos:${puzzleId}:flip`)
   // Marks drawn on the starting position are saved with it; on a move of
   // the answer they're a sketch for that move, gone when the board moves on.

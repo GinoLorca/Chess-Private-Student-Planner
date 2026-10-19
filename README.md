@@ -213,7 +213,7 @@ The layout never changes with the skin.
 
 Drive-Thru, Rosé, Chess Book and Uptown Express come whole: coloured pieces (choosing one puts
 the **Theme Staunton** set on; Uptown Express gives each officer its line colour) and a
-nine-event sound set. Bauhaus, Game Boy, Drive-Thru and Rosé ship artwork behind the app, which
+nine-event sound set. Bauhaus, Game Boy, Drive-Thru, Rosé and Chess Book ship artwork behind the app, which
 can be switched to the theme's pattern per device under the skin picker. Settings → Sounds
 switches sounds on or off per device: moves, captures, checks, promotions and mates on every
 board, a solved position, a given-up one and the start of Present or Learn, in the skin's own

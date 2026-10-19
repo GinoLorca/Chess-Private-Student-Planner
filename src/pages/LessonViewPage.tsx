@@ -328,7 +328,7 @@ function PuzzleView({
         ? undefined
         : current.san
   useMoveSound(shownFen, shownSan)
-  useEventSound(outcome === 'solved' || solve.solved, 'win')
+  useEventSound(outcome === 'solved' || solve.solved, 'solved')
   useEventSound(outcome === 'shown', 'lose')
   // Drawing on the saved annotations (the start, shown) changes them; any
   // other drawing is a sketch for this position only: mid-line, a side line,

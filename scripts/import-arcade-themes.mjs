@@ -13,7 +13,8 @@
  *                                      Theme Staunton pieces or bring sounds, and their analysis-board
  *                                      colours
  *   public/skins/<id>-bg.(svg|jpg)     artwork, where Arcade ships some
- *   public/sounds/themes/<id>/*.mp3    each theme's sounds (public/sounds/*.mp3: the defaults)
+ *   public/sounds/themes/<id>/*.mp3    each theme's sounds (public/sounds/*.mp3: the defaults); an
+ *                                      event Arcade points at another of them is shared, not copied
  *   index.html                         the Google Fonts the themes use
  *
  * The app's own touches on a theme (its description, folder stamps and sticky note, corners,
@@ -213,6 +214,14 @@ const SKIN_SOUNDS = {}
     if (THEME_IDS.includes(id) && source.startsWith('{')) SKIN_SOUNDS[id] = readStringMap(source, 0)
   }
 }
+// An event Arcade points at another of a theme's sounds rather than storing it twice
+// (SKIN_SOUND_DEFAULTS.uptown.solved = SKIN_SOUND_DEFAULTS.uptown.capture): shared here too.
+const SKIN_SOUND_ALIASES = {}
+for (const [, id, key, fromId, fromKey] of html.matchAll(/SKIN_SOUND_DEFAULTS\.(\w+)\.(\w+)\s*=\s*SKIN_SOUND_DEFAULTS\.(\w+)\.(\w+)\s*;/g)) {
+  if (!THEME_IDS.includes(id) || !SKIN_SOUNDS[fromId]?.[fromKey]) continue
+  if (fromId === id) (SKIN_SOUND_ALIASES[id] ??= {})[key] = fromKey
+  else (SKIN_SOUNDS[id] ??= {})[key] = SKIN_SOUNDS[fromId][fromKey]
+}
 
 // Artwork: Bauhaus and Game Boy's pictures, and any theme in THEME_ART_SVG.
 const ART = {}
@@ -405,6 +414,7 @@ for (const id of THEME_IDS) {
   const themePieces = Boolean(light0['--pw-white-fill'] || light0['--pw-black-fill'])
   const art = ART[id] ? `/skins/${id}-bg.${ART[id].ext}` : null
   const sounds = Object.keys(SKIN_SOUNDS[id] ?? {})
+  const soundAliases = SKIN_SOUND_ALIASES[id]
 
   const tokenBlock = (t, extra) =>
     declBlock([
@@ -493,9 +503,10 @@ ${declBlock(pick(found.frame, ['border-image', 'border-image-source', 'border-im
     art: Boolean(art),
     themePieces,
     sounds,
+    ...(soundAliases ? { soundAliases } : {}),
     ...(analysis ? { palette: { light: pal(light0), dark: pal(dark0) } } : {}),
   })
-  report.push(`${id.padEnd(11)} ${label.padEnd(16)} pattern:${found.pattern.length ? 'y' : '-'} art:${art ? 'y' : '-'} squares:${found.squares.length} pieces:${found.pieces.length} frame:${found.frame.length ? 'y' : '-'} sounds:${sounds.length} theme-pieces:${themePieces ? 'y' : '-'} (Arcade-only rules skipped: ${found.skipped})`)
+  report.push(`${id.padEnd(11)} ${label.padEnd(16)} pattern:${found.pattern.length ? 'y' : '-'} art:${art ? 'y' : '-'} squares:${found.squares.length} pieces:${found.pieces.length} frame:${found.frame.length ? 'y' : '-'} sounds:${sounds.length}${soundAliases ? `+${Object.keys(soundAliases).length} shared` : ''} theme-pieces:${themePieces ? 'y' : '-'} (Arcade-only rules skipped: ${found.skipped})`)
 }
 
 for (const [key, uri] of Object.entries(SOUND_DATA)) outputs.set(`public/sounds/${key}.mp3`, Buffer.from(uri.split(',')[1], 'base64'))
@@ -519,6 +530,8 @@ export interface ArcadeTheme {
   themePieces: boolean
   /** The events it has its own sound for (public/sounds/themes/<id>/<event>.mp3). */
   sounds: string[]
+  /** Events that play another of its sounds, as Arcade shares them (event -> the sound it plays). */
+  soundAliases?: Record<string, string>
   /** The analysis board's colours, for themes Repertoire Lab has no palette for. */
   palette?: { light: Record<string, string>; dark: Record<string, string> }
 }

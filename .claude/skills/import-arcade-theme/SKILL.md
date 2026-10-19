@@ -14,7 +14,7 @@ It reads Arcade's single `index.html` and writes:
 | `src/skins.arcade.css` | colours for light and dark (bridged onto this app's tokens), the page pattern and artwork, board squares, last move, the frame's border image, piece treatment and colours (`--pw-*`, `svg[data-p]`), display and body fonts |
 | `src/lib/arcadeThemes.generated.ts` | the themes Settings lists; which ship artwork, colour the Theme Staunton pieces, bring sounds; analysis-board colours |
 | `public/skins/<id>-bg.(svg\|jpg)` | artwork, only where Arcade ships some |
-| `public/sounds/themes/<id>/*.mp3` | the theme's sounds (move, capture, castle, check, checkmate, promote, win, lose, matchStart) |
+| `public/sounds/themes/<id>/*.mp3` | the theme's sounds (move, capture, castle, check, checkmate, promote, win, lose, matchStart); an event Arcade points at another of the theme's sounds (Uptown's solved is its capture) is shared through `soundAliases`, not copied |
 | `index.html` | any Google Font a theme uses that isn't loaded yet |
 
 The app's own choices per theme (description, folder stamps, sticky note,

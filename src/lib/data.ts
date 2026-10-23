@@ -10,6 +10,10 @@ export const listStudents = impl.listStudents
 export const createStudent = impl.createStudent
 export const updateStudent = impl.updateStudent
 export const missingStudentColumns = impl.missingStudentColumns
+export const teachMigrationMissing = impl.teachMigrationMissing
+export const ensureTeachFolder = impl.ensureTeachFolder
+export const createTeachFolder = impl.createTeachFolder
+export { TEACH_COLOR, TEACH_MIGRATION, TEACH_NAME } from './api'
 export const getUscfRating = impl.getUscfRating
 export const getUscfHistory = impl.getUscfHistory
 export { STUDENT_MIGRATION_COLUMNS } from './api'

@@ -196,6 +196,14 @@ export const Recycle = (p: IconProps) => (
     <path d="M7 13.1 10.5 7.05M7.78 8.32 10.5 7.05l.26 2.99" transform="rotate(240 12 12)" />
   </svg>
 )
+/** A teaching easel: the board, its chalk lines and its legs. */
+export const Teach = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="3.5" width="18" height="12.5" rx="1.5" />
+    <path d="M7 8.5h6M7 12h9" />
+    <path d="M8.5 20.5 10.5 16M15.5 20.5 13.5 16" />
+  </svg>
+)
 export const Library = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M4 5.5h5v14H4z" />

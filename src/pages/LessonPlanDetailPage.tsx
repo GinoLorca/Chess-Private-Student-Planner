@@ -31,7 +31,9 @@ import { ActionSheet } from '../components/ui/ActionSheet'
 import { ImportSheet } from '../components/import/ImportSheet'
 import { FenSheet } from '../components/lesson/FenSheet'
 import { patchFromImported } from '../lib/import'
-import { Check, ChevronDown, ChevronRight, Document, Download, Eye, Folder, Knight, LinkIcon, More, Pencil, Plus, Recycle, Target, Trash } from '../components/ui/Icons'
+import { Check, ChevronDown, ChevronRight, Document, Download, Eye, Folder, Knight, LinkIcon, More, Pencil, Plus, Recycle, Target, Teach, Trash } from '../components/ui/Icons'
+import { SendToTeachSheet, type TeachItem } from '../components/teach/SendToTeachSheet'
+import { isTeach } from '../lib/teach'
 import { answerProblem } from '../lib/solution'
 import { copyText, puzzleLink } from '../lib/links'
 
@@ -56,6 +58,10 @@ export function LessonPlanDetailPage() {
   const [deletingPuzzle, setDeletingPuzzle] = useState<Puzzle | null>(null)
   const [puzzleMenu, setPuzzleMenu] = useState<Puzzle | null>(null)
   const [movingToNew, setMovingToNew] = useState<Puzzle | null>(null)
+  // Send to Teach: one position (from its menu) or the whole lesson.
+  const [teachItems, setTeachItems] = useState<TeachItem[] | null>(null)
+  const [teachingLesson, setTeachingLesson] = useState(false)
+  const canTeach = Boolean(student && !isTeach(student))
   const [moved, setMoved] = useState<{ text: string; to?: string } | null>(null)
   // Positions' dots need migration 0012; until then the cards go without.
   const codesMissing = useCodesMissing()
@@ -156,6 +162,15 @@ export function LessonPlanDetailPage() {
       { label: 'Open', icon: <Eye />, onSelect: () => navigate(`${base}/puzzles/${puzzle.id}`) },
       { label: 'Edit', icon: <Pencil />, onSelect: () => navigate(`${base}/puzzles/${puzzle.id}/edit`) },
       { label: 'Copy link', icon: <LinkIcon />, onSelect: () => void copyText(puzzleLink(puzzle.id)) },
+      ...(canTeach
+        ? [
+            {
+              label: 'Send to Teach',
+              icon: <Teach />,
+              onSelect: () => setTeachItems([{ puzzle, sectionTitle: sections.find((s) => s.id === puzzle.section_id)?.title ?? 'Positions' }]),
+            },
+          ]
+        : []),
       { label: 'Delete', icon: <Trash />, danger: true, onSelect: () => setDeletingPuzzle(puzzle) },
     ]
   }
@@ -386,6 +401,18 @@ export function LessonPlanDetailPage() {
         onClose={() => setPickingTheme(false)}
         onPick={([theme]) => planMutations.update.mutate({ id: plan.id, patch: { theme } })}
       />
+      {canTeach && (
+        <>
+          <SendToTeachSheet open={Boolean(teachItems)} onClose={() => setTeachItems(null)} studentName={student?.name ?? ''} items={teachItems ?? []} />
+          <SendToTeachSheet
+            open={teachingLesson}
+            onClose={() => setTeachingLesson(false)}
+            studentName={student?.name ?? ''}
+            items={sections.flatMap((s) => (puzzlesBySection[s.id] ?? []).map((puzzle) => ({ puzzle, sectionTitle: s.title || 'Positions' })))}
+            lesson={{ title: plan.title, theme: plan.theme ?? '' }}
+          />
+        </>
+      )}
       <ActionSheet
         open={planMenu}
         onClose={() => setPlanMenu(false)}
@@ -403,6 +430,7 @@ export function LessonPlanDetailPage() {
             ? [{ label: 'Recycle for another student…', icon: <Recycle />, onSelect: () => setRecycling(true) }]
             : []),
           { label: 'Save shape as template', icon: <Document />, onSelect: () => setSavingTemplate(true) },
+          ...(canTeach && puzzleCount > 0 ? [{ label: 'Send lesson to Teach', icon: <Teach />, onSelect: () => setTeachingLesson(true) }] : []),
           ...(puzzleCount > 0
             ? [
                 {

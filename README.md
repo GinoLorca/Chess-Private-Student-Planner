@@ -64,6 +64,19 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   a move list that keeps variations, the pens, and its keyboard (←/→, X to flip, E for the
   engine, 1/2/3 for alternatives). The engine downloads once (about 40 MB) and then works
   offline. None of the lesson's own arrows come with the position.
+- **Teach** — the Teach button on the Students page: lessons for anyone, kept apart from the
+  students (never on the Schedule, in the student folders or among the private folders). Its
+  folders hold lessons exactly like a student's, so Present, Coach view, Learn and the sheet
+  are the same; make a folder for a theme, or one prepared for a private student and then
+  *Recycle* the lesson into their folder. Positions come in three ways: **Teach**, next to
+  *Analyze* on any student's position (and in Coach view, the editor, the Library and a
+  lesson's menus, for one position or the whole lesson), copies it with the student taken out:
+  its wording is rewritten to talk about the position only (White, Black, the pieces and the
+  moves, never a name, "you" or "he"), every change shown and editable before it's saved,
+  links to the student's own games left behind and its dot starting over; the student's
+  original is never touched. **Import** on the Teach page pastes PGN or FEN, or opens a `.pgn`
+  or a `.zip` of them. And an agent (Muse) can fill it through the connector's
+  `list_teach_folders`, `create_teach_folder` and `create_lesson`.
 - **Schedule for agents** — the connector's `next_lesson` and `get_schedule` tools give an agent
   (Muse's Hugo) the next lesson that's on, its start time with the time zone, the address and
   door codes, and, given the travel time from where the coach is, when to leave. See DEPLOY.md.
@@ -165,7 +178,7 @@ lessons you've already loaded even without Wi-Fi.
 
 ## 4. AI helpers (optional)
 
-Two features call Claude through a Supabase Edge Function, so the API key stays server-side and
+These features call Claude through a Supabase Edge Function, so the API key stays server-side and
 only your signed-in account can use it:
 
 - **Read a board from an image** (Quick add → *Read a board from an image*): a screenshot of a
@@ -174,6 +187,9 @@ only your signed-in account can use it:
   banner flags anything uncertain.
 - **Draft with AI** (editor → Explanation): drafts the explanation from the position and your
   recorded answer, in plain coaching language, for you to edit.
+- **Send to Teach**: rewrites a student's position's wording to talk about the position only,
+  for you to check before it's copied into Teach. Without the function it's done on the device,
+  more roughly.
 
 Setup, once, with the [Supabase CLI](https://supabase.com/docs/guides/cli):
 
@@ -197,6 +213,7 @@ the key set, the buttons show a clear message and everything else keeps working.
 | FEN / PGN text | Imported directly (PGN comments' `[%cal]` / `[%csl]` arrows come along) |
 | A Lichess theme chip | A random puzzle of that theme, with *Another* |
 | A photo or screenshot | Read into a position by the AI helper (see above) |
+| A `.pgn` file, or a `.zip` of them (*Open a .pgn or .zip*) | Read into the box as if pasted: each game that starts from a set-up position becomes a position with its moves as the answer |
 | **Several at once** — links or FENs one per line, a multi-game PGN, or a whole study | One position each, added in one go; study chapters and puzzle-style PGN games bring their answer line. Full games are listed for you to pick the moment. Then *Next without explanation* in the editor sweeps through them. |
 
 Chess.com game links need your Chess.com username in Settings (the public archive is per player).

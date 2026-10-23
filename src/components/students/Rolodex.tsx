@@ -174,8 +174,10 @@ export function Rolodex({ students, onOpen, onMenu, onInfo }: RolodexProps) {
         {/* Stage light: a spotlight cone the folders turn through. The pool
             of light sits where the front folder faces you; the edges of the
             wheel fall off into shadow, as in a portrait-lighting shot. */}
+        {/* On a phone it reaches the screen's edges and no further (the page's
+            16px gutter), so it can't push the page sideways. */}
         <div
-          className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10"
+          className="pointer-events-none absolute -inset-x-4 -inset-y-10 -z-10 sm:-inset-x-16"
           style={{
             // The pool of light on the stage. Its radii stay under 50% of the
             // box, so it reaches transparent before the box edge and no

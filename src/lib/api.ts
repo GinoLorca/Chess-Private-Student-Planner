@@ -63,6 +63,44 @@ export const STUDENT_MIGRATION_COLUMNS: Record<string, string> = {
   uscf_id: '0008_student_uscf.sql',
 }
 
+// ---------------------------------------------------------------------------
+// teach
+// ---------------------------------------------------------------------------
+
+/** The Teach folder: a folder like a student's, marked kind 'teach' (migration 0014). */
+export const TEACH_NAME = 'Teach'
+export const TEACH_COLOR = '#2e4a3f'
+export const TEACH_MIGRATION = '0014_teach_and_levels.sql'
+
+/** True when the database lacks 0014's columns: the Teach folder's mark and De-Construct's levels. */
+export async function teachMigrationMissing(): Promise<boolean> {
+  const [students, puzzles] = await Promise.all([
+    supabase.from('students').select('kind').limit(1),
+    supabase.from('puzzles').select('levels').limit(1),
+  ])
+  return Boolean((students.error && /kind/.test(students.error.message)) || (puzzles.error && /levels/.test(puzzles.error.message)))
+}
+
+/** A new folder in Teach, e.g. one prepared for a private student. */
+export async function createTeachFolder(name: string, color: string = TEACH_COLOR): Promise<Student> {
+  const { data: userData } = await supabase.auth.getUser()
+  const { data, error } = await supabase
+    .from('students')
+    .insert({ name, color, kind: 'teach', sort_order: Date.now() % 1_000_000_000, user_id: userData.user?.id })
+    .select()
+    .single()
+  if (error) throw error
+  return data as Student
+}
+
+/** The first Teach folder, made (as "Teach") the first time one is needed. */
+export async function ensureTeachFolder(): Promise<Student> {
+  const { data, error } = await supabase.from('students').select('*').eq('kind', 'teach').order('created_at', { ascending: true }).limit(1)
+  if (error) throw error
+  if (data && data.length > 0) return data[0] as Student
+  return createTeachFolder(TEACH_NAME)
+}
+
 /** Which of those columns this database doesn't have yet; empty when every migration has been run. */
 export async function missingStudentColumns(): Promise<string[]> {
   const missing: string[] = []

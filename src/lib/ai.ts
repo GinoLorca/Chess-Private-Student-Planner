@@ -1,5 +1,6 @@
 import { isDemo, supabase } from './supabase'
 import type { SolutionMove } from '../types/domain'
+import { positionOnlyLocal } from './teach'
 
 export interface BoardReading {
   placement: string
@@ -73,6 +74,46 @@ export async function readBoardImage(file: File): Promise<BoardReading> {
   }
   const { data, mediaType } = await imageToBase64(file)
   return invoke<BoardReading>({ action: 'read_board', image: data, media_type: mediaType })
+}
+
+/**
+ * A position's wording rewritten to talk about the position and no person,
+ * for copying a student's position into Teach. Demo mode, or an AI helper
+ * that can't be reached, falls back to the rougher rewrite worked out on this
+ * device; `by` says which, so the review can say how much to check.
+ */
+export async function rewritePositionOnly(
+  fen: string,
+  solution: SolutionMove[],
+  texts: { key: string; text: string }[],
+  names: string[],
+): Promise<{ texts: Record<string, string>; by: 'ai' | 'device'; problem?: string }> {
+  const sideToMove = fen.split(' ')[1] === 'b' ? 'b' : 'w'
+  const local = () => Object.fromEntries(texts.map((t) => [t.key, positionOnlyLocal(t.text, sideToMove, names)]))
+  if (texts.length === 0) return { texts: {}, by: 'device' }
+  if (isDemo) {
+    await new Promise((r) => setTimeout(r, 600))
+    return { texts: local(), by: 'device', problem: 'Demo mode: rewritten on this device, not by the AI helper.' }
+  }
+  try {
+    const result = await invoke<{ texts: { key: string; text: string }[] }>({
+      action: 'position_only',
+      fen,
+      solution: solution.map((m) => m.san),
+      texts,
+      names,
+    })
+    const byKey = Object.fromEntries(result.texts.map((t) => [t.key, t.text]))
+    // Anything the helper left out keeps the device's rewrite.
+    const fallback = local()
+    return { texts: Object.fromEntries(texts.map((t) => [t.key, byKey[t.key] ?? fallback[t.key]])), by: 'ai' }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    const problem = /Unknown action/.test(message)
+      ? 'The AI helper predates Teach: redeploy it once (supabase functions deploy chess-ai, see DEPLOY.md) for a cleaner rewrite.'
+      : message
+    return { texts: local(), by: 'device', problem }
+  }
 }
 
 export async function draftExplanation(fen: string, solution: SolutionMove[], quizPrompt?: string): Promise<string> {

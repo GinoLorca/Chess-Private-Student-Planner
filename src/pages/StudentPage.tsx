@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import { FOLDER_KINDS } from '../types/domain'
 import { useFolderCounts, useStudent, useUscfHistory, useUscfRating } from '../lib/queries'
 import { FOLDER_COLORS } from '../lib/colors'
+import { isTeach } from '../lib/teach'
 import { ExpandingFile, FolderBody, FolderTab, HangingFile } from '../components/lesson/Folder'
 import { Page, LoadingPage, SectionLabel } from '../components/ui/Page'
 import { PaperCard } from '../components/lesson/Folder'
@@ -21,6 +22,8 @@ export function StudentPage() {
 
   if (isLoading && !student) return <LoadingPage />
   if (!student) return <Page back="/">Student not found.</Page>
+  // A Teach folder is its lessons: no invoices or notes to file.
+  if (isTeach(student)) return <Navigate to={`/students/${student.id}/lessons`} replace />
 
   // The files take the palette in order, skipping the folder's own colour.
   const palette = FOLDER_COLORS.filter((c) => c !== student.color)

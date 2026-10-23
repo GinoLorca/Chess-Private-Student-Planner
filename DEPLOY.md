@@ -115,6 +115,13 @@ re-run, so if you're not sure which you've done, run `supabase/setup_all.sql` ag
 | `0009_schedule.sql` | the weekly schedule, its reminders, and each student's address and door codes |
 | `0010_student_rate.sql` | each student's hourly rate, for lesson fees and the Schedule's week and month totals |
 | `0011_lesson_payments.sql` | which lessons were paid, for the paid markers and the ledger's paid / owed |
+| `0012_codes_and_coverage.sql` | further door and bathroom codes, and the red / yellow / green dot on positions and lessons |
+| `0013_coach_notes.sql` | your own notes on each position (My notes) |
+| `0014_teach_and_levels.sql` | the Teach folders, and the Beginner / Intermediate levels De-Construct makes |
+
+After `0014`, redeploy the AI helper once (`supabase functions deploy chess-ai`, as in the AI
+section above) so *Send to Teach* can rewrite a position's wording; until then the rewrite is
+worked out on the device and the sheet says so.
 
 ---
 
@@ -210,7 +217,14 @@ A GET on the URL says whether the key is configured yet.
 **The tools.** `list_students` (ids and names), `list_lessons(student_id)` (each lesson with
 positions done / total and its link), `create_lesson(student_id, positions, title?)` (makes
 Lesson N and returns its link and the annotate link), `add_positions(lesson_id, positions)`,
-`get_position(position)`, and two for the schedule:
+`get_position(position)`, two for Teach, and two for the schedule:
+
+- `list_teach_folders` and `create_teach_folder(name)`: the Teach folders (lessons for anyone,
+  apart from the students; the first, Teach, is made if there are none). A folder's id goes in
+  `create_lesson` and `list_lessons` as `student_id`, so an agent can pull puzzles from your
+  Lichess into Teach to break down later. A brief: *"Use the lesson planner connector. Every
+  Sunday, take my Lichess puzzles from the week that I got wrong and put them in a new lesson in
+  the Teach folder called Misses, worded about the position only."*
 
 - `get_position(position)`: one position as the coach sees it, given its id or any link to it
   from the app (a share link `…/#/p/<id>`, a position page, a lesson view with `?p=<id>`): whose

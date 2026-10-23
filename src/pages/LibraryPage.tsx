@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { LibraryEntry } from '../lib/data'
-import { useLibrary } from '../lib/queries'
+import { useLibrary, useTeachFolders } from '../lib/queries'
 import { normalizeFen } from '../lib/fen'
 import { copyText, puzzleLink } from '../lib/links'
 import { onColor } from '../lib/colors'
@@ -9,7 +9,8 @@ import { Board } from '../components/board/Board'
 import { CopyLinkButton } from '../components/ui/CopyLink'
 import { Button } from '../components/ui/Button'
 import { EmptyState, LoadingPage, Page } from '../components/ui/Page'
-import { Eye } from '../components/ui/Icons'
+import { Eye, Teach } from '../components/ui/Icons'
+import { SendToTeachSheet } from '../components/teach/SendToTeachSheet'
 
 /**
  * Every position across every student, searchable, each with its link.
@@ -19,6 +20,8 @@ import { Eye } from '../components/ui/Icons'
  */
 export function LibraryPage() {
   const { data: entries, isLoading } = useLibrary()
+  const { data: teachFolders = [] } = useTeachFolders()
+  const teachIds = useMemo(() => new Set(teachFolders.map((f) => f.id)), [teachFolders])
   const [query, setQuery] = useState('')
   const [copiedLesson, setCopiedLesson] = useState<string | null>(null)
 
@@ -77,7 +80,7 @@ export function LibraryPage() {
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {group.entries.map((entry) => (
-                  <PositionRow key={entry.puzzle.id} entry={entry} />
+                  <PositionRow key={entry.puzzle.id} entry={entry} inTeach={teachIds.has(entry.studentId)} />
                 ))}
               </div>
             </section>
@@ -88,8 +91,9 @@ export function LibraryPage() {
   )
 }
 
-function PositionRow({ entry }: { entry: LibraryEntry }) {
+function PositionRow({ entry, inTeach }: { entry: LibraryEntry; inTeach: boolean }) {
   const { puzzle } = entry
+  const [sending, setSending] = useState(false)
   const present = `/students/${entry.studentId}/lessons/${entry.lessonPlanId}/present?p=${puzzle.id}`
   const text = (puzzle.summary || puzzle.quiz_prompt || '').replace(/\s+/g, ' ').trim()
   return (
@@ -118,7 +122,24 @@ function PositionRow({ entry }: { entry: LibraryEntry }) {
           <Link to={present} className="inline-flex h-9 items-center gap-1.5 rounded-xl px-2 text-[13px] font-semibold text-ink-3 hover:bg-surface-2 hover:text-ink">
             <Eye size={16} /> Present
           </Link>
+          {!inTeach && (
+            <button
+              onClick={() => setSending(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl px-2 text-[13px] font-semibold text-ink-3 hover:bg-surface-2 hover:text-ink"
+              title="Send to Teach"
+            >
+              <Teach size={16} /> Teach
+            </button>
+          )}
         </div>
+        {!inTeach && (
+          <SendToTeachSheet
+            open={sending}
+            onClose={() => setSending(false)}
+            studentName={entry.studentName}
+            items={[{ puzzle, sectionTitle: entry.sectionTitle }]}
+          />
+        )}
       </div>
     </div>
   )

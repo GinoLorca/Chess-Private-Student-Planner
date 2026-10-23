@@ -10,7 +10,7 @@ import { Button, IconButton } from '../components/ui/Button'
 import { InputModal } from '../components/ui/InputModal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { ActionSheet } from '../components/ui/ActionSheet'
-import { More, Pencil, Plus, Settings, Trash, Library, Calendar } from '../components/ui/Icons'
+import { More, Pencil, Plus, Settings, Trash, Library, Calendar, Teach } from '../components/ui/Icons'
 import { TodayStrip } from '../components/schedule/Today'
 import { FOLDER_COLORS, SCHOOL_COLORS } from '../lib/colors'
 import { BUILTIN_LOGOS, logoFromFile } from '../lib/logos'
@@ -65,6 +65,12 @@ export function DashboardPage() {
                 {openReminders}
               </span>
             )}
+          </Link>
+          {/* Teach: lessons for anyone, built from the students' positions. Named, not just an icon, on a wider screen. */}
+          <Link to="/teach">
+            <Button variant="ghost" size="sm" icon={<Teach size={18} />} aria-label="Teach" title="Teach">
+              <span className="hidden sm:inline">Teach</span>
+            </Button>
           </Link>
           <Link to="/library">
             <IconButton label="Position library">

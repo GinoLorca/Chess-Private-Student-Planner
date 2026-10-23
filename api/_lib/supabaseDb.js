@@ -32,8 +32,27 @@ export async function openSupabaseDb(email, password) {
 function supabaseDb(sb) {
   return {
     async listStudents() {
-      const { data, error } = await sb.from('students').select('id, name').order('sort_order')
+      // students.kind arrives with migration 0014; Teach folders aren't students.
+      let { data, error } = await sb.from('students').select('id, name, kind').order('sort_order')
+      if (error && /kind/.test(error.message)) ({ data, error } = await sb.from('students').select('id, name').order('sort_order'))
       if (error) throw describe(error, 'Listing students')
+      return (data ?? []).filter((s) => s.kind !== 'teach').map(({ id, name }) => ({ id, name }))
+    },
+
+    async listTeachFolders() {
+      const { data, error } = await sb.from('students').select('id, name').eq('kind', 'teach').order('created_at')
+      if (error) throw describe(error, /kind/.test(error.message) ? 'Listing Teach folders (run migration 0014 in Supabase first)' : 'Listing Teach folders')
+      return data ?? []
+    },
+
+    async createTeachFolder(name) {
+      const { data: auth } = await sb.auth.getUser()
+      const { data, error } = await sb
+        .from('students')
+        .insert({ name, color: '#2e4a3f', kind: 'teach', sort_order: Date.now() % 1_000_000_000, user_id: auth.user?.id })
+        .select('id, name')
+        .single()
+      if (error) throw describe(error, 'Creating the Teach folder')
       return data
     },
 

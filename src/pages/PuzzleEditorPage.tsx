@@ -19,7 +19,9 @@ import { draftExplanation } from '../lib/ai'
 import { answerProblem, stepLabel } from '../lib/solution'
 import { useClicker } from '../hooks/useClicker'
 import { opposite, useFlip } from '../hooks/useFlip'
-import { Check, ChevronDown, ChevronRight, Plus, Sparkle, Target, Warning } from '../components/ui/Icons'
+import { Check, ChevronDown, ChevronRight, Plus, Sparkle, Target, Teach, Warning } from '../components/ui/Icons'
+import { SendToTeachSheet } from '../components/teach/SendToTeachSheet'
+import { isTeach } from '../lib/teach'
 import { analysisHref } from '../lib/analysisLink'
 import { Chip, ChipRow } from '../components/ui/Chip'
 import { defaultQuizPrompt, explanationStarters, quizPromptChips } from '../lib/prompts'
@@ -53,6 +55,7 @@ export function PuzzleEditorPage() {
       initial={loaded}
       next={nextUnexplained ? { id: nextUnexplained.id, label: nextUnexplained.label } : undefined}
       studentName={student?.name ?? 'Student'}
+      teachFrom={student && !isTeach(student) ? student.name : undefined}
       color={student?.color ?? FOLDER_COLORS[0]}
       aside={[lesson ? `Lesson ${lesson.plan.number}` : null, section?.title].filter(Boolean).join(' · ')}
       sectionTitle={section?.title}
@@ -67,6 +70,7 @@ export function PuzzleEditorPage() {
 function Editor({
   initial,
   studentName,
+  teachFrom,
   color,
   aside,
   sectionTitle,
@@ -78,6 +82,8 @@ function Editor({
 }: {
   initial: Puzzle
   studentName: string
+  /** In a student's folder: their name, for Send to Teach (none in a Teach folder). */
+  teachFrom?: string
   /** The student's folder colour; the divider tabs take the rest of the palette. */
   color: string
   aside: string
@@ -91,6 +97,7 @@ function Editor({
   const navigate = useNavigate()
   const location = useLocation()
   const [puzzle, setPuzzle] = useState<Puzzle>(initial)
+  const [sendingToTeach, setSendingToTeach] = useState(false)
   const [showMore, setShowMore] = useState(Boolean(initial.reference_url || initial.reference_label))
   const [tab, setTab] = useState<Tab>(initial.starting_fen === 'start' && initial.solution.length === 0 ? 'position' : 'answer')
   const [importing, setImporting] = useState(false)
@@ -321,9 +328,22 @@ function Editor({
               Analyze
             </Button>
           </Link>
+          {teachFrom !== undefined && (
+            <Button variant="ghost" size="sm" icon={<Teach size={16} />} aria-label="Send to Teach" title="Send to Teach" onClick={() => setSendingToTeach(true)}>
+              <span className="hidden sm:inline">Teach</span>
+            </Button>
+          )}
         </>
       }
     >
+      {teachFrom !== undefined && (
+        <SendToTeachSheet
+          open={sendingToTeach}
+          onClose={() => setSendingToTeach(false)}
+          studentName={teachFrom}
+          items={[{ puzzle, sectionTitle: sectionTitle ?? 'Positions' }]}
+        />
+      )}
       <FolderTab color={color} name={studentName} aside={aside} />
       <FolderBody color={color} className="pb-5">
         <div className="mb-3 flex flex-wrap items-center gap-3">

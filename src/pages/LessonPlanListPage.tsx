@@ -11,6 +11,7 @@ import { DividerPaper, FolderBody, FolderTab, LessonCard } from '../components/l
 import { FOLDER_COLORS } from '../lib/colors'
 import { nextStatus } from '../lib/lessonStatus'
 import { todayIso } from '../lib/schedule'
+import { isTeach } from '../lib/teach'
 
 export function LessonPlanListPage() {
   const { studentId = '' } = useParams<{ studentId: string }>()
@@ -29,7 +30,7 @@ export function LessonPlanListPage() {
 
   return (
     <Page
-      back={`/students/${studentId}`}
+      back={isTeach(student) ? '/teach' : `/students/${studentId}`}
       width="wide"
       className="pt-6"
       actions={

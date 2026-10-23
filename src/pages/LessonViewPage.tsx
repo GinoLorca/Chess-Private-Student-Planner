@@ -22,6 +22,8 @@ import { LoadingPage, Page, SectionLabel } from '../components/ui/Page'
 import { PaperCard, StickyNote } from '../components/lesson/Folder'
 import { FOLDER_COLORS, onColor } from '../lib/colors'
 import { Check, ChevronLeft, ChevronRight, Close, Document, ExternalLink, Eye, EyeOff } from '../components/ui/Icons'
+import { SendToTeachSheet } from '../components/teach/SendToTeachSheet'
+import { isTeach } from '../lib/teach'
 import { useHideToggle } from '../hooks/useHideToggle'
 import { useFlip } from '../hooks/useFlip'
 import { useResumeState } from '../lib/resume'
@@ -186,6 +188,7 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
               position={index + 1}
               mode={mode}
               color={student?.color ?? FOLDER_COLORS[0]}
+              teachFrom={student && !isTeach(student) ? student.name : undefined}
               onSwipe={(dir) => go(index + dir)}
               onExit={() => navigate(exitTo)}
               onResult={(kind) => (kind === 'solved' ? solved.add : shown.add)(current.puzzle.id)}
@@ -228,6 +231,7 @@ function PuzzleView({
   position,
   mode,
   color,
+  teachFrom,
   onSwipe,
   onExit,
   onResult,
@@ -240,6 +244,8 @@ function PuzzleView({
   mode: Mode
   /** The student's folder colour: the section tab above the board takes it. */
   color: string
+  /** Coach view in a student's folder: their name, for Send to Teach (none in a Teach folder). */
+  teachFrom?: string
   onSwipe: (dir: 1 | -1) => void
   onExit: () => void
   /** Learn view: the position was solved on the board, or given up. */
@@ -250,6 +256,7 @@ function PuzzleView({
   const { lessonPlanId = '' } = useParams()
   const location = useLocation()
   const { update } = usePuzzleMutations(puzzle.id, lessonPlanId)
+  const [sendingToTeach, setSendingToTeach] = useState(false)
   // Coach and Present carry the position's red / yellow / green dot, to mark it as it's gone over.
   const { setPuzzleStatus } = useLessonContentMutations(lessonPlanId)
   const codesMissing = useCodesMissing(mode !== 'learn')
@@ -455,6 +462,11 @@ function PuzzleView({
             >
               Analyze
             </Link>
+          )}
+          {mode === 'coach' && teachFrom !== undefined && (
+            <button onClick={() => setSendingToTeach(true)} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg" title="Send to Teach">
+              Teach
+            </button>
           )}
           <button onClick={flip} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg">
             Flip board
@@ -699,6 +711,9 @@ function PuzzleView({
           </a>
         )}
       </div>
+      {teachFrom !== undefined && (
+        <SendToTeachSheet open={sendingToTeach} onClose={() => setSendingToTeach(false)} studentName={teachFrom} items={[{ puzzle, sectionTitle }]} />
+      )}
     </div>
   )
 }

@@ -13,7 +13,9 @@ import { Button, IconButton } from '../components/ui/Button'
 import { DrawableBoard } from '../components/board/DrawableBoard'
 import { SolveBoardView, SolveStatus } from '../components/board/SolveBoard'
 import { useSolve } from '../hooks/useSolve'
-import { ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, Pencil, Play, Target } from '../components/ui/Icons'
+import { ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, Pencil, Play, Target, Teach } from '../components/ui/Icons'
+import { SendToTeachSheet } from '../components/teach/SendToTeachSheet'
+import { isTeach } from '../lib/teach'
 import { analysisHref } from '../lib/analysisLink'
 import { useHideToggle } from '../hooks/useHideToggle'
 import { opposite, useFlip } from '../hooks/useFlip'
@@ -56,6 +58,7 @@ export function PuzzlePage() {
   // The eye hides the answer and explanation: tap it, long-press a clicker button, or press B.
   const [hidden, toggleHidden, setHidden] = useHideToggle(true, `pos:${puzzleId}:eye`)
   // Each position opens with the eye closed: the answer hidden, the board ready to solve.
+  const [sendingToTeach, setSendingToTeach] = useState(false)
   const [openedId, setOpenedId] = useState(puzzleId)
   if (openedId !== puzzleId) {
     setOpenedId(puzzleId)
@@ -148,14 +151,21 @@ export function PuzzlePage() {
               <span className="hidden sm:inline">Analyze</span>
             </Button>
           </Link>
+          {/* A copy for teaching anyone, the student taken out (Teach folders don't send to themselves). */}
+          {student && !isTeach(student) && (
+            <Button variant="ghost" size="sm" icon={<Teach size={16} />} aria-label="Send to Teach" title="Send to Teach" onClick={() => setSendingToTeach(true)}>
+              <span className="hidden sm:inline">Teach</span>
+            </Button>
+          )}
           <Link to={`${base}/coach?p=${puzzle.id}`}>
             <Button variant="ghost" size="sm" icon={<Play size={16} />} aria-label="Coach view" title="Coach view">
               <span className="hidden sm:inline">Coach view</span>
             </Button>
           </Link>
           <Link to={`${base}/puzzles/${puzzle.id}/edit`}>
-            <Button variant="primary" size="sm" icon={<Pencil size={16} />}>
-              Edit
+            {/* On a phone the pencil alone, so the top bar keeps to the screen. */}
+            <Button variant="primary" size="sm" icon={<Pencil size={16} />} aria-label="Edit" title="Edit">
+              <span className="hidden sm:inline">Edit</span>
             </Button>
           </Link>
         </>
@@ -302,6 +312,12 @@ export function PuzzlePage() {
           )}
         </div>
       </div>
+      <SendToTeachSheet
+        open={sendingToTeach}
+        onClose={() => setSendingToTeach(false)}
+        studentName={student?.name ?? ''}
+        items={[{ puzzle, sectionTitle: section?.title ?? 'Positions' }]}
+      />
     </Page>
   )
 }

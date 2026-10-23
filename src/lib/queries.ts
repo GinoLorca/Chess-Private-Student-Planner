@@ -4,6 +4,7 @@ import * as api from './data'
 import type { LessonPayment, FolderKind, LessonPlan, LessonSection, LessonStatus, LessonTemplate, NewLessonInit, Note, Puzzle, Reminder, ScheduleChange, ScheduleSlot, Student, StudentPlace } from '../types/domain'
 import { reminderFor } from './schedule'
 import { usePrivateFolders } from './privateFolders'
+import { isTeach, sendLessonToTeach, sendPositionsToTeach, type TeachDestination, type TeachResult } from './teach'
 
 export const keys = {
   students: ['students'] as const,
@@ -27,6 +28,7 @@ export const keys = {
   rateMissing: ['rateMissing'] as const,
   codesMissing: ['codesMissing'] as const,
   notesMissing: ['notesMissing'] as const,
+  teachMissing: ['teachMissing'] as const,
   paymentsMissing: ['paymentsMissing'] as const,
   payments: ['payments'] as const,
 }
@@ -66,23 +68,65 @@ export function useLibrary() {
   return { ...q, data }
 }
 
-/** The student folders, less those private on this device (Settings → Private folders). */
+/** The student folders, less those private on this device (Settings → Private folders) and the Teach folders. */
 export function useStudents() {
   const hidden = usePrivateFolders()
   const q = useAllStudents()
-  const data = useMemo(() => (hidden.length && q.data ? q.data.filter((s) => !hidden.includes(s.id)) : q.data), [q.data, hidden])
+  const data = useMemo(() => q.data?.filter((s) => !hidden.includes(s.id) && !isTeach(s)), [q.data, hidden])
   return { ...q, data }
 }
 
-/** Every student folder, private ones included: for Settings, where they're hidden and shown. */
+/** Every folder, private ones and Teach included: for Settings, where they're hidden and shown. */
 export function useAllStudents() {
   return useQuery({ queryKey: keys.students, queryFn: api.listStudents })
 }
 
-/** A single student, served from the cached list so student screens open instantly. */
+/** The folders in Teach, in the order they were made. */
+export function useTeachFolders() {
+  const q = useAllStudents()
+  const data = useMemo(() => q.data?.filter(isTeach).sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at)), [q.data])
+  return { ...q, data }
+}
+
+/** Whether the database still needs 0014 (the Teach folders and De-Construct levels). */
+export function useTeachMissing(enabled = true) {
+  return useQuery({ queryKey: keys.teachMissing, queryFn: api.teachMigrationMissing, enabled, staleTime: 60 * 60_000 })
+}
+
+export function useTeachFolderMutations() {
+  const qc = useQueryClient()
+  const invalidate = () => qc.invalidateQueries({ queryKey: keys.students })
+  const create = useMutation({ mutationFn: (name: string) => api.createTeachFolder(name), onSuccess: invalidate })
+  return { create }
+}
+
+/** Positions, or a whole lesson, copied into Teach with the student taken out (see lib/teach). */
+export function useSendToTeach() {
+  const qc = useQueryClient()
+  const landed = (r: TeachResult) => {
+    qc.invalidateQueries({ queryKey: keys.students })
+    qc.invalidateQueries({ queryKey: keys.lessonPlans(r.folderId) })
+    qc.invalidateQueries({ queryKey: keys.folderCounts(r.folderId) })
+    qc.invalidateQueries({ queryKey: keys.lesson(r.lessonId) })
+    qc.invalidateQueries({ queryKey: keys.library })
+  }
+  const positions = useMutation({
+    mutationFn: ({ to, patches }: { to: TeachDestination; patches: api.PuzzlePatch[] }) => sendPositionsToTeach(to, patches),
+    onSuccess: landed,
+  })
+  const lesson = useMutation({
+    mutationFn: ({ folderId, lesson, sections }: { folderId?: string; lesson: { title: string; theme: string }; sections: { title: string; patches: api.PuzzlePatch[] }[] }) =>
+      sendLessonToTeach(folderId, lesson, sections),
+    onSuccess: landed,
+  })
+  return { positions, lesson }
+}
+
+/** A single folder (a student's or a Teach folder), served from the cached list so its screens open instantly. */
 export function useStudent(studentId: string | undefined) {
-  const q = useStudents()
-  return { ...q, data: q.data?.find((s) => s.id === studentId) }
+  const hidden = usePrivateFolders()
+  const q = useAllStudents()
+  return { ...q, data: studentId && !hidden.includes(studentId) ? q.data?.find((s) => s.id === studentId) : undefined }
 }
 
 export function useFolderCounts(studentId: string | undefined) {

@@ -8,6 +8,7 @@ import { BOARD_THEMES, resolveBoard } from '../lib/boardThemes'
 import { FOLDER_SKIN, SKINS, setArtOff, useArtOff } from '../lib/skins'
 import { START_FEN } from '../lib/fen'
 import { useAllStudents, useCustomPieceSetMutations } from '../lib/queries'
+import { isTeach } from '../lib/teach'
 import { setFolderPrivate, usePrivateFolders } from '../lib/privateFolders'
 import { imagesFromFiles, readPieceFiles, type ImportedPieceFile } from '../lib/pieceImport'
 import type { CustomPieceSet } from '../types/domain'
@@ -795,7 +796,9 @@ function EarningsSwitch() {
 
 /** Each folder with a switch to hide it on this device (Settings → Private folders). */
 function PrivateFoldersCard() {
-  const { data: students = [] } = useAllStudents()
+  const { data: all = [] } = useAllStudents()
+  // Students' folders; Teach holds no one's.
+  const students = all.filter((s) => !isTeach(s))
   const hidden = usePrivateFolders()
   if (students.length === 0) return <Card className="mb-8 p-4 text-[14px] text-ink-3">No folders yet.</Card>
   return (

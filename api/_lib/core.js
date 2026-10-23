@@ -21,6 +21,8 @@ import { DEFAULT_TIMEZONE, addDays, checkTimezone, departure, lessonsBetween, is
  * }} PuzzleRow
  * @typedef {{
  *   listStudents(): Promise<StudentRow[]>,
+ *   listTeachFolders(): Promise<StudentRow[]>,
+ *   createTeachFolder(name: string): Promise<StudentRow>,
  *   listLessons(studentId: string): Promise<LessonRow[]>,
  *   createLesson(studentId: string, title: string): Promise<{ id: string, number: number, sectionId: string }>,
  *   targetSection(lessonId: string): Promise<{ studentId: string, number: number, sectionId: string, nextOrder: number }>,
@@ -180,6 +182,17 @@ export const TOOLS = [
     inputSchema: { type: 'object', properties: {} },
   },
   {
+    name: 'list_teach_folders',
+    description:
+      "The folders in Teach, with their ids: lessons for anyone, kept apart from the students (a set of puzzles to break down, or one being prepared for a private student). The first folder, Teach, is made if there are none. Use a folder's id as student_id in create_lesson and list_lessons to put positions there, for example puzzles pulled from the coach's Lichess.",
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'create_teach_folder',
+    description: 'Add a folder to Teach, e.g. "Back-rank mates" or one prepared for a student. Returns its id, to use as student_id in create_lesson.',
+    inputSchema: { type: 'object', required: ['name'], properties: { name: { type: 'string', description: 'The folder name.' } } },
+  },
+  {
     name: 'list_lessons',
     description: "A student's lesson plans, newest first, with how many positions each has and how many are annotated.",
     inputSchema: { type: 'object', required: ['student_id'], properties: { student_id: { type: 'string' } } },
@@ -187,7 +200,7 @@ export const TOOLS = [
   {
     name: 'create_lesson',
     description:
-      'Create the next lesson for a student from a list of positions (FENs). Fill every position completely: fen, answer (the line), move_notes, question, note, label, source_url, arrows and highlights. The student plays the side to move, and the answer starts with the move they should find; for an exercise that punishes a mistake, the mistake goes in setup_moves. The coach may open Coach view or Present with no preparation, so each position must teach itself: the answer stepped through with a note per move, arrows and marked squares on the board, and the explanation. When a position was taken from a course, carry the course\'s comment on the move into the note; when the source has none, write it yourself. Returns the lesson id and the link to open it in the app.',
+      'Create the next lesson for a student, or in a Teach folder (its id from list_teach_folders), from a list of positions (FENs). In a Teach folder the lesson is for anyone: word the question and every note about the position only (White, Black, the pieces and the moves), never a person, no names and no "you". Fill every position completely: fen, answer (the line), move_notes, question, note, label, source_url, arrows and highlights. The student plays the side to move, and the answer starts with the move they should find; for an exercise that punishes a mistake, the mistake goes in setup_moves. The coach may open Coach view or Present with no preparation, so each position must teach itself: the answer stepped through with a note per move, arrows and marked squares on the board, and the explanation. When a position was taken from a course, carry the course\'s comment on the move into the note; when the source has none, write it yourself. Returns the lesson id and the link to open it in the app.',
     inputSchema: {
       type: 'object',
       required: ['student_id', 'positions'],
@@ -393,6 +406,17 @@ export async function callTool(name, args, ctx) {
   switch (name) {
     case 'list_students':
       return { students: await db.listStudents() }
+    case 'list_teach_folders': {
+      let folders = await db.listTeachFolders()
+      if (folders.length === 0) folders = [await db.createTeachFolder('Teach')]
+      return { folders: folders.map((f) => ({ ...f, url: `${appOrigin}/#/students/${f.id}/lessons` })) }
+    }
+    case 'create_teach_folder': {
+      const name = str(args.name, 'name').trim()
+      if (!name) throw new ToolError('name must not be empty')
+      const folder = await db.createTeachFolder(name)
+      return { ...folder, url: `${appOrigin}/#/students/${folder.id}/lessons` }
+    }
     case 'list_lessons': {
       const studentId = str(args.student_id, 'student_id')
       const lessons = await db.listLessons(studentId)
@@ -608,7 +632,7 @@ function positions(v) {
 // ---------------------------------------------------------------------------
 
 export const PROTOCOL_VERSION = '2025-03-26'
-export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.3.0' }
+export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.4.0' }
 
 /**
  * One JSON-RPC message in, one response out; notifications (no id) return null.

@@ -19,6 +19,8 @@ export interface Student {
   uscf_id?: string | null
   sort_order: number
   created_at: string
+  /** 'teach': the Teach folder, lessons for anyone built from students' positions (migration 0014). */
+  kind?: 'student' | 'teach'
 }
 
 export type LessonStatus = 'planned' | 'in_progress' | 'taught'

@@ -1,7 +1,9 @@
-// Supabase Edge Function: the app's two AI helpers, behind the coach's login.
+// Supabase Edge Function: the app's AI helpers, behind the coach's login.
 //
 //   read_board        — a photo/screenshot of a chessboard -> FEN placement + side to move
 //   draft_explanation — a position + answer line -> a short coaching explanation draft
+//   position_only     — a position's wording, rewritten to talk about the position and
+//                       no person (for copying a student's position into Teach)
 //
 // Deploy:  supabase functions deploy chess-ai
 // Secret:  supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
@@ -32,6 +34,14 @@ const BoardReading = z.object({
 })
 
 type BoardReading = z.infer<typeof BoardReading>
+
+const Rewrites = z.object({
+  texts: z
+    .array(z.object({ key: z.string().describe('The key the text was given with'), text: z.string().describe('The rewritten text') }))
+    .describe('Every text that was given, by its key'),
+})
+
+type Rewrites = z.infer<typeof Rewrites>
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -128,6 +138,45 @@ async function draftExplanation(
   return { text, usage: response.usage }
 }
 
+async function positionOnly(
+  client: Anthropic,
+  fen: string,
+  solution: string[],
+  texts: { key: string; text: string }[],
+  names: string[],
+) {
+  const toMove = fen.split(' ')[1] === 'b' ? 'Black' : 'White'
+  const response = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 4000,
+    output_config: { effort: 'medium', format: zodOutputFormat(Rewrites) },
+    system:
+      "You copy a chess coach's wording on a puzzle out of one student's lesson and into lessons for anyone. " +
+      'Rewrite each text so it talks about the position only: White and Black, the pieces, the squares and the moves. ' +
+      'It must mention no person at all: no names, no you or your, no he, she, him, her or his, no I, me, my, we, us or our, ' +
+      'and no "the student", "the coach" or "the opponent". Whoever solves the puzzle plays the side to move, so "you" and ' +
+      '"your" are that side, and the student named is that side too unless the text plainly says otherwise; the other ' +
+      'player is the other side. Keep every chess point exactly: the same moves in the same notation, the same squares, ' +
+      'evaluations and reasons. Change only who it is said about. Keep the length and the tone; a question stays a question, ' +
+      'a short label stays short. A text that already mentions no person comes back exactly as it was.',
+    messages: [
+      {
+        role: 'user',
+        content:
+          `Position (FEN): ${fen}\n` +
+          `${toMove} to move; whoever solves it plays ${toMove}.\n` +
+          (solution.length ? `Answer line: ${solution.join(' ')}\n` : '') +
+          (names.length ? `The student's name, nickname or surname, any of which may appear: ${names.join(', ')}\n` : '') +
+          `\nTexts:\n${JSON.stringify(texts, null, 2)}\n\nReturn every text by its key.`,
+      },
+    ],
+  })
+  if (response.stop_reason === 'refusal') throw new Error('The model declined this request.')
+  const out = response.parsed_output as Rewrites | null
+  if (!out) throw new Error('Could not read the rewritten texts.')
+  return { texts: out.texts, usage: response.usage }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405)
@@ -149,6 +198,16 @@ Deno.serve(async (req) => {
       case 'draft_explanation': {
         if (typeof body.fen !== 'string' || !Array.isArray(body.solution)) return json({ error: 'fen and solution are required' }, 400)
         return json(await draftExplanation(client, body.fen, body.solution.map(String), body.quiz_prompt, body.style))
+      }
+      case 'position_only': {
+        if (typeof body.fen !== 'string' || !Array.isArray(body.texts)) return json({ error: 'fen and texts are required' }, 400)
+        const texts = (body.texts as unknown[])
+          .map((t) => (t && typeof t === 'object' ? (t as Record<string, unknown>) : {}))
+          .filter((t) => typeof t.key === 'string' && typeof t.text === 'string')
+          .map((t) => ({ key: t.key as string, text: t.text as string }))
+        const solution = Array.isArray(body.solution) ? body.solution.map(String) : []
+        const names = Array.isArray(body.names) ? body.names.map(String) : []
+        return json(await positionOnly(client, body.fen, solution, texts, names))
       }
       default:
         return json({ error: `Unknown action "${body.action}"` }, 400)

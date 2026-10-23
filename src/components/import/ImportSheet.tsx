@@ -15,7 +15,8 @@ import { Board } from '../board/Board'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Spinner } from '../ui/Page'
-import { Check, ChevronLeft, ChevronRight, Camera, Warning } from '../ui/Icons'
+import { Check, ChevronLeft, ChevronRight, Camera, Document, Warning } from '../ui/Icons'
+import { pgnTextFromFile } from '../../lib/import/zip'
 import { readBoardImage, type BoardReading } from '../../lib/ai'
 import { normalizeFen } from '../../lib/fen'
 import { isBatch, resolveBatchItem, splitBatch, type BatchItemResult } from '../../lib/import/batch'
@@ -54,9 +55,26 @@ export function ImportSheet({ open, onClose, onImport, mode }: ImportSheetProps)
   const detected = useMemo(() => detectInput(text), [text])
   const batch = useMemo(() => (mode === 'add' && isBatch(text) ? splitBatch(text) : null), [text, mode])
   const photoRef = useRef<HTMLInputElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [fileNote, setFileNote] = useState<string | null>(null)
+
+  // A .pgn or .zip of them: its text goes in the box, where a multi-game PGN
+  // is a batch like any paste (each puzzle-style game becomes a position).
+  async function readFile(file: File | undefined) {
+    if (!file) return
+    setError(null)
+    try {
+      const { text: pgn, note } = await pgnTextFromFile(file)
+      setText(pgn)
+      setFileNote(note)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
 
   function reset() {
     setText('')
+    setFileNote(null)
     setStage({ kind: 'input' })
     setError(null)
   }
@@ -215,6 +233,28 @@ export function ImportSheet({ open, onClose, onImport, mode }: ImportSheetProps)
           </div>
 
           {error && <p className="rounded-xl bg-danger-soft px-3 py-2 text-[13px] text-danger">{error}</p>}
+
+          <div>
+            <p className="mb-2 text-[12px] font-semibold tracking-wider text-ink-3 uppercase">Or a PGN file</p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pgn,.txt,.zip,application/zip,application/x-chess-pgn,text/plain"
+              className="hidden"
+              onChange={(e) => {
+                void readFile(e.target.files?.[0])
+                e.target.value = ''
+              }}
+            />
+            <Button variant="secondary" block icon={<Document size={18} />} onClick={() => fileRef.current?.click()}>
+              Open a .pgn or .zip
+            </Button>
+            <p className="mt-1.5 text-[12.5px] text-ink-3">
+              {fileNote
+                ? `Loaded ${fileNote}: check it above, then add.`
+                : 'A Lichess or Chessable export, or a zip of them. Each game that starts from a set-up position becomes a position with its moves as the answer.'}
+            </p>
+          </div>
 
           <div>
             <p className="mb-2 text-[12px] font-semibold tracking-wider text-ink-3 uppercase">Or a photo or screenshot</p>

@@ -1,5 +1,5 @@
 import fixtures from './fixtures.json'
-import { sortLibrary, type PaymentInput, type ChangeInput, type PlacePatch, type ReminderInput, type ReminderPatch, type SlotInput, type LessonBundle, type LessonPlanPatch, type LibraryEntry, type PuzzleLocation, type PuzzlePatch, type SettingsPatch, type UscfEvent, type UscfHistory, type UscfRating } from '../api'
+import { sortLibrary, TEACH_COLOR, TEACH_NAME, type PaymentInput, type ChangeInput, type PlacePatch, type ReminderInput, type ReminderPatch, type SlotInput, type LessonBundle, type LessonPlanPatch, type LibraryEntry, type PuzzleLocation, type PuzzlePatch, type SettingsPatch, type UscfEvent, type UscfHistory, type UscfRating } from '../api'
 import { rankByUse } from '../rank'
 import type {
   CustomPieceSet,
@@ -51,10 +51,35 @@ const uid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 10)}`
 function seed(): Store {
   const created = now()
   return {
-    students: fixtures.students.map((s, i) => ({ ...s, user_id: 'demo', sort_order: i, created_at: created })),
-    plans: fixtures.plans.map((p) => ({ ...p, status: 'taught' as const, created_at: created, updated_at: created })),
-    sections: fixtures.sections,
-    puzzles: fixtures.puzzles.map((p) => ({ ...p, side_to_move: p.side_to_move as 'w' | 'b' })),
+    students: [
+      ...fixtures.students.map((s, i) => ({ ...s, user_id: 'demo', sort_order: i, created_at: created })),
+      // Teach: one folder with a lesson in it, the way it looks once a position has been sent there.
+      { id: 'teach_main', user_id: 'demo', name: TEACH_NAME, color: TEACH_COLOR, kind: 'teach' as const, sort_order: 100, created_at: created },
+    ],
+    plans: [
+      ...fixtures.plans.map((p) => ({ ...p, status: 'taught' as const, created_at: created, updated_at: created })),
+      { id: 'teach_lp1', student_id: 'teach_main', number: 1, title: 'Back-rank mates', theme: '', agenda: [], status: 'planned' as const, created_at: created, updated_at: created },
+    ],
+    sections: [...fixtures.sections, { id: 'teach_lp1_s0', lesson_plan_id: 'teach_lp1', title: 'Back rank', sort_order: 0 }],
+    puzzles: [
+      ...fixtures.puzzles.map((p) => ({ ...p, side_to_move: p.side_to_move as 'w' | 'b' })),
+      {
+        id: 'teach_lp1_s0_p0',
+        section_id: 'teach_lp1_s0',
+        sort_order: 0,
+        label: 'Rd8#',
+        starting_fen: '6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1',
+        side_to_move: 'w' as const,
+        arrows: [],
+        highlights: [],
+        quiz_prompt: "White to move. Black's king is boxed in by its own pawns: how does White finish?",
+        summary: "Rd8# is mate: the f7, g7 and h7 pawns take the black king's escape squares, and nothing can come back to block or capture on the back rank.",
+        solution: [{ san: 'Rd8#', fen: '3R2k1/5ppp/8/8/8/8/5PPP/6K1 b - - 1 1' }],
+        reference_url: null,
+        reference_label: null,
+        status: 'planned' as const,
+      },
+    ],
     notes: [
       {
         id: 'note_1',
@@ -142,9 +167,25 @@ export async function createStudent(name: string, color: string): Promise<Studen
 }
 
 export { STUDENT_MIGRATION_COLUMNS } from '../api'
+export { TEACH_COLOR, TEACH_MIGRATION, TEACH_NAME } from '../api'
 
 export async function missingStudentColumns(): Promise<string[]> {
   return []
+}
+
+export async function teachMigrationMissing(): Promise<boolean> {
+  return false
+}
+
+export async function createTeachFolder(name: string, color: string = TEACH_COLOR): Promise<Student> {
+  const folder: Student = { id: uid('stu'), user_id: 'demo', name, color, kind: 'teach', sort_order: db().students.length, created_at: now() }
+  db().students.push(folder)
+  save()
+  return folder
+}
+
+export async function ensureTeachFolder(): Promise<Student> {
+  return db().students.find((s) => s.kind === 'teach') ?? createTeachFolder(TEACH_NAME)
 }
 
 /** Stand-in ratings for the demo's members, so the folders show something without the network. */

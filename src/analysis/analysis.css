@@ -37,6 +37,10 @@
 .rl-analysis button:disabled { opacity: 0.45; cursor: default; }
 .rl-analysis button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .rl-analysis button.danger:hover { border-color: var(--red); color: var(--red); }
+/* The arrow colour profile's label (components/board/ArrowProfileLabel) is text, not one of the board's buttons. */
+.rl-analysis button.arrow-profile-label,
+.rl-analysis button.arrow-profile-label:hover { background: none; border: 0; padding: 4px 0; color: var(--muted); }
+.rl-analysis button.arrow-profile-label:hover { color: var(--text); }
 .rl-analysis button.ghost { background: transparent; border-color: transparent; color: var(--muted); }
 .rl-analysis button.ghost:hover { color: var(--text); background: var(--card); }
 .rl-analysis button.small { padding: 3px 10px; font-size: 13px; border-radius: 6px; }

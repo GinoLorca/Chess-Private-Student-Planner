@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
 import { FILES, cellToSquare, isLightSquare, parsePlacement, type Orientation } from '../../lib/fen'
 import { usePieceSet } from '../../state/PieceSetContext'
+import { haloFor, highlightAlpha, solid, useArrowProfile } from '../../lib/arrowProfiles'
 import { Arrows } from './Arrows'
 
 export interface BoardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
@@ -44,6 +45,7 @@ export const Board = memo(function Board({
   ...rest
 }: BoardProps) {
   const { pieces } = usePieceSet()
+  const profiled = useArrowProfile() !== 'default'
   const placement = parsePlacement(fen)
   const highlightBySquare = new Map(highlights.map((h) => [h.square, h.color]))
   const hidden = new Set(hiddenSquares ?? [])
@@ -62,6 +64,7 @@ export const Board = memo(function Board({
           square={square}
           Piece={code && !hidden.has(square) ? pieces[code] : null}
           highlight={highlightBySquare.get(square)}
+          profiled={profiled}
           last={Boolean(lastMove && (lastMove.from === square || lastMove.to === square))}
           selected={selected === square}
           file={coordinates && y === 7}
@@ -105,6 +108,7 @@ const Square = memo(function Square({
   square,
   Piece,
   highlight,
+  profiled,
   last,
   selected,
   file,
@@ -113,6 +117,8 @@ const Square = memo(function Square({
   square: string
   Piece: ComponentType | null
   highlight?: string
+  /** An arrow colour profile is on: highlights stronger, with a ring and a halo (Chess Arcade's annoSquareShadow). */
+  profiled?: boolean
   last: boolean
   selected: boolean
   /** Show the file letter / rank number in this square's corner. */
@@ -129,7 +135,7 @@ const Square = memo(function Square({
       style={SQUARE_LINE}
     >
       {last && <div className="board-last absolute inset-0" />}
-      {highlight && <div className="absolute inset-0" style={{ background: highlight }} />}
+      {highlight && <div className="absolute inset-0" style={profiled ? profiledHighlight(highlight) : { background: highlight }} />}
       {selected && <div className="absolute inset-0" style={SELECTED} />}
       {Piece && (
         <div className="board-piece absolute inset-[6%]">
@@ -149,6 +155,15 @@ const Square = memo(function Square({
     </div>
   )
 })
+
+ /** A highlight with a profile on: 70% (black 55%) so each colour keeps its own on a coloured square, ringed and haloed. */
+function profiledHighlight(color: string): CSSProperties {
+  // Only the pen colours (a highlight's colour with its 40% alpha); anything else the app paints stays as given.
+  if (!/^#[0-9a-f]{8}$/i.test(color)) return { background: color }
+  const c = solid(color)
+  const halo = haloFor(c) === 'rgba(255,255,255,.6)' ? `max(3.5px, 0.75cqw) ${haloFor(c)}` : `max(3px, 0.68cqw) ${haloFor(c)}`
+  return { background: c + highlightAlpha(c, true), boxShadow: `inset 0 0 0 max(2px, 0.45cqw) ${c}, inset 0 0 0 ${halo}` }
+}
 
 const SQUARE_LINE: CSSProperties = { boxShadow: 'inset 0 0 0 0.14cqw var(--board-line)' }
 const SELECTED: CSSProperties = { boxShadow: 'inset 0 0 0 0.35em var(--board-select)' }

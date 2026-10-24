@@ -3,7 +3,8 @@ import clsx from 'clsx'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
 import { Board } from '../board/Board'
 import { squareAtPoint, DRAG_THRESHOLD } from '../board/pointer'
-import { HIGHLIGHT_ALPHA, PENS, currentPen } from '../../lib/pens'
+import { DEFAULT_PEN, HIGHLIGHT_ALPHA, PENS, heldPen } from '../../lib/pens'
+import { SEQ_COLORS, STRATEGIC, nextSeq, recolor, useArrowProfile } from '../../lib/arrowProfiles'
 import { Button } from '../ui/Button'
 import type { Orientation } from '../../lib/fen'
 
@@ -31,31 +32,55 @@ export function AnnotateBoard({
   onArrowsChange,
   onHighlightsChange,
 }: AnnotateBoardProps) {
-  const [penIndex, setPenIndex] = useState(0)
+  // Settings → Arrow colors, on this device. With a profile on, the Auto pen
+  // (its colours) is picked to start with; a pen still draws in its own.
+  const profile = useArrowProfile()
+  const [picked, setPicked] = useState<number | null>(null)
+  const penIndex = picked ?? (profile === 'default' ? 0 : -1)
   const [preview, setPreview] = useState<BoardArrow | null>(null)
   const [from, setFrom] = useState<string | null>(null)
   const boardRef = useRef<HTMLDivElement>(null)
-  const selectedPen = PENS[penIndex]
   const hasMarks = arrows.length > 0 || highlights.length > 0
+  type By = { color: string; auto: BoardArrow['auto'] }
+  const auto: By = { color: DEFAULT_PEN.value, auto: profile === 'default' ? false : profile }
+  const selected: By = penIndex < 0 || !PENS[penIndex] ? auto : { color: PENS[penIndex].value, auto: false }
 
   function clearAll() {
     if (highlights.length) onHighlightsChange([])
     if (arrows.length) onArrowsChange([])
   }
 
-  function toggleHighlight(square: string, pen = selectedPen) {
-    const color = pen.value + HIGHLIGHT_ALPHA
+  /** Both lists after a change, the profile's colours worked out again; each sent on only if it changed. */
+  function setMarks(nextArrows: BoardArrow[], nextHighlights: BoardHighlight[]) {
+    const r = recolor(profile, fen, nextArrows, nextHighlights)
+    if (JSON.stringify(r.arrows) !== JSON.stringify(arrows)) onArrowsChange(r.arrows)
+    if (JSON.stringify(r.highlights) !== JSON.stringify(highlights)) onHighlightsChange(r.highlights)
+  }
+  const same = (existing: { color: string; auto?: BoardArrow['auto'] }, by: By, color: string) => (by.auto ? existing.auto === by.auto : existing.color === color)
+
+  function toggleHighlight(square: string, by = selected) {
+    const color = by.color + HIGHLIGHT_ALPHA
     const existing = highlights.find((h) => h.square === square)
-    if (existing && existing.color === color) onHighlightsChange(highlights.filter((h) => h.square !== square))
-    else if (existing) onHighlightsChange(highlights.map((h) => (h.square === square ? { ...h, color } : h)))
-    else onHighlightsChange([...highlights, { square, color }])
+    const mark: BoardHighlight = { square, color, auto: by.auto, seq: nextSeq(arrows, highlights) }
+    if (existing && same(existing, by, color)) setMarks(arrows, highlights.filter((h) => h.square !== square))
+    else if (existing) setMarks(arrows, highlights.map((h) => (h.square === square ? mark : h)))
+    else setMarks(arrows, [...highlights, mark])
   }
 
-  function toggleArrow(start: string, end: string, pen = selectedPen) {
+  function toggleArrow(start: string, end: string, by = selected) {
     const i = arrows.findIndex((a) => a.startSquare === start && a.endSquare === end)
-    if (i >= 0 && arrows[i].color === pen.value) onArrowsChange(arrows.filter((_, j) => j !== i))
-    else if (i >= 0) onArrowsChange(arrows.map((a, j) => (j === i ? { ...a, color: pen.value } : a)))
-    else onArrowsChange([...arrows, { startSquare: start, endSquare: end, color: pen.value }])
+    const arrow: BoardArrow = { startSquare: start, endSquare: end, color: by.color, auto: by.auto, seq: nextSeq(arrows, highlights) }
+    if (i >= 0 && same(arrows[i], by, by.color)) setMarks(arrows.filter((_, j) => j !== i), highlights)
+    else if (i >= 0) setMarks(arrows.map((a, j) => (j === i ? arrow : a)), highlights)
+    else setMarks([...arrows, arrow], highlights)
+  }
+
+  /** The arrow being dragged out, in the colour it will take. */
+  function previewArrow(start: string, end: string, by: By): BoardArrow {
+    const arrow: BoardArrow = { startSquare: start, endSquare: end, color: by.color, auto: by.auto, seq: nextSeq(arrows, highlights) }
+    if (!by.auto) return arrow
+    const others = arrows.filter((a) => !(a.startSquare === start && a.endSquare === end))
+    return recolor(profile, fen, [...others, arrow], highlights).arrows.at(-1) ?? arrow
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -69,7 +94,12 @@ export function AnnotateBoard({
       clearAll()
       return
     }
-    const penFor = () => (e.pointerType === 'mouse' && e.button === 2 ? currentPen() : selectedPen)
+    // The right button: a held pen key, else the profile. Touch and the left button: the pen picked below.
+    const penFor = (): By => {
+      if (!(e.pointerType === 'mouse' && e.button === 2)) return selected
+      const held = heldPen()
+      return held ? { color: held.value, auto: false } : auto
+    }
     e.preventDefault()
     const target = e.currentTarget
     target.setPointerCapture(e.pointerId)
@@ -85,7 +115,7 @@ export function AnnotateBoard({
       const sq = squareAtPoint(ev.clientX, ev.clientY, boardRef.current)
       if (sq && sq !== last) {
         last = sq
-        setPreview(sq === start ? null : { startSquare: start, endSquare: sq, color: penFor().value })
+        setPreview(sq === start ? null : previewArrow(start, sq, penFor()))
       }
     }
     const onUp = (ev: PointerEvent) => {
@@ -107,10 +137,29 @@ export function AnnotateBoard({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
+          {profile !== 'default' && (
+            <button
+              onClick={() => setPicked(-1)}
+              aria-label={`Auto: the ${profile === 'sequential' ? 'Sequential' : 'Strategic'} colours`}
+              aria-pressed={penIndex === -1}
+              title={profile === 'sequential' ? 'Auto: each arrow the next colour' : 'Auto: White green, Black blue, captures red and yellow'}
+              className={clsx(
+                'inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-ink transition',
+                penIndex === -1 ? 'bg-surface-2 ring-2 ring-ink' : 'hover:bg-surface-2',
+              )}
+            >
+              <span className="flex -space-x-1">
+                {(profile === 'sequential' ? SEQ_COLORS.slice(0, 4) : [STRATEGIC.w, STRATEGIC.b, STRATEGIC.wx, STRATEGIC.bx]).map((c) => (
+                  <span key={c} className="block h-3.5 w-3.5 rounded-full ring-1 ring-surface" style={{ background: c }} />
+                ))}
+              </span>
+              Auto
+            </button>
+          )}
           {PENS.map((p, i) => (
             <button
               key={p.id}
-              onClick={() => setPenIndex(i)}
+              onClick={() => setPicked(i)}
               aria-label={p.name}
               aria-pressed={penIndex === i}
               className={clsx(

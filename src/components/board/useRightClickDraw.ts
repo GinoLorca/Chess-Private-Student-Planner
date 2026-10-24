@@ -7,7 +7,8 @@ import {
   type RefObject,
 } from 'react'
 import type { BoardArrow, BoardHighlight } from '../../types/domain'
-import { HIGHLIGHT_ALPHA, PENS, currentPen } from '../../lib/pens'
+import { DEFAULT_PEN, HIGHLIGHT_ALPHA, PENS, currentPen, heldPen } from '../../lib/pens'
+import { nextSeq, recolor, useArrowProfile } from '../../lib/arrowProfiles'
 import { DRAG_THRESHOLD, isSecondaryButton, squareAtPoint } from './pointer'
 
 /** How long a finger rests on a square before the press turns into drawing. */
@@ -53,6 +54,8 @@ interface Options {
    */
   clearOnClick?: boolean
   enabled?: boolean
+  /** The position the marks are on, for the Strategic arrow colours; the resetKey (every board's FEN) when not given. */
+  fen?: string
 }
 
 /**
@@ -77,7 +80,11 @@ export function useRightClickDraw({
   onHold,
   clearOnClick,
   enabled = true,
+  fen,
 }: Options): RightClickDraw {
+  // Settings → Arrow colors, on this device: what colours a mark drawn with no pen key.
+  const profile = useArrowProfile()
+  const position = fen ?? resetKey
   const [preview, setPreview] = useState<BoardArrow | null>(null)
   const [from, setFrom] = useState<string | null>(null)
   const [drawing, setDrawing] = useState(false)
@@ -92,6 +99,44 @@ export function useRightClickDraw({
   const marks = local ? own : { arrows, highlights }
   const setArrows = (next: BoardArrow[]) => (local ? setSketch({ ...own, arrows: next }) : onArrowsChange?.(next))
   const setHighlights = (next: BoardHighlight[]) => (local ? setSketch({ ...own, highlights: next }) : onHighlightsChange?.(next))
+  /**
+   * Both lists after a change, with the profile's colours worked out again
+   * (taking an arrow off recolours the ones after it); each list is only
+   * sent on if it changed.
+   */
+  function setMarks(nextArrows: BoardArrow[], nextHighlights: BoardHighlight[]) {
+    const r = recolor(profile, position, nextArrows, nextHighlights)
+    const arrowsChanged = JSON.stringify(r.arrows) !== JSON.stringify(marks.arrows)
+    const highlightsChanged = JSON.stringify(r.highlights) !== JSON.stringify(marks.highlights)
+    if (local) {
+      if (arrowsChanged || highlightsChanged) setSketch({ key: resetKey, arrows: r.arrows, highlights: r.highlights })
+      return
+    }
+    if (arrowsChanged) onArrowsChange?.(r.arrows)
+    if (highlightsChanged) onHighlightsChange?.(r.highlights)
+  }
+
+  /** Who colours a mark drawn now: a held pen key, else the profile (Default: green). */
+  function drawnBy(): { color: string; auto: BoardArrow['auto'] } {
+    const held = heldPen()
+    if (held) return { color: held.value, auto: false }
+    return { color: DEFAULT_PEN.value, auto: profile === 'default' ? false : profile }
+  }
+
+  /** The arrow being dragged out, in the colour it will take. */
+  function previewArrow(start: string, end: string): BoardArrow {
+    const by = drawnBy()
+    const arrow: BoardArrow = { startSquare: start, endSquare: end, color: by.color, auto: by.auto, seq: nextSeq(marks.arrows, marks.highlights) }
+    if (!by.auto) return arrow
+    const others = marks.arrows.filter((a) => !(a.startSquare === start && a.endSquare === end))
+    return recolor(profile, position, [...others, arrow], marks.highlights).arrows.at(-1) ?? arrow
+  }
+
+  // A mark drawn again: in Default, or with a pen key, the same colour takes
+  // it off (another colour repaints it); one the profile coloured comes off
+  // when drawn again the same way, keyless.
+  const sameMark = (existing: { color: string; auto?: BoardArrow['auto'] }, by: { color: string; auto: BoardArrow['auto'] }, color: string) =>
+    by.auto ? existing.auto === by.auto : existing.color === color
 
   // Once a finger is drawing, the page mustn't scroll under it. Safari only
   // honours this from a listener that isn't passive, so it's added by hand.
@@ -105,19 +150,21 @@ export function useRightClickDraw({
     return () => el.removeEventListener('touchmove', stop)
   }, [boardRef])
 
-  function toggleHighlight(square: string, pen: string) {
+  function toggleHighlight(square: string, pen: string, by = drawnBy()) {
     const color = pen + HIGHLIGHT_ALPHA
     const existing = marks.highlights.find((h) => h.square === square)
-    if (existing && existing.color === color) setHighlights(marks.highlights.filter((h) => h.square !== square))
-    else if (existing) setHighlights(marks.highlights.map((h) => (h.square === square ? { ...h, color } : h)))
-    else setHighlights([...marks.highlights, { square, color }])
+    const mark: BoardHighlight = { square, color, auto: by.auto, seq: nextSeq(marks.arrows, marks.highlights) }
+    if (existing && sameMark(existing, by, color)) setMarks(marks.arrows, marks.highlights.filter((h) => h.square !== square))
+    else if (existing) setMarks(marks.arrows, marks.highlights.map((h) => (h.square === square ? mark : h)))
+    else setMarks(marks.arrows, [...marks.highlights, mark])
   }
 
-  function toggleArrow(start: string, end: string, pen: string) {
+  function toggleArrow(start: string, end: string, pen: string, by = drawnBy()) {
     const i = marks.arrows.findIndex((a) => a.startSquare === start && a.endSquare === end)
-    if (i >= 0 && marks.arrows[i].color === pen) setArrows(marks.arrows.filter((_, j) => j !== i))
-    else if (i >= 0) setArrows(marks.arrows.map((a, j) => (j === i ? { ...a, color: pen } : a)))
-    else setArrows([...marks.arrows, { startSquare: start, endSquare: end, color: pen }])
+    const arrow: BoardArrow = { startSquare: start, endSquare: end, color: pen, auto: by.auto, seq: nextSeq(marks.arrows, marks.highlights) }
+    if (i >= 0 && sameMark(marks.arrows[i], by, pen)) setMarks(marks.arrows.filter((_, j) => j !== i), marks.highlights)
+    else if (i >= 0) setMarks(marks.arrows.map((a, j) => (j === i ? arrow : a)), marks.highlights)
+    else setMarks([...marks.arrows, arrow], marks.highlights)
   }
 
   /** The pen after this one, or null after the last: drawing a mark again on touch. */
@@ -128,6 +175,8 @@ export function useRightClickDraw({
   }
 
   function cycleHighlight(square: string) {
+    // With a profile on there's no pen to step through: drawing again takes it off.
+    if (profile !== 'default') return toggleHighlight(square, DEFAULT_PEN.value)
     const existing = marks.highlights.find((h) => h.square === square)
     const pen = nextPen(existing?.color)
     if (!pen) setHighlights(marks.highlights.filter((h) => h.square !== square))
@@ -135,6 +184,7 @@ export function useRightClickDraw({
   }
 
   function cycleArrow(start: string, end: string) {
+    if (profile !== 'default') return toggleArrow(start, end, DEFAULT_PEN.value)
     const existing = marks.arrows.find((a) => a.startSquare === start && a.endSquare === end)
     const pen = nextPen(existing?.color)
     if (!pen) setArrows(marks.arrows.filter((a) => a !== existing))
@@ -195,7 +245,7 @@ export function useRightClickDraw({
       const sq = squareAtPoint(ev.clientX, ev.clientY, boardRef.current)
       if (sq && sq !== last) {
         last = sq
-        setPreview(sq === start ? null : { startSquare: start, endSquare: sq, color: currentPen().value })
+        setPreview(sq === start ? null : previewArrow(start, sq))
       }
     }
     const onUp = (ev: PointerEvent) => {
@@ -249,7 +299,7 @@ export function useRightClickDraw({
       const sq = squareAtPoint(ev.clientX, ev.clientY, boardRef.current)
       if (sq && sq !== last) {
         last = sq
-        setPreview(sq === start ? null : { startSquare: start, endSquare: sq, color: currentPen().value })
+        setPreview(sq === start ? null : previewArrow(start, sq))
       }
     }
     const onUp = (ev: PointerEvent) => {
@@ -259,10 +309,10 @@ export function useRightClickDraw({
       setPreview(null)
       setFrom(null)
       // The pen is read at release, so a key pressed mid-drag still counts.
-      const pen = currentPen().value
+      const by = drawnBy()
       const end = squareAtPoint(ev.clientX, ev.clientY, boardRef.current) ?? last
-      if (!dragging || end === start) toggleHighlight(start, pen)
-      else toggleArrow(start, end, pen)
+      if (!dragging || end === start) toggleHighlight(start, by.color, by)
+      else toggleArrow(start, end, by.color, by)
     }
     target.addEventListener('pointermove', onMove)
     target.addEventListener('pointerup', onUp)

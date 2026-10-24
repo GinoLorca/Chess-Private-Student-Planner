@@ -1,4 +1,5 @@
 import { squareCell } from './legalMoves'
+import { haloFor, useArrowProfile } from '../lib/arrowProfiles'
 
 /** [from, to, colour] */
 export type Arrow = [string, string, string?]
@@ -15,6 +16,8 @@ const isKnightHop = (dx: number, dy: number) => {
  * chess.com draws them, instead of cutting across diagonally.
  */
 export function BoardArrows({ arrows, boardWidth, orientation }: { arrows: Arrow[]; boardWidth: number; orientation: 'white' | 'black' }) {
+  // A thin halo on every arrow while an arrow colour profile is on, as in Chess Arcade.
+  const haloed = useArrowProfile() !== 'default'
   if (!arrows?.length || !boardWidth) return null
   const size = boardWidth / 8
   const centre = (c: { x: number; y: number }) => ({ x: (c.x + 0.5) * size, y: (c.y + 0.5) * size })
@@ -76,6 +79,18 @@ export function BoardArrows({ arrows, boardWidth, orientation }: { arrows: Arrow
 
         return (
           <g key={`${from}-${to}-${i}`} opacity="0.85">
+            {haloed && (
+              <>
+                <polyline points={points} fill="none" stroke={haloFor(stroke)} strokeWidth={shaft + 3} strokeLinecap="butt" strokeLinejoin="miter" />
+                <polygon
+                  points={`${end.x},${end.y} ${baseX + px * headHalf},${baseY + py * headHalf} ${baseX - px * headHalf},${baseY - py * headHalf}`}
+                  fill="none"
+                  stroke={haloFor(stroke)}
+                  strokeWidth={3}
+                  strokeLinejoin="round"
+                />
+              </>
+            )}
             <polyline points={points} fill="none" stroke={stroke} strokeWidth={shaft} strokeLinecap="butt" strokeLinejoin="miter" />
             <polygon
               points={`${end.x},${end.y} ${baseX + px * headHalf},${baseY + py * headHalf} ${baseX - px * headHalf},${baseY - py * headHalf}`}

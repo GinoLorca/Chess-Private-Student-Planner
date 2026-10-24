@@ -1,5 +1,6 @@
 import type { BoardArrow } from '../../types/domain'
 import { squareToCell, type Orientation } from '../../lib/fen'
+import { haloFor, useArrowProfile } from '../../lib/arrowProfiles'
 
 // Proportions in square units, lifted from chess.com's arrow polygons: slim
 // shaft, modest head, tip on the target's centre, tail clear of the piece.
@@ -20,6 +21,10 @@ function isKnightHop(dx: number, dy: number) {
  * exactly one unit — arrows can't drift out of alignment with the grid.
  */
 export function Arrows({ arrows, orientation }: { arrows: BoardArrow[]; orientation: Orientation }) {
+  // With an arrow colour profile on, each arrow gets a thin halo, as in Chess
+  // Arcade: a profile picks colours unasked, and the halo keeps every one
+  // readable on every skin's squares.
+  const haloed = useArrowProfile() !== 'default'
   if (arrows.length === 0) return null
   return (
     // Its own compositing layer: drawing an arrow repaints only the arrows,
@@ -72,6 +77,18 @@ export function Arrows({ arrows, orientation }: { arrows: BoardArrow[]; orientat
 
         return (
           <g key={`${arrow.startSquare}${arrow.endSquare}${i}`} opacity={0.8}>
+            {haloed && (
+              <>
+                <polyline points={points} fill="none" stroke={haloFor(stroke)} strokeWidth={SHAFT + 0.07} strokeLinecap="butt" strokeLinejoin="miter" />
+                <polygon
+                  points={`${end.x},${end.y} ${baseX + px * HEAD_HALF},${baseY + py * HEAD_HALF} ${baseX - px * HEAD_HALF},${baseY - py * HEAD_HALF}`}
+                  fill="none"
+                  stroke={haloFor(stroke)}
+                  strokeWidth={0.07}
+                  strokeLinejoin="round"
+                />
+              </>
+            )}
             <polyline
               points={points}
               fill="none"

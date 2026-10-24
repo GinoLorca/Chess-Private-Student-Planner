@@ -6,6 +6,8 @@ import { useVisuals } from '../state/PieceSetContext'
 import { useAppearance } from '../app/providers'
 import { useResumeState } from '../lib/resume'
 import { PENS, heldPen } from '../lib/pens'
+import { ArrowProfileLabel } from '../components/board/ArrowProfileLabel'
+import { SEQ_COLORS, STRATEGIC, haloFor, highlightAlpha, nextSeq, recolor, solid, useArrowProfile, type ProfileMeta } from '../lib/arrowProfiles'
 import { Board } from '../analysis/Board'
 import { BoardArrows, type Arrow } from '../analysis/BoardArrows'
 import { LegalDots } from '../analysis/LegalDots'
@@ -44,7 +46,8 @@ const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 // at the board tells you which arrow is which line.
 const ARROW_COLORS = ['rgba(56, 176, 120, 0.92)', 'rgba(59, 132, 235, 0.85)', 'rgba(226, 142, 46, 0.85)']
 
-type Marks = { arrows: Arrow[]; squares: Record<string, string> }
+// meta: what the arrow colour profiles need of each drawn mark ('a:e2e4' for an arrow, 's:e4' for a square).
+type Marks = { arrows: Arrow[]; squares: Record<string, string>; meta?: Record<string, ProfileMeta> }
 const EMPTY_MARKS: Marks = { arrows: [], squares: {} }
 
 const SLOT_COLORS: HighlightColor[] = ['green', 'blue', 'yellow']
@@ -170,7 +173,11 @@ function AnalysisBoard({
   const [explorerError, setExplorerError] = useState<{ message: string; needsToken: boolean } | null>(null)
   const [tokenDraft, setTokenDraft] = useState('')
   const [sidePane, setSidePane] = useState<'engine' | 'explorer'>('engine')
-  const [drawColor, setDrawColor] = useState(PENS[0].value)
+  // The pen picked below: a colour, or 'auto' for the arrow colour profile's
+  // (Settings → Arrow colors), which is what a profile starts on.
+  const profile = useArrowProfile()
+  const [pickedColor, setDrawColor] = useState<string | null>(null)
+  const drawColor = pickedColor === 'auto' && profile === 'default' ? PENS[0].value : (pickedColor ?? (profile === 'default' ? PENS[0].value : 'auto'))
   const [drawMode, setDrawMode] = useState(false)
   const [drawFrom, setDrawFrom] = useState<string | null>(null)
   const [picked, setPicked] = useState<string | null>(null) // click-to-move: the piece you tapped
@@ -403,20 +410,46 @@ function AnalysisBoard({
   const marks = annotations[fen] ?? EMPTY_MARKS
   const updateMarks = (fn: (m: Marks) => Marks) => setAnnotations((all) => ({ ...all, [fen]: fn(all[fen] ?? EMPTY_MARKS) }))
 
-  const addArrow = (from: string, to: string, color = drawColor) =>
-    updateMarks((m) => ({
-      ...m,
-      // Drawing the same arrow twice removes it, like Lichess.
-      arrows: m.arrows.some((a) => a[0] === from && a[1] === to && a[2] === color)
-        ? m.arrows.filter((a) => !(a[0] === from && a[1] === to))
-        : [...m.arrows.filter((a) => !(a[0] === from && a[1] === to)), [from, to, color]],
-    }))
-  const toggleSquare = (square: string, color = drawColor) =>
+  type By = { color: string; auto: ProfileMeta['auto'] }
+  // A profile's colours worked out again over this position's marks, after every change.
+  const profiled = (m: Marks): Marks => {
+    if (profile === 'default') return m
+    const meta = m.meta ?? {}
+    const arrows = m.arrows.map(([f, t, c]) => ({ startSquare: f, endSquare: t, color: c ?? PENS[0].value, ...meta[`a:${f}${t}`] }))
+    const squares = Object.entries(m.squares).map(([sq, c]) => ({ square: sq, color: `${c}66`, ...meta[`s:${sq}`] }))
+    const r = recolor(profile, fen, arrows, squares)
+    return { ...m, arrows: r.arrows.map((a) => [a.startSquare, a.endSquare, a.color] as Arrow), squares: Object.fromEntries(r.highlights.map((h) => [h.square, solid(h.color)])) }
+  }
+  const seqOf = (m: Marks) => nextSeq(Object.values(m.meta ?? {}), [])
+  // The same mark again takes it off: the same colour, or (keyless, with a profile on) the same profile.
+  const sameAs = (color: string | undefined, meta: ProfileMeta | undefined, by: By) => (by.auto ? meta?.auto === by.auto : color === by.color)
+  const addArrow = (from: string, to: string, by: By = { color: drawColor, auto: false }) =>
     updateMarks((m) => {
+      const key = `a:${from}${to}`
+      const existing = m.arrows.find((a) => a[0] === from && a[1] === to)
+      const rest = m.arrows.filter((a) => !(a[0] === from && a[1] === to))
+      const meta = { ...m.meta }
+      // Drawing the same arrow twice removes it, like Lichess.
+      if (existing && sameAs(existing[2], meta[key], by)) {
+        delete meta[key]
+        return profiled({ ...m, arrows: rest, meta })
+      }
+      meta[key] = { auto: by.auto, seq: seqOf(m) }
+      return profiled({ ...m, arrows: [...rest, [from, to, by.color]], meta })
+    })
+  const toggleSquare = (square: string, by: By = { color: drawColor, auto: false }) =>
+    updateMarks((m) => {
+      const key = `s:${square}`
       const squares = { ...m.squares }
-      if (squares[square] === color) delete squares[square]
-      else squares[square] = color
-      return { ...m, squares }
+      const meta = { ...m.meta }
+      if (square in squares && sameAs(squares[square], meta[key], by)) {
+        delete squares[square]
+        delete meta[key]
+      } else {
+        squares[square] = by.color
+        meta[key] = { auto: by.auto, seq: seqOf(m) }
+      }
+      return profiled({ ...m, squares, meta })
     })
   const clearMarks = () =>
     setAnnotations((all) => {
@@ -427,8 +460,13 @@ function AnalysisBoard({
   const hasMarks = marks.arrows.length > 0 || Object.keys(marks.squares).length > 0
   const markedCount = Object.values(annotations).filter((m) => m.arrows.length > 0 || Object.keys(m.squares).length > 0).length
 
-  // The colour a drag ending now uses: a held pen key (Z, R, F, C), else the pen picked below.
-  const currentPenColor = () => heldPen()?.value ?? drawColor
+  // What a drag ending now draws with: a held pen key (Z, R, F, C), else the pen picked below (Auto: the profile).
+  const currentPen = (): By => {
+    const held = heldPen()
+    if (held) return { color: held.value, auto: false }
+    if (drawColor === 'auto' && profile !== 'default') return { color: PENS[0].value, auto: profile }
+    return { color: drawColor === 'auto' ? PENS[0].value : drawColor, auto: false }
+  }
 
   // Right-click drag on a mouse: press on the origin square, release on the target.
   const rightFrom = useRef<string | null>(null)
@@ -448,9 +486,9 @@ function AnalysisBoard({
     const to = squareAt(e)
     rightFrom.current = null
     if (!from || !to) return
-    const color = currentPenColor()
-    if (from === to) toggleSquare(from, color)
-    else addArrow(from, to, color)
+    const by = currentPen()
+    if (from === to) toggleSquare(from, by)
+    else addArrow(from, to, by)
   }
 
   // Draw mode (a finger, a pencil, or a mouse's left button): press a square
@@ -470,9 +508,9 @@ function AnalysisBoard({
     if (!drawMode || !e.isPrimary || !drawFrom || !isDrawButton(e)) return
     const square = squareFromPoint(e.clientX, e.clientY)
     if (square) {
-      const color = currentPenColor()
-      if (square === drawFrom) toggleSquare(square, color)
-      else addArrow(drawFrom, square, color)
+      const by = currentPen()
+      if (square === drawFrom) toggleSquare(square, by)
+      else addArrow(drawFrom, square, by)
     }
     setDrawFrom(null)
   }
@@ -540,10 +578,15 @@ function AnalysisBoard({
   const squareStyles = useMemo(() => {
     const styles: Record<string, Record<string, string>> = {}
     if (picked) styles[picked] = { background: 'rgba(59, 156, 255, 0.5)' }
-    for (const [sq, color] of Object.entries(marks.squares)) styles[sq] = { background: `${color}66`, boxShadow: `inset 0 0 0 3px ${color}` }
-    if (drawFrom) styles[drawFrom] = { background: `${drawColor}88` }
+    for (const [sq, color] of Object.entries(marks.squares))
+      styles[sq] =
+        profile === 'default'
+          ? { background: `${color}66`, boxShadow: `inset 0 0 0 3px ${color}` }
+          : // A profile picks colours unasked: stronger, with Chess Arcade's halo inside the ring.
+            { background: `${color}${highlightAlpha(color, true)}`, boxShadow: `inset 0 0 0 3px ${color}, inset 0 0 0 ${haloFor(color) === 'rgba(255,255,255,.6)' ? '5px' : '4.5px'} ${haloFor(color)}` }
+    if (drawFrom) styles[drawFrom] = { background: `${drawColor === 'auto' ? PENS[0].value : drawColor}88` }
     return styles
-  }, [marks.squares, drawFrom, drawColor, picked])
+  }, [marks.squares, drawFrom, drawColor, picked, profile])
 
   // ---------- Moves ----------
 
@@ -798,6 +841,15 @@ function AnalysisBoard({
                 <PencilIcon /> {drawMode ? 'Drawing' : 'Draw'}
               </button>
               <span className="pens">
+                {profile !== 'default' && (
+                  <button
+                    className={`pen pen-auto${drawColor === 'auto' ? ' active' : ''}`}
+                    style={{ background: `conic-gradient(${(profile === 'sequential' ? SEQ_COLORS.slice(0, 4) : [STRATEGIC.w, STRATEGIC.b, STRATEGIC.wx, STRATEGIC.bx]).map((c, i) => `${c} ${i * 25}% ${(i + 1) * 25}%`).join(', ')})` }}
+                    title={profile === 'sequential' ? 'Auto: each arrow the next colour (Sequential)' : 'Auto: White green, Black blue, captures red and yellow (Strategic)'}
+                    aria-label="Auto pen: the arrow colour profile"
+                    onClick={() => setDrawColor('auto')}
+                  />
+                )}
                 {PENS.map((p) => (
                   <button
                     key={p.value}
@@ -815,6 +867,11 @@ function AnalysisBoard({
                 Clear
               </button>
             </div>
+            {profile !== 'default' && (
+              <div style={{ maxWidth: boardWidth + EVAL_W }}>
+                <ArrowProfileLabel />
+              </div>
+            )}
             {/* On a tablet the two-line reminder pushes the controls off the screen, and there's no right-click there anyway. */}
             <div className="muted-note draw-hint" style={{ maxWidth: boardWidth + EVAL_W }}>
               {tight || viewportWidth < 900 ? (

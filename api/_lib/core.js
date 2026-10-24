@@ -46,8 +46,23 @@ import { DEFAULT_TIMEZONE, addDays, checkTimezone, departure, lessonsBetween, is
  * @typedef {{ db: Db, appOrigin: string, now?: Date }} ToolContext
  */
 
-/** The app's four pens (src/lib/pens.ts), by name, so the agent never sends a hex. */
-const PENS = { green: '#2ecc71', red: '#e5534b', blue: '#3b9cff', yellow: '#e8b339' }
+/**
+ * The app's four pens (src/lib/pens.ts), then the rest of the Sequential
+ * arrow colours (src/lib/arrowProfiles.ts), by name, so the agent never
+ * sends a hex and can read back any colour the coach drew.
+ */
+const PENS = {
+  green: '#2ecc71',
+  red: '#e5534b',
+  blue: '#3b9cff',
+  yellow: '#e8b339',
+  orange: '#f97316',
+  purple: '#8b5cf6',
+  pink: '#f472b6',
+  'light-blue': '#7dd3fc',
+  brown: '#8b5a2b',
+  black: '#1a1a1a',
+}
 /** Square highlights are the pen at 40%, as when drawn by hand. */
 const HIGHLIGHT_ALPHA = '66'
 const PEN_NAMES = Object.keys(PENS)
@@ -96,7 +111,7 @@ const POSITION_SCHEMA = {
         properties: {
           from: { type: 'string', description: 'Square, e.g. "e4".' },
           to: { type: 'string', description: 'Square, e.g. "h7".' },
-          color: { type: 'string', enum: PEN_NAMES, description: 'green (default) for the idea, red for the threat, blue for a plan or route, yellow for a key square or piece.' },
+          color: { type: 'string', enum: PEN_NAMES, description: 'green (default) for the idea, red for the threat, blue for a plan or route, yellow for a key square or piece. The others (orange, purple, pink, light-blue, brown, black) are the Sequential colours, for a fifth idea onwards.' },
         },
       },
       description:

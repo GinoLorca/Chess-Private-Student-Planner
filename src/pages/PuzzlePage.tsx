@@ -16,6 +16,7 @@ import { useSolve } from '../hooks/useSolve'
 import { ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, Layers, Pencil, Play, Target, Teach } from '../components/ui/Icons'
 import { SendToTeachSheet } from '../components/teach/SendToTeachSheet'
 import { DeconstructCard } from '../components/deconstruct/DeconstructCard'
+import { ArrowProfileLabel } from '../components/board/ArrowProfileLabel'
 import { isTeach } from '../lib/teach'
 import { analysisHref } from '../lib/analysisLink'
 import { useHideToggle } from '../hooks/useHideToggle'
@@ -202,16 +203,17 @@ export function PuzzlePage() {
               orientation={orientation}
               onArrowsChange={(arrows) =>
                 // The move's own arrow is shown, not drawn: it stays out of the sketch.
-                editable ? update.mutate({ arrows }) : setSketch({ ...here, arrows: arrows.filter((a) => !shownArrows.includes(a)) })
+                editable ? update.mutate({ arrows }) : setSketch((s) => ({ ...(s.at === sketchAt ? s : here), arrows: arrows.filter((a) => !shownArrows.includes(a)) }))
               }
               onHighlightsChange={(highlights) =>
-                editable ? update.mutate({ highlights: unmarked(highlights) }) : setSketch({ ...here, highlights: unmarked(highlights) })
+                editable ? update.mutate({ highlights: unmarked(highlights) }) : setSketch((s) => ({ ...(s.at === sketchAt ? s : here), highlights: unmarked(highlights) }))
               }
               sketch={!editable}
               onClick={showing ? stepForward : last > 0 ? next : undefined}
             />
           )}
           </div>
+          <ArrowProfileLabel className="mt-1.5 block px-1" />
           {showing ? (
             <LineBar demo={demo} puzzle={puzzle} className="mt-3" />
           ) : last > 0 && !hidden && (

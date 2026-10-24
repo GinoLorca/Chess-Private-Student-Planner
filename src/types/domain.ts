@@ -79,13 +79,21 @@ export interface LessonSection {
   sort_order: number
 }
 
-export interface BoardArrow {
+/** What a mark the coach drew carries for the arrow colour profiles (lib/arrowProfiles); the app's own marks have neither. */
+interface DrawnMeta {
+  /** The profile that coloured it, or false for a pen key or Default. */
+  auto?: 'sequential' | 'strategic' | false
+  /** Draw order, across a position's arrows and highlights. */
+  seq?: number
+}
+
+export interface BoardArrow extends DrawnMeta {
   startSquare: string
   endSquare: string
   color: string
 }
 
-export interface BoardHighlight {
+export interface BoardHighlight extends DrawnMeta {
   square: string
   color: string
 }

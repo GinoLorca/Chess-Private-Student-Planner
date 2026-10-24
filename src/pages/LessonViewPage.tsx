@@ -26,6 +26,7 @@ import { SendToTeachSheet } from '../components/teach/SendToTeachSheet'
 import { isTeach } from '../lib/teach'
 import { addedSquares, levelRun } from '../lib/levels'
 import { LevelMarks } from '../components/deconstruct/LevelMarks'
+import { ArrowProfileLabel } from '../components/board/ArrowProfileLabel'
 import { useHideToggle } from '../hooks/useHideToggle'
 import { useFlip } from '../hooks/useFlip'
 import { useResumeState } from '../lib/resume'
@@ -372,11 +373,11 @@ function PuzzleView({
   const setArrows = (arrows: BoardArrow[]) =>
     showAnnotations
       ? update.mutate({ arrows })
-      : setSketch({ at: sketchAt, arrows: arrows.filter((a) => !shownArrows.includes(a)), highlights: sketchHere?.highlights ?? [] })
+      : setSketch((s) => ({ at: sketchAt, arrows: arrows.filter((a) => !shownArrows.includes(a)), highlights: s && s.at === sketchAt ? s.highlights : [] }))
   const setHighlights = (highlights: BoardHighlight[]) =>
     showAnnotations
       ? update.mutate({ highlights: unmarked(highlights) })
-      : setSketch({ at: sketchAt, highlights: unmarked(highlights).filter((h) => !levelMarks?.highlights.includes(h)), arrows: sketchHere?.arrows ?? [] })
+      : setSketch((s) => ({ at: sketchAt, highlights: unmarked(highlights).filter((h) => !levelMarks?.highlights.includes(h)), arrows: s && s.at === sketchAt ? s.arrows : [] }))
   const lastMove = showing
     ? showing.lastMove
     : !atStart && !notesHidden && current.from && current.to
@@ -460,14 +461,15 @@ function PuzzleView({
         style={{ maxWidth: 'min(var(--board-max), calc(100svh - var(--board-reserve)))' }}
       >
         <div className="flex items-end gap-3 pl-3">
+          {/* On a phone the tab keeps to half the row and Coach view's links wrap beside it. */}
           <p
-            className="folder-tab flex h-8 min-w-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] uppercase"
+            className="folder-tab flex h-8 max-w-[42%] min-w-0 shrink-0 items-center gap-2 rounded-t-xl px-3.5 text-[12px] font-bold tracking-[0.08em] uppercase sm:max-w-none sm:shrink"
             style={{ background: color, color: onColor(color).inkSoft }}
           >
             <span className="block h-2 w-2 shrink-0 rounded-[2px]" style={{ background: onColor(color).dot }} />
             <span className="truncate">{sectionTitle}</span>
           </p>
-          <div className="flex-1" />
+          <div className="ml-auto flex min-w-0 flex-wrap items-end justify-end gap-x-3">
           <Caption className="hidden pb-1 lg:flex" dot={dot} position={position} label={revealed && !notesHidden ? puzzle.label : ''} toMove={toMove} />
           {mode === 'coach' && (
             <Link
@@ -497,9 +499,12 @@ function PuzzleView({
               De-Construct
             </Link>
           )}
+          {/* What the drawn colours mean, while a profile is on; under the board on a phone. */}
+          <ArrowProfileLabel className="hidden shrink-0 pb-1.5 sm:block" />
           <button onClick={flip} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg">
             Flip board
           </button>
+          </div>
         </div>
         <LevelMarks fresh={level?.fresh}>
         <div ref={boardRef}>
@@ -551,6 +556,7 @@ function PuzzleView({
         </LevelMarks>
         {showing && <LineBar demo={demo} puzzle={puzzle} className="mt-2" />}
         <Caption className="mt-2 flex lg:hidden" dot={dot} position={position} label={revealed && !notesHidden ? puzzle.label : ''} toMove={toMove} />
+        <ArrowProfileLabel className="mt-1 block px-1 sm:hidden" />
       </div>
 
       <div className="space-y-3">

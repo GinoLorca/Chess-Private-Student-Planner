@@ -8,6 +8,7 @@ import { BOARD_THEMES, resolveBoard } from '../lib/boardThemes'
 import { FOLDER_SKIN, SKINS, setArtOff, useArtOff } from '../lib/skins'
 import { START_FEN } from '../lib/fen'
 import { useAllStudents, useCustomPieceSetMutations } from '../lib/queries'
+import { PROFILES, SEQ_COLORS, SEQ_NAMES, STRATEGIC, setArrowProfile, useArrowProfile } from '../lib/arrowProfiles'
 import { isTeach } from '../lib/teach'
 import { setFolderPrivate, usePrivateFolders } from '../lib/privateFolders'
 import { imagesFromFiles, readPieceFiles, type ImportedPieceFile } from '../lib/pieceImport'
@@ -113,6 +114,13 @@ export function SettingsPage() {
         (Game Boy, Hustler, Drive-Thru, Rose, Chess Book, Uptown Express). Each device keeps its own choice.
       </p>
       <SoundsSwitch />
+
+      <SectionLabel tone="page">Arrow colors</SectionLabel>
+      <p className="-mt-1 mb-3 text-[14px] text-on-bg-2">
+        The colours of the arrows and highlights you draw, on every board. A held pen key (Z, R, F, C) still picks one by hand, and a lesson's saved
+        arrows keep the colours they were drawn in. Each device keeps its own choice; the same three as Chess Arcade.
+      </p>
+      <ArrowProfileChoice />
 
       <SectionLabel tone="page">Board colours</SectionLabel>
       {skin !== FOLDER_SKIN && (
@@ -707,6 +715,52 @@ function RemindersCard() {
           >
             Use this shortcut
           </Button>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+/** Settings → Arrow colors: Default, Sequential or Strategic, for this device. */
+function ArrowProfileChoice() {
+  const profile = useArrowProfile()
+  return (
+    <Card className="mb-8 p-1.5">
+      <div className="flex gap-1" role="radiogroup" aria-label="Arrow colors">
+        {PROFILES.map((p) => (
+          <button
+            key={p.id}
+            role="radio"
+            aria-checked={profile === p.id}
+            onClick={() => setArrowProfile(p.id)}
+            className={clsx(
+              'flex h-11 flex-1 items-center justify-center rounded-xl text-[15px] font-semibold transition',
+              profile === p.id ? 'bg-accent text-accent-ink shadow-card' : 'text-ink-2 hover:bg-surface-2',
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+      <div className="px-2.5 pt-2.5 pb-1.5">
+        <p className="text-[13.5px] text-ink-2">{PROFILES.find((p) => p.id === profile)?.blurb}</p>
+        {profile !== 'default' && (
+          <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-ink-3">
+            {(profile === 'sequential'
+              ? SEQ_COLORS.map((c, i) => ({ c, label: `${i + 1} ${SEQ_NAMES[i]}` }))
+              : [
+                  { c: STRATEGIC.w, label: 'White' },
+                  { c: STRATEGIC.b, label: 'Black' },
+                  { c: STRATEGIC.wx, label: 'White takes' },
+                  { c: STRATEGIC.bx, label: 'Black takes' },
+                ]
+            ).map(({ c, label }) => (
+              <span key={label} className="inline-flex items-center gap-1.5">
+                <span className="block h-3 w-3 rounded-full" style={{ background: c, boxShadow: c === '#1a1a1a' || c === '#8b5a2b' ? '0 0 0 1px var(--line-strong)' : undefined }} />
+                {label}
+              </span>
+            ))}
+          </p>
         )}
       </div>
     </Card>

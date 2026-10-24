@@ -97,6 +97,18 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   Intermediate → Advanced, the pieces each level adds settling onto the board. The levels
   live on the position (lessons don't fill with copies), show as *3 levels* on its card, and
   come along to Teach. An agent can write them too (`set_levels`).
+- **Arrow colors** — Settings → Arrow colors picks how the arrows and highlights you draw are
+  coloured, per device, the same three profiles as Chess Arcade. **Default** is the pen as
+  always: green, or the one whose key you hold (Z, R, F, C). **Sequential** gives each arrow on a
+  position the next colour, no key needed (green, yellow, blue, red, orange, purple, pink, light
+  blue, brown, black, then green again). **Strategic** colours by side, following the line arrow
+  by arrow: White's moves green, Black's blue, White's captures red, Black's captures yellow. In
+  both, a highlight takes the colour of the arrow before it, taking an arrow off recolours the
+  ones after it, and a held pen key still picks a colour by hand. A lesson's saved arrows keep
+  the colours they were drawn in, whatever a device is set to later. With a profile on, a label
+  by the board (*Arrows: Sequential*) says what the colours mean and tapping it moves to the next
+  profile; arrows and highlights get a thin outline so every colour reads on both squares. The
+  editor's Arrows tab and the analysis board have an *Auto* pen for the profile.
 - **Schedule for agents** — the connector's `next_lesson` and `get_schedule` tools give an agent
   (Muse's Hugo) the next lesson that's on, its start time with the time zone, the address and
   door codes, and, given the travel time from where the coach is, when to leave. See DEPLOY.md.

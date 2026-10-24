@@ -278,7 +278,8 @@ rejected with that advice. `move_notes` is one short comment per move of that li
 shown under the move as you step through it in Coach view. `arrows` are
 `{ from: "d1", to: "d8", color? }` and `highlights` are `{ square: "g8", color? }`, drawn on
 the starting position and shown once the answer is revealed; colours are the app's four pens,
-`green` (default), `red`, `blue`, `yellow`. For positions taken from a course (Chessable, a
+`green` (default), `red`, `blue`, `yellow`, or the rest of the Sequential colours, `orange`,
+`purple`, `pink`, `light-blue`, `brown`, `black`. For positions taken from a course (Chessable, a
 Lichess study, a book): `fen` is the starting FEN, `answer` the move line, `source_url` the
 course link, and `note` carries the course's own comment on the move, so the author's
 explanation arrives with the position instead of being retyped. Puzzles with no text of their

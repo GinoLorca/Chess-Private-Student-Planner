@@ -220,10 +220,13 @@ Lesson N and returns its link and the annotate link), `add_positions(lesson_id, 
 `get_position(position)` (now with the position's De-Construct `levels`), `set_levels`, two
 for Teach, and two for the schedule:
 
-- `set_levels(position, beginner?, intermediate?)`: De-Construct a position from outside the
-  app. Each level is a position as `create_lesson` takes it (fen, answer, notes), made by
-  taking pieces off the position itself; `null` removes one. `checks` says when a level isn't a
-  strip-down (a piece moved, the other side to move, a different first move).
+- `set_levels(position, beginner?, intermediate?, keep_line?)`: De-Construct a position from
+  outside the app. Each level is a position as `create_lesson` takes it (fen, answer, notes),
+  made by taking pieces off the position itself; `null` removes one. By default it holds a level
+  to *Keep the whole line*, as the app does: `checks` says when a piece moved, the other side is
+  to move, the answer leaves the recorded one (or stops short of it without a mate), or the side
+  defending gets a way out of a check it didn't have (*after d4+, White can get out of the check
+  with Qg2*). `keep_line: false` checks the first move only.
 
 - `list_teach_folders` and `create_teach_folder(name)`: the Teach folders (lessons for anyone,
   apart from the students; the first, Teach, is made if there are none). A folder's id goes in

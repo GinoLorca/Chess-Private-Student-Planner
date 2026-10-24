@@ -251,7 +251,7 @@ export const TOOLS = [
   {
     name: 'set_levels',
     description:
-      "De-Construct a position: save its Beginner and Intermediate versions; the position itself is Advanced. Each is the same idea with fewer pieces, made by taking pieces off the position (the rest stay on their squares): keep the kings, the pieces that move in the answer and the pieces it captures, take off pieces furthest from the action first, and keep a removal only when Stockfish agrees the answer's first move still works and is still the only move. Beginner has the fewest pieces; Intermediate puts about half back. Give each as a position like create_lesson's (fen, answer, move_notes, question, note, arrows, highlights), worded about the position only. Pass null to remove one. The coach can also have them suggested in the app (De-Construct). Returns `checks` for anything that doesn't look like a strip-down, and the De-Construct link.",
+      "De-Construct a position: save its Beginner and Intermediate versions; the position itself is Advanced. Each is the same idea with fewer pieces, made by taking pieces off the position (the rest stay on their squares). Always keep the kings, the pieces that move in the answer and the pieces it captures. Take pieces off furthest from the action first, and keep a removal only when (1) Stockfish still plays the answer's first move, it works as well as before (a mate stays a mate) and is still clearly the best move; (2) Stockfish's line from it is still the recorded answer, move for move, as far as Stockfish agreed with the answer in the position itself; and (3) wherever the side defending is in check along that line, it has no move it didn't have in the position itself (no new block, king flight or capture: a pawn that stops a queen from interposing stays). Beginner has the fewest pieces; Intermediate puts back about half, the pieces nearest the action, and passes the same checks. With keep_line false (when the coach says to keep only the first move), only (1) applies. Give each as a position like create_lesson's (fen, answer, move_notes, question, note, arrows, highlights), its answer as Stockfish plays it there, worded about the position only. Pass null to remove one. The coach can also have them suggested in the app (De-Construct). Returns `checks` for anything that breaks these rules (a moved piece, the other side to move, an answer that leaves the recorded one, a new way out of a check), and the De-Construct link.",
     inputSchema: {
       type: 'object',
       required: ['position'],
@@ -259,6 +259,10 @@ export const TOOLS = [
         position: { type: 'string', description: 'The position id, or a link to it from the app.' },
         beginner: { anyOf: [POSITION_SCHEMA, { type: 'null' }], description: 'The fewest pieces.' },
         intermediate: { anyOf: [POSITION_SCHEMA, { type: 'null' }], description: 'Some of the pieces back.' },
+        keep_line: {
+          type: 'boolean',
+          description: 'True (the default): the whole recorded answer and its defences must stay the same. False: only the first move has to (the coach asked to keep only the first move).',
+        },
       },
     },
   },
@@ -475,7 +479,7 @@ export async function callTool(name, args, ctx) {
         if (!(key in args)) continue
         const input = args[key]
         if (input === null) delete levels[key]
-        else levels[key] = levelRow(input, found.puzzle, key === 'beginner' ? 'Beginner' : 'Intermediate', checks)
+        else levels[key] = levelRow(input, found.puzzle, key === 'beginner' ? 'Beginner' : 'Intermediate', checks, args.keep_line !== false)
       }
       const stored = levels.beginner || levels.intermediate ? levels : null
       await db.setLevels(id, stored)
@@ -642,8 +646,9 @@ export function describePosition(found, appOrigin) {
  * way the app keeps a level, with anything that doesn't look like a
  * strip-down of the original reported (but saved: the coach decides).
  * @param {PositionInput} input @param {Record<string, any>} original @param {string} name @param {string[]} warnings
+ * @param {boolean} keepLine the whole answer and its defences must stay, not just the first move
  */
-function levelRow(input, original, name, warnings) {
+function levelRow(input, original, name, warnings, keepLine) {
   const row = toRow(input, 0)
   const origFen = normalizeFen(original.starting_fen)
   const pieces = (/** @type {string} */ f) => {
@@ -664,6 +669,7 @@ function levelRow(input, original, name, warnings) {
   if (mine.size >= theirs.size) warnings.push(`${name}: it has as many pieces as the position itself.`)
   if (row.side_to_move !== original.side_to_move) warnings.push(`${name}: the other side is to move.`)
   if (original.solution?.[0]?.san && row.solution[0]?.san !== original.solution[0].san) warnings.push(`${name}: its answer starts ${row.solution[0]?.san ?? '(none)'}, not ${original.solution[0].san} like the position itself.`)
+  else if (keepLine) for (const w of sameIdea(origFen, row.starting_fen, original.solution ?? [], row.solution)) warnings.push(`${name}: ${w}`)
   return {
     starting_fen: row.starting_fen,
     side_to_move: row.side_to_move,
@@ -675,6 +681,54 @@ function levelRow(input, original, name, warnings) {
     highlights: row.highlights,
     made: { by: 'coach' },
   }
+}
+
+/**
+ * What "keep the whole line" asks of a level, as the app's De-Construct
+ * checks it: its answer is the position's own, move for move (it may end
+ * sooner only in a mate), and played along that line the side defending
+ * never has a way out of a check it didn't have in the position itself.
+ * @param {string} originalFen @param {string} levelFen @param {Move[]} line the position's answer @param {Move[]} answer the level's
+ * @returns {string[]}
+ */
+export function sameIdea(originalFen, levelFen, line, answer) {
+  const out = []
+  const bare = (/** @type {string | undefined} */ san) => san?.replace(/[+#]+$/, '')
+  const at = line.findIndex((m, i) => i < answer.length && bare(answer[i].san) !== bare(m.san))
+  if (at >= 0) {
+    out.push(`its answer leaves the position's at move ${at + 1} (${answer[at].san} where the position plays ${line[at].san}). Keep the whole line, or pass keep_line: false if only the first move has to stay.`)
+  } else if (answer.length < line.length && !/#$/.test(answer[answer.length - 1]?.san ?? '')) {
+    out.push(`its answer stops after ${answer.length} move${answer.length === 1 ? '' : 's'}; the position's has ${line.length}.`)
+  }
+  // The position's own line, played in both, from the same squares to the same squares.
+  const a = new Chess(originalFen)
+  let b
+  try {
+    b = new Chess(levelFen)
+  } catch {
+    return out
+  }
+  for (const [i, m] of line.entries()) {
+    if (i % 2 === 1 && b.inCheck()) {
+      const before = new Set(a.moves({ verbose: true }).map((x) => x.from + x.to + (x.promotion ?? '')))
+      const fresh = b.moves({ verbose: true }).filter((x) => !before.has(x.from + x.to + (x.promotion ?? ''))).map((x) => x.san)
+      if (fresh.length) {
+        const side = b.turn() === 'w' ? 'White' : 'Black'
+        out.push(
+          `after ${line[i - 1].san}, ${side} can get out of the check with ${fresh.join(', ')}, which it can't in the position itself. Put back the piece that stopped ${fresh.length === 1 ? 'it' : 'them'}, or pass keep_line: false.`,
+        )
+        break
+      }
+    }
+    let played
+    try {
+      played = a.move(m.san)
+      b.move({ from: played.from, to: played.to, promotion: played.promotion })
+    } catch {
+      break
+    }
+  }
+  return out
 }
 
 /** The zone asked for, else COACH_TIMEZONE, else New York. @param {unknown} v */
@@ -715,7 +769,7 @@ function positions(v) {
 // ---------------------------------------------------------------------------
 
 export const PROTOCOL_VERSION = '2025-03-26'
-export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.5.0' }
+export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.6.0' }
 
 /**
  * One JSON-RPC message in, one response out; notifications (no id) return null.

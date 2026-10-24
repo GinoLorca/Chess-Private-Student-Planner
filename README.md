@@ -82,12 +82,18 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   fewest pieces, **Intermediate** puts some back, **Advanced** is the position itself. *Suggest*
   has Stockfish (on the device, offline too) take pieces off, furthest from the action first,
   keeping a change only when the answer's first move still works as well and is still the move
-  (the kings, the pieces that move in the answer and the pieces it takes always stay), then
+  (the kings, the pieces that move in the answer and the pieces it takes always stay). With
+  *Keep the whole line* (the default) Stockfish's line must also still be your recorded one,
+  and the side defending may not gain a way out of a check it didn't have (a queen blocking
+  once a pawn is gone); *Keep the first move* takes more off and lets the rest change. Then it
   looks at both again, deeper, and marks each *Checked* or *Check it*. A few seconds to under a
   minute. Tactics strip down well; quiet positional moves need most of their pieces, so expect
   less off those. What's left stands on the same squares at every level, and *Show the core*
-  rings the Beginner's pieces on the harder boards. Edit any level in the usual editor, or
-  build them by hand. *Present* and *Learn* on the De-Construct page run Beginner →
+  rings the Beginner's pieces on the harder boards. Edit any level in the usual editor: it
+  opens on the set-up board (tap a tray piece then a square to add it, drag a piece off the
+  board to take it off), with a *Put back* chip for every piece the position has and the level
+  doesn't, and the level's answer kept as far as it still plays (and growing back as pieces
+  return). Or build them by hand. *Present* and *Learn* on the De-Construct page run Beginner →
   Intermediate → Advanced, the pieces each level adds settling onto the board. The levels
   live on the position (lessons don't fill with copies), show as *3 levels* on its card, and
   come along to Teach. An agent can write them too (`set_levels`).

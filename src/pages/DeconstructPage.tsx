@@ -12,6 +12,7 @@ import { LevelMarks } from '../components/deconstruct/LevelMarks'
 import { Card, LoadingPage, Page, Spinner } from '../components/ui/Page'
 import { Button } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { Modal } from '../components/ui/Modal'
 import { MigrationNotice } from '../components/ui/MigrationNotice'
 import { Check, Layers, Pencil, Play, Warning } from '../components/ui/Icons'
 import teachSql from '../../supabase/migrations/0014_teach_and_levels.sql?raw'
@@ -38,6 +39,8 @@ export function DeconstructPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<'replace' | 'remove' | null>(null)
   const [tab, setTab] = useState<LevelKey>('beginner')
+  // What has to survive: the whole recorded line and its defences, or the first move alone.
+  const [keepLine, setKeepLine] = useState(true)
   const stop = useRef<AbortController | null>(null)
   useEffect(() => () => stop.current?.abort(), [])
 
@@ -58,7 +61,7 @@ export function DeconstructPage() {
     stop.current = controller
     setRunning({ looked: 0, candidates: 0, removed: 0, stage: 'start' })
     try {
-      const result = await suggestLevels(puzzle, { onProgress: setRunning, signal: controller.signal })
+      const result = await suggestLevels(puzzle, { keepLine, onProgress: setRunning, signal: controller.signal })
       setNote(result.note ?? null)
       if (result.levels.beginner || result.levels.intermediate) update.mutate({ levels: result.levels })
     } catch (e) {
@@ -144,6 +147,7 @@ export function DeconstructPage() {
                 still works and is still the move. Then adjust either version in the editor.
               </p>
               {puzzle.solution.length === 0 && <p className="mt-2 text-[14px] font-medium text-warn">Record the answer first: its first move is the idea that has to survive.</p>}
+              <KeepChoice keepLine={keepLine} onChange={setKeepLine} className="mt-4" />
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button variant="primary" icon={<Layers size={18} />} disabled={puzzle.solution.length === 0} onClick={() => void suggest()}>
                   Suggest Beginner and Intermediate
@@ -234,17 +238,22 @@ export function DeconstructPage() {
         </>
       )}
 
-      <ConfirmDialog
-        open={confirming === 'replace'}
-        title="Suggest them again?"
-        body="The Beginner and Intermediate are replaced by new suggestions, and any changes you made to them go."
-        confirmLabel="Suggest again"
-        onClose={() => setConfirming(null)}
-        onConfirm={() => {
-          setConfirming(null)
-          void suggest()
-        }}
-      />
+      <Modal open={confirming === 'replace'} onClose={() => setConfirming(null)} title="Suggest them again?" variant="dialog">
+        <p className="text-[15px] text-ink-2">The Beginner and Intermediate are replaced by new suggestions, and any changes you made to them go.</p>
+        <KeepChoice keepLine={keepLine} onChange={setKeepLine} className="mt-4" />
+        <div className="mt-5 flex justify-end gap-2">
+          <Button onClick={() => setConfirming(null)}>Cancel</Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setConfirming(null)
+              void suggest()
+            }}
+          >
+            Suggest again
+          </Button>
+        </div>
+      </Modal>
       <ConfirmDialog
         open={confirming === 'remove'}
         title="Remove the easier versions?"
@@ -258,6 +267,33 @@ export function DeconstructPage() {
         }}
       />
     </Page>
+  )
+}
+
+/** What the strip-down has to keep: the whole line (the default), or the first move alone. */
+function KeepChoice({ keepLine, onChange, className }: { keepLine: boolean; onChange: (keep: boolean) => void; className?: string }) {
+  const options = [
+    { value: true, title: 'Keep the whole line', body: 'The same moves, and no new way out of a check for the side defending. The idea stays exactly the idea.' },
+    { value: false, title: 'Keep the first move', body: 'Only the first move has to survive. More pieces come off; the rest of the line may change.' },
+  ]
+  return (
+    <div className={clsx('grid gap-2 sm:grid-cols-2', className)} role="radiogroup" aria-label="What has to stay the same">
+      {options.map((o) => (
+        <button
+          key={o.title}
+          role="radio"
+          aria-checked={keepLine === o.value}
+          onClick={() => onChange(o.value)}
+          className={clsx(
+            'rounded-xl border px-3.5 py-2.5 text-left transition',
+            keepLine === o.value ? 'border-accent bg-accent-soft' : 'border-line-strong hover:bg-surface-2',
+          )}
+        >
+          <span className={clsx('block text-[14.5px] font-semibold', keepLine === o.value ? 'text-accent-strong' : 'text-ink')}>{o.title}</span>
+          <span className="mt-0.5 block text-[13px] text-ink-2">{o.body}</span>
+        </button>
+      ))}
+    </div>
   )
 }
 

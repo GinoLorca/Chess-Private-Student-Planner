@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Chess } from 'chess.js'
+import { usePieceSet } from '../state/PieceSetContext'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import clsx from 'clsx'
 import type { LevelId, Puzzle, PuzzleLevels, SolutionMove } from '../types/domain'
 import type { PuzzlePatch } from '../lib/data'
 import { useLesson, usePuzzle, usePuzzleMutations, useStudent } from '../lib/queries'
-import { normalizeFen, placementOf, sideToMoveOf } from '../lib/fen'
+import { normalizeFen, parsePlacement, placementOf, serializePlacement, sideToMoveOf, type PieceCode } from '../lib/fen'
 import { patchFromImported, replayLine } from '../lib/import'
 import { Page, LoadingPage, SectionLabel } from '../components/ui/Page'
 import { DividerPaper, DividerTabs, FolderBody, FolderTab, PaperCard } from '../components/lesson/Folder'
@@ -116,7 +118,7 @@ function LevelEditor({
     <Editor
       {...rest}
       initial={initial}
-      level={{ name: levelName(levelKey), doneTo: deconstruct }}
+      level={{ name: levelName(levelKey), doneTo: deconstruct, original: { fen: normalizeFen(puzzle.starting_fen, puzzle.side_to_move), solution: puzzle.solution } }}
       back={deconstruct}
       save={(patch) => {
         const current = levels.current?.[levelKey]
@@ -143,8 +145,8 @@ function Editor({
   saving,
 }: {
   initial: Puzzle
-  /** Editing one of De-Construct's easier versions: its name, and where Done goes. */
-  level?: { name: string; doneTo: string }
+  /** Editing one of De-Construct's easier versions: its name, where Done goes, and the position it comes from. */
+  level?: { name: string; doneTo: string; original: { fen: string; solution: SolutionMove[] } }
   studentName: string
   /** In a student's folder: their name, for Send to Teach (none in a Teach folder). */
   teachFrom?: string
@@ -163,7 +165,8 @@ function Editor({
   const [puzzle, setPuzzle] = useState<Puzzle>(initial)
   const [sendingToTeach, setSendingToTeach] = useState(false)
   const [showMore, setShowMore] = useState(Boolean(initial.reference_url || initial.reference_label))
-  const [tab, setTab] = useState<Tab>(initial.starting_fen === 'start' && initial.solution.length === 0 ? 'position' : 'answer')
+  // A level opens on its pieces: taking them off and putting them back is what it's for.
+  const [tab, setTab] = useState<Tab>(level || (initial.starting_fen === 'start' && initial.solution.length === 0) ? 'position' : 'answer')
   const [importing, setImporting] = useState(false)
   const [typedLine, setTypedLine] = useState('')
   const [lineError, setLineError] = useState<string | null>(null)
@@ -261,8 +264,27 @@ function Editor({
   function setPosition(nextFen: string, side: 'w' | 'b') {
     // A different position (or side to move) invalidates the recorded line.
     const changed = placementOf(nextFen) !== placementOf(fen) || side !== puzzle.side_to_move
+    if (changed && level) {
+      // A level keeps its answer as far as it still plays on the new set-up.
+      // While that answer is the position's own, cut short by an earlier
+      // change, it grows back from the position's line as pieces return.
+      let kept = carryLine(lastGood.current, nextFen)
+      const own = level.original.solution
+      const bare = (san?: string) => san?.replace(/[+#]+$/, '')
+      if (kept.moves && lastGood.current.solution.every((m, i) => bare(own[i]?.san) === bare(m.san))) {
+        const whole = carryLine(level.original, nextFen)
+        if (whole.moves && whole.moves.length > kept.moves.length) kept = whole
+      }
+      setLineNote(kept.note)
+      if (kept.moves) lastGood.current = { fen: nextFen, solution: kept.moves }
+      applyDebounced(kept.moves ? { starting_fen: nextFen, side_to_move: side, solution: kept.moves } : { starting_fen: nextFen, side_to_move: side })
+      return
+    }
     applyDebounced(changed ? { starting_fen: nextFen, side_to_move: side, solution: [] } : { starting_fen: nextFen })
   }
+  // The last legal set-up and its answer, which a level's answer is carried on from.
+  const lastGood = useRef({ fen, solution: initial.solution })
+  const [lineNote, setLineNote] = useState<string | null>(null)
 
   // A blank or placeholder label ("#3") becomes the first answer move automatically.
   const autoLabel = (line: SolutionMove[]) =>
@@ -428,6 +450,11 @@ function Editor({
         <DividerPaper color={tabColor}>
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start pointer-fine:lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <PaperCard className="p-4">
+          {tab === 'position' && level && (
+            <p className="mb-3 text-[14px] text-ink-2">
+              Tap a piece in the tray, then a square, to add it; drag a piece off the board to take it off. The answer keeps every move that still plays.
+            </p>
+          )}
           {tab === 'position' && (
             <SetupBoard
               fen={fen}
@@ -439,6 +466,22 @@ function Editor({
               highlights={puzzle.highlights}
               onArrowsChange={(arrows) => apply({ arrows })}
               onHighlightsChange={(highlights) => apply({ highlights })}
+            />
+          )}
+          {tab === 'position' && level && (
+            <PutBack
+              fen={fen}
+              original={level.original.fen}
+              note={lineNote ?? lineSummary(puzzle.solution, level.original.solution)}
+              onPut={(square, code) => {
+                const next = { ...parsePlacement(fen), [square]: code }
+                setPosition(`${serializePlacement(next)} ${puzzle.side_to_move} - - 0 1`, puzzle.side_to_move)
+              }}
+              onRestart={() => {
+                lastGood.current = { fen: level.original.fen, solution: level.original.solution }
+                setLineNote('Back to the position itself, with its whole answer.')
+                applyDebounced({ starting_fen: level.original.fen, side_to_move: puzzle.side_to_move, solution: level.original.solution })
+              }}
             />
           )}
           {tab === 'arrows' && (
@@ -694,12 +737,15 @@ function Editor({
               keeps its own width there and the label wraps to two lines
               instead of pushing the page sideways. */}
           <div className="flex gap-2">
-            <Button variant="secondary" size="lg" className="flex-none sm:flex-1" icon={<Check size={18} />} onClick={() => finish('lesson')}>
-              Done
-            </Button>
+            {/* A level has one way out: back to its De-Construct page. */}
+            {!level && (
+              <Button variant="secondary" size="lg" className="flex-none sm:flex-1" icon={<Check size={18} />} onClick={() => finish('lesson')}>
+                Done
+              </Button>
+            )}
             {level ? (
-              <Button variant="primary" size="lg" className="flex-1" icon={<ChevronRight size={18} />} onClick={() => finish('lesson')}>
-                Back to De-Construct
+              <Button variant="primary" size="lg" className="flex-1" icon={<Check size={18} />} onClick={() => finish('lesson')}>
+                Done: back to De-Construct
               </Button>
             ) : next ? (
               <Button variant="primary" size="lg" className="min-w-0 flex-1" icon={<ChevronRight size={18} className="shrink-0" />} onClick={() => finish('next')}>
@@ -732,5 +778,95 @@ function Editor({
         }}
       />
     </Page>
+  )
+}
+
+/**
+ * A level's answer carried onto a new set-up: each move played from the
+ * same square to the same square while it's still legal, its note kept.
+ * `moves` is null while the set-up isn't a legal position (the answer waits).
+ */
+function carryLine(from: { fen: string; solution: SolutionMove[] }, nextFen: string): { moves: SolutionMove[] | null; note: string | null } {
+  let after: Chess
+  try {
+    after = new Chess(nextFen)
+  } catch {
+    return { moves: null, note: 'Not a legal position yet: each side needs one king, and the side not to move can\'t be in check.' }
+  }
+  const before = new Chess(from.fen)
+  const moves: SolutionMove[] = []
+  for (const [i, m] of from.solution.entries()) {
+    let played
+    try {
+      played = before.move(m.san)
+    } catch {
+      break
+    }
+    try {
+      const res = after.move({ from: played.from, to: played.to, promotion: played.promotion })
+      moves.push({ san: res.san, fen: after.fen(), ...(m.comment ? { comment: m.comment } : {}) })
+    } catch {
+      return { moves, note: `The answer stops at move ${i + 1} now (${m.san} can't be played): play the rest on the Answer tab.` }
+    }
+  }
+  return { moves, note: moves.length ? `The answer still plays: ${moves.length === from.solution.length ? 'every move' : `${moves.length} moves`}.` : null }
+}
+
+/** How a level's answer compares with the position's own, for the line under the board. */
+function lineSummary(line: SolutionMove[], original: SolutionMove[]): string | null {
+  if (!line.length) return 'No answer yet: record it on the Answer tab.'
+  const same = line.length === original.length && line.every((m, i) => m.san === original[i]?.san)
+  return same ? 'The same answer as the position itself.' : `Its answer: ${line.map((m) => m.san).join(' ')}.`
+}
+
+/**
+ * Under a level's set-up board: the pieces the position itself has that the
+ * level doesn't, each a tap from going back on its square, and a way back to
+ * the position whole.
+ */
+function PutBack({
+  fen,
+  original,
+  note,
+  onPut,
+  onRestart,
+}: {
+  fen: string
+  original: string
+  note: string | null
+  onPut: (square: string, code: PieceCode) => void
+  onRestart: () => void
+}) {
+  const { pieces } = usePieceSet()
+  const now = parsePlacement(fen)
+  const missing = Object.entries(parsePlacement(original)).filter(([sq, code]) => code && now[sq] !== code) as [string, PieceCode][]
+  return (
+    <div className="mt-3 space-y-2">
+      {note && <p className="text-[13.5px] font-medium text-ink-2">{note}</p>}
+      {missing.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-[12px] font-semibold tracking-wider text-ink-3 uppercase">Put back from the position</p>
+          <div className="flex flex-wrap gap-1.5">
+            {missing.map(([sq, code]) => {
+              const Piece = pieces[code]
+              return (
+                <button
+                  key={sq}
+                  onClick={() => onPut(sq, code)}
+                  title={`Put the piece back on ${sq}`}
+                  className="inline-flex h-10 items-center gap-1 rounded-lg border border-line-strong bg-surface pr-2.5 pl-1 text-[14px] font-semibold text-ink transition hover:border-accent active:scale-95"
+                >
+                  <span className="block h-8 w-8">{Piece && <Piece />}</span>
+                  {sq}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+      <Button variant="ghost" size="sm" onClick={onRestart}>
+        Start again from the position itself
+      </Button>
+    </div>
   )
 }

@@ -169,7 +169,25 @@ export interface Suggestion {
  */
 export async function suggestLevels(
   puzzle: Puzzle,
-  { depth = 12, finalDepth = 16, onProgress, signal }: { depth?: number; finalDepth?: number; onProgress?: (p: Progress) => void; signal?: AbortSignal } = {},
+  {
+    depth = 12,
+    finalDepth = 16,
+    keepLine = true,
+    onProgress,
+    signal,
+  }: {
+    depth?: number
+    finalDepth?: number
+    /**
+     * The whole answer, not just its first move: Stockfish's line from the key
+     * move must still follow the recorded one, as far as it did in the
+     * position itself (the same sacrifices, the same forced replies, the same
+     * win at the end). Off, only the first move has to survive, and more comes off.
+     */
+    keepLine?: boolean
+    onProgress?: (p: Progress) => void
+    signal?: AbortSignal
+  } = {},
 ): Promise<Suggestion> {
   const fen0 = normalizeFen(puzzle.starting_fen === 'start' ? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' : puzzle.starting_fen, puzzle.side_to_move)
   const [, side, castling, ep0] = fen0.split(' ') as [string, 'w' | 'b', string, string]
@@ -182,6 +200,8 @@ export async function suggestLevels(
   const action = new Set<string>()
   const origin = new Map<string, string>(Object.keys(piecesOf(fen0)).map((sq) => [sq, sq]))
   let key = ''
+  // The recorded answer as engine moves, to hold the levels' lines against.
+  const line: string[] = []
   for (const [i, step] of puzzle.solution.entries()) {
     let m: Move
     try {
@@ -191,6 +211,7 @@ export async function suggestLevels(
       break
     }
     if (i === 0) key = uciOf(m)
+    line.push(uciOf(m))
     keep.add(origin.get(m.from) ?? m.from)
     action.add(m.from)
     action.add(m.to)
@@ -238,10 +259,24 @@ export async function suggestLevels(
     // (a pawn and a half, or under half the original margin) when the move was
     // decisive; about as short as before when it was close.
     const neededGap = baseGap >= 160 ? Math.min(baseGap * 0.4, 150) : Math.max(0, baseGap - 50)
+    // How far Stockfish's own line in the position itself follows the recorded
+    // answer, at each depth: a level's line has to follow it at least as far.
+    const along = (pv: string[]) => {
+      let n = 0
+      while (n < pv.length && n < line.length && pv[n] === line[n]) n++
+      return n
+    }
+    const agreed = new Map<number, number>([[depth, along(base.mine.pv)]])
+    const agreedAt = async (at: number) => {
+      if (!agreed.has(at)) agreed.set(at, along((await measure(fen0, at)).mine?.pv ?? [key]))
+      return agreed.get(at)!
+    }
 
     const holds = async (fen: string, at: number) => {
       if (signal?.aborted) throw new DOMException('Stopped', 'AbortError')
       if (!playable(fen, key)) return null
+      // Checked before Stockfish is asked, since it costs nothing: the same defences.
+      if (keepLine && !sameDefences(fen0, fen, line)) return null
       const { mine, rest } = await measure(fen, at)
       if (!mine) return null
       if (base.mine!.mate !== null && base.mine!.mate > 0) {
@@ -250,6 +285,12 @@ export async function suggestLevels(
       } else if (mine.value < Math.min(base.mine!.value - 100, base.mine!.value * 0.6)) return null
       const gap = mine.value - (rest?.value ?? -MATE * 2)
       if (gap < neededGap) return null
+      if (keepLine) {
+        const need = Math.max(1, await agreedAt(at))
+        const got = along(mine.pv)
+        // Short only where the line itself ends sooner, in a mate.
+        if (got < need && !(got === mine.pv.length && mine.mate !== null && mine.mate > 0)) return null
+      }
       return mine
     }
 
@@ -366,6 +407,39 @@ export async function suggestLevels(
   } finally {
     engine.quit()
   }
+}
+
+/**
+ * Whether the defending side, played through the recorded answer, has no way
+ * out of a check it didn't have in the position itself: no block, flight or
+ * capture that a missing piece used to stop (the queen interposing on g2
+ * once the g3 pawn is gone). Those turn the idea into another one even when
+ * Stockfish still plays the same line.
+ */
+function sameDefences(original: string, level: string, line: string[]): boolean {
+  const a = new Chess(original)
+  let b: Chess
+  try {
+    b = new Chess(level)
+  } catch {
+    return false
+  }
+  for (const [i, uci] of line.entries()) {
+    // The defender is to move on every other ply, after the solver's moves.
+    if (i % 2 === 1 && b.inCheck()) {
+      const before = new Set(a.moves({ verbose: true }).map(uciOf))
+      if (b.moves({ verbose: true }).some((m) => !before.has(uciOf(m)))) return false
+    }
+    const move = { from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] }
+    try {
+      a.move(move)
+      b.move(move)
+    } catch {
+      // The line stops replaying here; Stockfish's agreement covers the rest.
+      return true
+    }
+  }
+  return true
 }
 
 /**

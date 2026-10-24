@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import clsx from 'clsx'
-import type { Puzzle, SolutionMove } from '../types/domain'
+import type { LevelId, Puzzle, PuzzleLevels, SolutionMove } from '../types/domain'
 import type { PuzzlePatch } from '../lib/data'
 import { useLesson, usePuzzle, usePuzzleMutations, useStudent } from '../lib/queries'
 import { normalizeFen, placementOf, sideToMoveOf } from '../lib/fen'
@@ -22,6 +22,7 @@ import { opposite, useFlip } from '../hooks/useFlip'
 import { Check, ChevronDown, ChevronRight, Plus, Sparkle, Target, Teach, Warning } from '../components/ui/Icons'
 import { SendToTeachSheet } from '../components/teach/SendToTeachSheet'
 import { isTeach } from '../lib/teach'
+import { levelFromPatch, levelName, levelPuzzle, levelPuzzleId, withLevel } from '../lib/levels'
 import { analysisHref } from '../lib/analysisLink'
 import { Chip, ChipRow } from '../components/ui/Chip'
 import { defaultQuizPrompt, explanationStarters, quizPromptChips } from '../lib/prompts'
@@ -34,15 +35,38 @@ type Tab = 'position' | 'arrows' | 'answer'
  * button to forget.
  */
 export function PuzzleEditorPage() {
-  const { studentId = '', lessonPlanId = '', puzzleId = '' } = useParams()
+  const { studentId = '', lessonPlanId = '', puzzleId = '', level: levelParam } = useParams()
   const { data: student } = useStudent(studentId)
   const { data: lesson } = useLesson(lessonPlanId)
   const { data: loaded, isLoading } = usePuzzle(puzzleId)
   const { update } = usePuzzleMutations(puzzleId, lessonPlanId)
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
+  // De-Construct: one of the easier versions, edited like a position and saved into its levels.
+  const levelKey = levelParam === 'beginner' || levelParam === 'intermediate' ? levelParam : null
 
   if (isLoading && !loaded) return <LoadingPage />
   if (!loaded) return <Page back={base}>Position not found.</Page>
+
+  if (levelKey) {
+    const deconstruct = `${base}/puzzles/${loaded.id}/deconstruct`
+    if (!loaded.levels?.[levelKey]) return <Page back={deconstruct}>This version isn't there any more.</Page>
+    const section = lesson?.sections.find((s) => s.id === loaded.section_id)
+    return (
+      <LevelEditor
+        key={levelPuzzleId(loaded.id, levelKey)}
+        puzzle={loaded}
+        levelKey={levelKey}
+        studentName={student?.name ?? 'Student'}
+        color={student?.color ?? FOLDER_COLORS[0]}
+        aside={[lesson ? `Lesson ${lesson.plan.number}` : null, section?.title, `${loaded.label || 'Position'}: ${levelName(levelKey)}`].filter(Boolean).join(' · ')}
+        sectionTitle={section?.title}
+        deconstruct={deconstruct}
+        lessonBase={base}
+        save={(levels) => update.mutate({ levels })}
+        saving={update.isPending}
+      />
+    )
+  }
 
   const section = lesson?.sections.find((s) => s.id === loaded.section_id)
   // The sweep after a batch: the next position in lesson order still without an explanation.
@@ -67,8 +91,46 @@ export function PuzzleEditorPage() {
   )
 }
 
+/** One of De-Construct's levels in the editor: each save folds into the levels as last saved, not into a copy that may be behind. */
+function LevelEditor({
+  puzzle,
+  levelKey,
+  deconstruct,
+  save,
+  ...rest
+}: {
+  puzzle: Puzzle
+  levelKey: LevelId
+  studentName: string
+  color: string
+  aside: string
+  sectionTitle?: string
+  deconstruct: string
+  lessonBase: string
+  save: (levels: PuzzleLevels | null) => void
+  saving: boolean
+}) {
+  const levels = useRef<PuzzleLevels | null>(puzzle.levels ?? null)
+  const [initial] = useState(() => levelPuzzle(puzzle, levelKey))
+  return (
+    <Editor
+      {...rest}
+      initial={initial}
+      level={{ name: levelName(levelKey), doneTo: deconstruct }}
+      back={deconstruct}
+      save={(patch) => {
+        const current = levels.current?.[levelKey]
+        if (!current) return
+        levels.current = withLevel(levels.current, levelKey, levelFromPatch(current, patch as Record<string, unknown>))
+        save(levels.current)
+      }}
+    />
+  )
+}
+
 function Editor({
   initial,
+  level,
   studentName,
   teachFrom,
   color,
@@ -81,6 +143,8 @@ function Editor({
   saving,
 }: {
   initial: Puzzle
+  /** Editing one of De-Construct's easier versions: its name, and where Done goes. */
+  level?: { name: string; doneTo: string }
   studentName: string
   /** In a student's folder: their name, for Send to Teach (none in a Teach folder). */
   teachFrom?: string
@@ -229,7 +293,8 @@ function Editor({
       save(pending.current)
       pending.current = {}
     }
-    if (where === 'next' && next) navigate(`${lessonBase}/puzzles/${next.id}/edit`)
+    if (level) navigate(level.doneTo)
+    else if (where === 'next' && next) navigate(`${lessonBase}/puzzles/${next.id}/edit`)
     else if (where === 'another') navigate(`${lessonBase}?quickadd=${puzzle.section_id}`)
     else navigate(lessonBase)
   }
@@ -632,7 +697,11 @@ function Editor({
             <Button variant="secondary" size="lg" className="flex-none sm:flex-1" icon={<Check size={18} />} onClick={() => finish('lesson')}>
               Done
             </Button>
-            {next ? (
+            {level ? (
+              <Button variant="primary" size="lg" className="flex-1" icon={<ChevronRight size={18} />} onClick={() => finish('lesson')}>
+                Back to De-Construct
+              </Button>
+            ) : next ? (
               <Button variant="primary" size="lg" className="min-w-0 flex-1" icon={<ChevronRight size={18} className="shrink-0" />} onClick={() => finish('next')}>
                 <span className="line-clamp-2 text-center leading-tight whitespace-normal">
                   Next without explanation{next.label ? `: ${next.label}` : ''}

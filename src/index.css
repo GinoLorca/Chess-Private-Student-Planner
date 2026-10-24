@@ -254,6 +254,14 @@ body {
 /* Board squares take their colour from classes (not inline styles) so a skin
    can lay a texture over them. */
 /* The move just played: a wash, unless the skin draws its own (skins.arcade.css). */
+/* De-Construct: a piece a level adds settles onto the board (LevelMarks). */
+@keyframes level-piece-in {
+  from { opacity: 0; transform: translateY(-12%) scale(0.82); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes level-piece-in { from { opacity: 0; } to { opacity: 1; } }
+}
 .board-last {
   background: var(--board-last-move);
 }

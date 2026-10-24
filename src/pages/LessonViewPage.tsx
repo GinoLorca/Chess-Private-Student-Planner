@@ -24,6 +24,8 @@ import { FOLDER_COLORS, onColor } from '../lib/colors'
 import { Check, ChevronLeft, ChevronRight, Close, Document, ExternalLink, Eye, EyeOff } from '../components/ui/Icons'
 import { SendToTeachSheet } from '../components/teach/SendToTeachSheet'
 import { isTeach } from '../lib/teach'
+import { addedSquares, levelRun } from '../lib/levels'
+import { LevelMarks } from '../components/deconstruct/LevelMarks'
 import { useHideToggle } from '../hooks/useHideToggle'
 import { useFlip } from '../hooks/useFlip'
 import { useResumeState } from '../lib/resume'
@@ -59,14 +61,26 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   // A shared link (solo) shows one position and nothing about whose lesson it
   // is: no student name, no lesson number, no neighbours to swipe to.
   const solo = params.get('solo') === '1'
+  // De-Construct: one position's levels in order, Beginner to Advanced, the pieces each adds settling on.
+  const levelsOf = params.get('levels')
 
-  const items = useMemo(() => {
+  const items = useMemo((): { puzzle: Puzzle; sectionTitle: string; fresh?: string[] }[] => {
     if (!lesson) return []
     const all = lesson.sections.flatMap((section) =>
       (lesson.puzzlesBySection[section.id] ?? []).map((puzzle) => ({ puzzle, sectionTitle: section.title })),
     )
+    if (levelsOf) {
+      const source = all.find((it) => it.puzzle.id === levelsOf)?.puzzle
+      if (!source) return []
+      const run = levelRun(source)
+      return run.map((l, i) => ({
+        puzzle: l.puzzle,
+        sectionTitle: l.name,
+        fresh: i > 0 ? addedSquares(run[i - 1].puzzle.starting_fen, l.puzzle.starting_fen) : [],
+      }))
+    }
     return solo ? all.filter((it) => it.puzzle.id === startId) : all
-  }, [lesson, solo, startId])
+  }, [lesson, solo, startId, levelsOf])
 
   const [index, setIndex] = useState(() => Math.max(0, items.findIndex((i) => i.puzzle.id === startId)))
   const [direction, setDirection] = useState(1)
@@ -90,13 +104,13 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
       if (next < 0 || next >= items.length) return
       setDirection(next > index ? 1 : -1)
       setIndex(next)
-      setParams({ p: items[next].puzzle.id }, { replace: true })
+      setParams({ p: items[next].puzzle.id, ...(levelsOf ? { levels: levelsOf } : {}) }, { replace: true })
     },
-    [index, items, setParams],
+    [index, items, setParams, levelsOf],
   )
 
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
-  const exitTo = solo ? '/' : base
+  const exitTo = solo ? '/' : levelsOf ? `${base}/puzzles/${levelsOf}/deconstruct` : base
   // A sideways swipe anywhere on the screen turns the page, as in Photos.
   const swipe = useSwipeNav((dir) => go(index + dir))
 
@@ -124,7 +138,7 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
               {!solo && (
                 <span className="text-on-bg-2">
                   {' '}
-                  · {student?.name} · Lesson {lesson.plan.number}
+                  · {levelsOf ? `De-Construct · ${current.sectionTitle}` : `${student?.name} · Lesson ${lesson.plan.number}`}
                 </span>
               )}
             </p>
@@ -188,7 +202,8 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
               position={index + 1}
               mode={mode}
               color={student?.color ?? FOLDER_COLORS[0]}
-              teachFrom={student && !isTeach(student) ? student.name : undefined}
+              teachFrom={student && !isTeach(student) && !levelsOf ? student.name : undefined}
+              level={levelsOf ? { fresh: current.fresh ?? [] } : undefined}
               onSwipe={(dir) => go(index + dir)}
               onExit={() => navigate(exitTo)}
               onResult={(kind) => (kind === 'solved' ? solved.add : shown.add)(current.puzzle.id)}
@@ -232,6 +247,7 @@ function PuzzleView({
   mode,
   color,
   teachFrom,
+  level,
   onSwipe,
   onExit,
   onResult,
@@ -246,6 +262,8 @@ function PuzzleView({
   color: string
   /** Coach view in a student's folder: their name, for Send to Teach (none in a Teach folder). */
   teachFrom?: string
+  /** One of De-Construct's levels: shown, never saved to; `fresh`, the squares of the pieces it adds. */
+  level?: { fresh: string[] }
   onSwipe: (dir: 1 | -1) => void
   onExit: () => void
   /** Learn view: the position was solved on the board, or given up. */
@@ -253,7 +271,7 @@ function PuzzleView({
   notesHidden: boolean
   onToggleNotes: () => void
 }) {
-  const { lessonPlanId = '' } = useParams()
+  const { lessonPlanId = '', studentId = '' } = useParams()
   const location = useLocation()
   const { update } = usePuzzleMutations(puzzle.id, lessonPlanId)
   const [sendingToTeach, setSendingToTeach] = useState(false)
@@ -261,7 +279,7 @@ function PuzzleView({
   const { setPuzzleStatus } = useLessonContentMutations(lessonPlanId)
   const codesMissing = useCodesMissing(mode !== 'learn')
   const dot =
-    mode !== 'learn' && codesMissing.data === false ? (
+    mode !== 'learn' && !level && codesMissing.data === false ? (
       <StatusDot status={puzzle.status} what="Position" onTap={() => setPuzzleStatus.mutate({ puzzle, status: nextStatus(puzzle.status) })} className="-my-2 -ml-2" />
     ) : null
   const steps = useMemo(() => lineSteps(puzzle), [puzzle])
@@ -317,7 +335,9 @@ function PuzzleView({
   // The eye closed = the quiz alone, whatever the step: start position, no arrows, no moves.
   // A side line or threat tapped in the text, up in place of the answer.
   const showing = revealed && !notesHidden && !solving ? demo.view : null
-  const showAnnotations = revealed && atStart && !notesHidden && !showing
+  // A level's own marks show at the start, but drawing on them is a sketch: a level is never saved from here.
+  const levelMarks = level && revealed && atStart && !notesHidden && !showing ? puzzle : null
+  const showAnnotations = !level && revealed && atStart && !notesHidden && !showing
   const demoUp = Boolean(showing)
   const { forward: demoForward, back: demoBack } = demo
   // A move shown makes its sound, keyed by the position (an eye toggled on
@@ -343,12 +363,12 @@ function PuzzleView({
   const sketchAt = showing ? showing.key : `step:${step}`
   const sketchHere = sketch && sketch.at === sketchAt ? sketch : null
   const moveArrow = !atStart && current.arrow && revealed && !notesHidden ? current.arrow : null
-  const shownArrows = showing ? showing.arrows : moveArrow ? [moveArrow] : []
+  const shownArrows = showing ? showing.arrows : moveArrow ? [moveArrow] : levelMarks ? levelMarks.arrows : []
   // A square tapped in the text, while the text is up.
   const mark = revealed && !notesHidden ? demo.mark : null
   const unmarked = (list: BoardHighlight[]) => list.filter((h) => !(mark && h.square === mark.square && h.color === mark.color))
   const boardArrows = showAnnotations ? puzzle.arrows : [...shownArrows, ...(sketchHere?.arrows ?? [])]
-  const boardHighlights = [...(showAnnotations ? puzzle.highlights : (sketchHere?.highlights ?? [])), ...(mark ? [mark] : [])]
+  const boardHighlights = [...(showAnnotations ? puzzle.highlights : [...(levelMarks?.highlights ?? []), ...(sketchHere?.highlights ?? [])]), ...(mark ? [mark] : [])]
   const setArrows = (arrows: BoardArrow[]) =>
     showAnnotations
       ? update.mutate({ arrows })
@@ -356,7 +376,7 @@ function PuzzleView({
   const setHighlights = (highlights: BoardHighlight[]) =>
     showAnnotations
       ? update.mutate({ highlights: unmarked(highlights) })
-      : setSketch({ at: sketchAt, highlights: unmarked(highlights), arrows: sketchHere?.arrows ?? [] })
+      : setSketch({ at: sketchAt, highlights: unmarked(highlights).filter((h) => !levelMarks?.highlights.includes(h)), arrows: sketchHere?.arrows ?? [] })
   const lastMove = showing
     ? showing.lastMove
     : !atStart && !notesHidden && current.from && current.to
@@ -468,10 +488,20 @@ function PuzzleView({
               Teach
             </button>
           )}
+          {mode === 'coach' && !level && (
+            <Link
+              to={`/students/${studentId}/lessons/${lessonPlanId}/puzzles/${puzzle.id}/deconstruct`}
+              className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg"
+              title="De-Construct: Beginner, Intermediate, Advanced"
+            >
+              De-Construct
+            </Link>
+          )}
           <button onClick={flip} className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg">
             Flip board
           </button>
         </div>
+        <LevelMarks fresh={level?.fresh}>
         <div ref={boardRef}>
         {solving ? (
           // A live board: a swipe container would fight piece drags, so the
@@ -518,6 +548,7 @@ function PuzzleView({
         </motion.div>
         )}
         </div>
+        </LevelMarks>
         {showing && <LineBar demo={demo} puzzle={puzzle} className="mt-2" />}
         <Caption className="mt-2 flex lg:hidden" dot={dot} position={position} label={revealed && !notesHidden ? puzzle.label : ''} toMove={toMove} />
       </div>
@@ -693,7 +724,7 @@ function PuzzleView({
         )}
 
         {/* The coach's own notes: Coach view only, never on the student's screen. */}
-        {mode === 'coach' && (
+        {mode === 'coach' && !level && (
           <PaperCard className="p-4" ruled tilt={0.3}>
             <MyNotes key={puzzle.id} puzzle={puzzle} lessonPlanId={lessonPlanId} hidden={!revealed || notesHidden} />
           </PaperCard>

@@ -10,6 +10,7 @@ import type {
   Note,
   PieceImages,
   Puzzle,
+  PuzzleLevels,
   PuzzleSource,
   SolutionMove,
   Student,
@@ -535,6 +536,8 @@ export interface PuzzlePatch {
   status?: LessonStatus
   /** The coach's own notes (migration 0013). */
   coach_notes?: string
+  /** De-Construct's easier versions (migration 0014). */
+  levels?: PuzzleLevels | null
 }
 
 /** A blank position, or one pre-filled from an import. */

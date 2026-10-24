@@ -217,7 +217,13 @@ A GET on the URL says whether the key is configured yet.
 **The tools.** `list_students` (ids and names), `list_lessons(student_id)` (each lesson with
 positions done / total and its link), `create_lesson(student_id, positions, title?)` (makes
 Lesson N and returns its link and the annotate link), `add_positions(lesson_id, positions)`,
-`get_position(position)`, two for Teach, and two for the schedule:
+`get_position(position)` (now with the position's De-Construct `levels`), `set_levels`, two
+for Teach, and two for the schedule:
+
+- `set_levels(position, beginner?, intermediate?)`: De-Construct a position from outside the
+  app. Each level is a position as `create_lesson` takes it (fen, answer, notes), made by
+  taking pieces off the position itself; `null` removes one. `checks` says when a level isn't a
+  strip-down (a piece moved, the other side to move, a different first move).
 
 - `list_teach_folders` and `create_teach_folder(name)`: the Teach folders (lessons for anyone,
   apart from the students; the first, Teach, is made if there are none). A folder's id goes in

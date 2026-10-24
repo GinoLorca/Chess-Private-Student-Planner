@@ -200,6 +200,11 @@ function supabaseDb(sb) {
       return { puzzle, section: section ? { id: section.id, title: section.title } : null, lesson, student }
     },
 
+    async setLevels(puzzleId, levels) {
+      const { error } = await sb.from('puzzles').update({ levels }).eq('id', puzzleId)
+      if (error) throw describe(error, /levels/.test(error.message) ? 'Saving the levels (run migration 0014 in Supabase first)' : 'Saving the levels')
+    },
+
     async insertPuzzles(sectionId, rows) {
       if (rows.length === 0) return
       // `done` is left to the column default so the insert works before migration 0006 too.

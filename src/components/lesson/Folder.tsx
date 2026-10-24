@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { hasLevels, levelRun } from '../../lib/levels'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -274,6 +275,11 @@ export function IndexCard({
               {puzzle.solution.length > 0 && (
                 <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] font-semibold text-ink-2">
                   {puzzle.solution.length} move{puzzle.solution.length === 1 ? '' : 's'}
+                </span>
+              )}
+              {hasLevels(puzzle) && (
+                <span title="De-Constructed: Beginner, Intermediate and Advanced" className="rounded-md bg-accent-soft px-1.5 py-0.5 text-[12px] font-semibold text-accent-strong">
+                  {levelRun(puzzle).length} levels
                 </span>
               )}
               {broken && (

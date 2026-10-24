@@ -138,7 +138,28 @@ export interface Puzzle {
   status?: LessonStatus
   /** The coach's own notes from solving it by hand; never shown to the student (migration 0013). */
   coach_notes?: string
+  /** De-Construct: its easier versions, the position itself being Advanced (migration 0014). */
+  levels?: PuzzleLevels | null
 }
+
+/** The easier versions De-Construct makes of a position; the position itself is Advanced. */
+export type LevelId = 'beginner' | 'intermediate'
+
+/** One easier version: the same idea with fewer pieces, its own answer and wording. */
+export interface PuzzleLevel {
+  starting_fen: string
+  side_to_move: 'w' | 'b'
+  label: string
+  quiz_prompt: string
+  summary: string
+  solution: SolutionMove[]
+  arrows: BoardArrow[]
+  highlights: BoardHighlight[]
+  /** Suggested by the strip-down (checked: a deeper Stockfish look agreed), or set by the coach. */
+  made?: { by: 'engine' | 'coach'; checked?: boolean }
+}
+
+export type PuzzleLevels = Partial<Record<LevelId, PuzzleLevel>>
 
 export interface CustomBoard {
   light: string

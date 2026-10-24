@@ -13,8 +13,9 @@ import { Button, IconButton } from '../components/ui/Button'
 import { DrawableBoard } from '../components/board/DrawableBoard'
 import { SolveBoardView, SolveStatus } from '../components/board/SolveBoard'
 import { useSolve } from '../hooks/useSolve'
-import { ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, Pencil, Play, Target, Teach } from '../components/ui/Icons'
+import { ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, Layers, Pencil, Play, Target, Teach } from '../components/ui/Icons'
 import { SendToTeachSheet } from '../components/teach/SendToTeachSheet'
+import { DeconstructCard } from '../components/deconstruct/DeconstructCard'
 import { isTeach } from '../lib/teach'
 import { analysisHref } from '../lib/analysisLink'
 import { useHideToggle } from '../hooks/useHideToggle'
@@ -157,6 +158,12 @@ export function PuzzlePage() {
               <span className="hidden sm:inline">Teach</span>
             </Button>
           )}
+          {/* De-Construct is also a card below on every size; up here where there's room. */}
+          <Link to={`${base}/puzzles/${puzzle.id}/deconstruct`} className="hidden lg:block">
+            <Button variant="ghost" size="sm" icon={<Layers size={16} />} title="De-Construct: Beginner, Intermediate, Advanced">
+              De-Construct
+            </Button>
+          </Link>
           <Link to={`${base}/coach?p=${puzzle.id}`}>
             <Button variant="ghost" size="sm" icon={<Play size={16} />} aria-label="Coach view" title="Coach view">
               <span className="hidden sm:inline">Coach view</span>
@@ -297,6 +304,10 @@ export function PuzzlePage() {
 
           <Card className="p-4">
             <MyNotes key={puzzle.id} puzzle={puzzle} lessonPlanId={lessonPlanId} hidden={hidden} />
+          </Card>
+
+          <Card className="p-4">
+            <DeconstructCard puzzle={puzzle} to={`${base}/puzzles/${puzzle.id}/deconstruct`} hidden={hidden} />
           </Card>
 
           {puzzle.reference_url && (

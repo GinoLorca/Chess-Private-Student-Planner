@@ -77,6 +77,20 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   original is never touched. **Import** on the Teach page pastes PGN or FEN, or opens a `.pgn`
   or a `.zip` of them. And an agent (Muse) can fill it through the connector's
   `list_teach_folders`, `create_teach_folder` and `create_lesson`.
+- **De-Construct** — on any position (the card on the position page, the top bar on a wide
+  screen, Coach view): the same idea taught in three steps. **Beginner** is the idea with the
+  fewest pieces, **Intermediate** puts some back, **Advanced** is the position itself. *Suggest*
+  has Stockfish (on the device, offline too) take pieces off, furthest from the action first,
+  keeping a change only when the answer's first move still works as well and is still the move
+  (the kings, the pieces that move in the answer and the pieces it takes always stay), then
+  looks at both again, deeper, and marks each *Checked* or *Check it*. A few seconds to under a
+  minute. Tactics strip down well; quiet positional moves need most of their pieces, so expect
+  less off those. What's left stands on the same squares at every level, and *Show the core*
+  rings the Beginner's pieces on the harder boards. Edit any level in the usual editor, or
+  build them by hand. *Present* and *Learn* on the De-Construct page run Beginner →
+  Intermediate → Advanced, the pieces each level adds settling onto the board. The levels
+  live on the position (lessons don't fill with copies), show as *3 levels* on its card, and
+  come along to Teach. An agent can write them too (`set_levels`).
 - **Schedule for agents** — the connector's `next_lesson` and `get_schedule` tools give an agent
   (Muse's Hugo) the next lesson that's on, its start time with the time zone, the address and
   door codes, and, given the travel time from where the coach is, when to leave. See DEPLOY.md.

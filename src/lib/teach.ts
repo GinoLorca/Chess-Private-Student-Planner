@@ -194,6 +194,8 @@ export function teachPatch(p: Puzzle, texts: Record<string, string>): PuzzlePatc
     // Columns later migrations add are only sent when the database has them.
     ...(p.status ? { status: 'planned' as const } : {}),
     ...(p.coach_notes !== undefined ? { coach_notes: text('coach_notes', p.coach_notes) } : {}),
+    // De-Construct's levels come along (their wording is the engine's or the coach's, not about the student).
+    ...(p.levels ? { levels: p.levels } : {}),
   }
 }
 

@@ -196,6 +196,14 @@ export const Recycle = (p: IconProps) => (
     <path d="M7 13.1 10.5 7.05M7.78 8.32 10.5 7.05l.26 2.99" transform="rotate(240 12 12)" />
   </svg>
 )
+/** De-Construct: a position in layers, the idea at the bottom. */
+export const Layers = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 3.5 3.5 8 12 12.5 20.5 8z" />
+    <path d="m3.5 12 8.5 4.5 8.5-4.5" />
+    <path d="m3.5 16 8.5 4.5 8.5-4.5" />
+  </svg>
+)
 /** A teaching easel: the board, its chalk lines and its legs. */
 export const Teach = (p: IconProps) => (
   <svg {...base(p)}>

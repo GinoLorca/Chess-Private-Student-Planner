@@ -23,6 +23,7 @@ import { DEFAULT_TIMEZONE, addDays, checkTimezone, departure, lessonsBetween, is
  *   listStudents(): Promise<StudentRow[]>,
  *   listTeachFolders(): Promise<StudentRow[]>,
  *   createTeachFolder(name: string): Promise<StudentRow>,
+ *   setLevels(puzzleId: string, levels: Record<string, any> | null): Promise<void>,
  *   listLessons(studentId: string): Promise<LessonRow[]>,
  *   createLesson(studentId: string, title: string): Promise<{ id: string, number: number, sectionId: string }>,
  *   targetSection(lessonId: string): Promise<{ studentId: string, number: number, sectionId: string, nextOrder: number }>,
@@ -248,6 +249,20 @@ export const TOOLS = [
     },
   },
   {
+    name: 'set_levels',
+    description:
+      "De-Construct a position: save its Beginner and Intermediate versions; the position itself is Advanced. Each is the same idea with fewer pieces, made by taking pieces off the position (the rest stay on their squares): keep the kings, the pieces that move in the answer and the pieces it captures, take off pieces furthest from the action first, and keep a removal only when Stockfish agrees the answer's first move still works and is still the only move. Beginner has the fewest pieces; Intermediate puts about half back. Give each as a position like create_lesson's (fen, answer, move_notes, question, note, arrows, highlights), worded about the position only. Pass null to remove one. The coach can also have them suggested in the app (De-Construct). Returns `checks` for anything that doesn't look like a strip-down, and the De-Construct link.",
+    inputSchema: {
+      type: 'object',
+      required: ['position'],
+      properties: {
+        position: { type: 'string', description: 'The position id, or a link to it from the app.' },
+        beginner: { anyOf: [POSITION_SCHEMA, { type: 'null' }], description: 'The fewest pieces.' },
+        intermediate: { anyOf: [POSITION_SCHEMA, { type: 'null' }], description: 'Some of the pieces back.' },
+      },
+    },
+  },
+  {
     name: 'get_position',
     description:
       "Read one position as the coach sees it, to review or fix it: whose move it is, the question, the answer line with each move's note, the explanation, the coach's own notes (my_notes), the arrows and marked squares, the source, and which student and lesson it's in, with links to open and edit it. Pass the position's id or any app link to it (a share link like …/#/p/<id>, a position page, or a lesson view with ?p=<id>). `checks` lists anything that looks wrong: an answer that doesn't replay, or a question that names the other side as to move.",
@@ -449,6 +464,24 @@ export async function callTool(name, args, ctx) {
         annotate_url: `${lessonUrl(target.studentId, lessonId)}/annotate`,
       }
     }
+    case 'set_levels': {
+      const id = positionId(str(args.position, 'position'))
+      const found = await db.getPosition(id)
+      if (!found) throw new ToolError(`No position with id ${id} in this account`)
+      const levels = { ...(found.puzzle.levels ?? {}) }
+      /** @type {string[]} */
+      const checks = []
+      for (const key of ['beginner', 'intermediate']) {
+        if (!(key in args)) continue
+        const input = args[key]
+        if (input === null) delete levels[key]
+        else levels[key] = levelRow(input, found.puzzle, key === 'beginner' ? 'Beginner' : 'Intermediate', checks)
+      }
+      const stored = levels.beginner || levels.intermediate ? levels : null
+      await db.setLevels(id, stored)
+      const described = describePosition({ ...found, puzzle: { ...found.puzzle, levels: stored } }, appOrigin)
+      return { levels: described.levels, deconstruct_url: described.deconstruct_url, checks }
+    }
     case 'get_position': {
       const id = positionId(str(args.position, 'position'))
       const found = await db.getPosition(id)
@@ -590,7 +623,57 @@ export function describePosition(found, appOrigin) {
     share_url: `${appOrigin}/#/p/${p.id}`,
     url: base ? `${base}/puzzles/${p.id}` : null,
     edit_url: base ? `${base}/puzzles/${p.id}/edit` : null,
+    // De-Construct (migration 0014): the easier versions, the position itself being advanced.
+    levels: Object.fromEntries(
+      ['beginner', 'intermediate']
+        .filter((k) => p.levels?.[k])
+        .map((k) => {
+          const l = p.levels[k]
+          return [k, { fen: l.starting_fen, answer_line: (l.solution ?? []).map((m) => m.san).join(' '), question: l.quiz_prompt ?? '', note: l.summary ?? '' }]
+        }),
+    ),
+    deconstruct_url: base ? `${base}/puzzles/${p.id}/deconstruct` : null,
     checks,
+  }
+}
+
+/**
+ * One level for set_levels: a position as create_lesson takes it, stored the
+ * way the app keeps a level, with anything that doesn't look like a
+ * strip-down of the original reported (but saved: the coach decides).
+ * @param {PositionInput} input @param {Record<string, any>} original @param {string} name @param {string[]} warnings
+ */
+function levelRow(input, original, name, warnings) {
+  const row = toRow(input, 0)
+  const origFen = normalizeFen(original.starting_fen)
+  const pieces = (/** @type {string} */ f) => {
+    const out = new Map()
+    const rows = f.split(' ')[0].split('/')
+    rows.forEach((r, i) => {
+      let file = 0
+      for (const ch of r) {
+        if (/\d/.test(ch)) file += Number(ch)
+        else out.set(`${'abcdefgh'[file++]}${8 - i}`, ch)
+      }
+    })
+    return out
+  }
+  const mine = pieces(row.starting_fen)
+  const theirs = pieces(origFen)
+  if ([...mine].some(([sq, ch]) => theirs.get(sq) !== ch)) warnings.push(`${name}: some pieces aren't where they are in the position itself; a level is the position with pieces taken off.`)
+  if (mine.size >= theirs.size) warnings.push(`${name}: it has as many pieces as the position itself.`)
+  if (row.side_to_move !== original.side_to_move) warnings.push(`${name}: the other side is to move.`)
+  if (original.solution?.[0]?.san && row.solution[0]?.san !== original.solution[0].san) warnings.push(`${name}: its answer starts ${row.solution[0]?.san ?? '(none)'}, not ${original.solution[0].san} like the position itself.`)
+  return {
+    starting_fen: row.starting_fen,
+    side_to_move: row.side_to_move,
+    label: row.label,
+    quiz_prompt: row.quiz_prompt,
+    summary: row.summary,
+    solution: row.solution,
+    arrows: row.arrows,
+    highlights: row.highlights,
+    made: { by: 'coach' },
   }
 }
 
@@ -632,7 +715,7 @@ function positions(v) {
 // ---------------------------------------------------------------------------
 
 export const PROTOCOL_VERSION = '2025-03-26'
-export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.4.0' }
+export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.5.0' }
 
 /**
  * One JSON-RPC message in, one response out; notifications (no id) return null.

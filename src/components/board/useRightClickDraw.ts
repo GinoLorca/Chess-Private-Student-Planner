@@ -220,16 +220,25 @@ export function useRightClickDraw({
     else toggleArrow(start, end, pen)
   }
 
-  /** A press that drew shouldn't also click the board (a step forward, say). */
+  /**
+   * A press that drew shouldn't also click the board (a step forward, say).
+   * Only until the next press, though: a tap straight after is a tap.
+   */
   function swallowNextClick() {
     const el = boardRef.current
     if (!el) return
-    const swallow = (ev: Event) => {
+    const done = () => {
+      el.removeEventListener('click', swallow, { capture: true })
+      window.removeEventListener('pointerdown', done, { capture: true })
+    }
+    function swallow(ev: Event) {
       ev.stopPropagation()
       ev.preventDefault()
+      done()
     }
-    el.addEventListener('click', swallow, { capture: true, once: true })
-    window.setTimeout(() => el.removeEventListener('click', swallow, { capture: true }), 600)
+    el.addEventListener('click', swallow, { capture: true })
+    window.addEventListener('pointerdown', done, { capture: true })
+    window.setTimeout(done, 600)
   }
 
   function onTouchDown(e: ReactPointerEvent<HTMLDivElement>): boolean {

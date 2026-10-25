@@ -17,9 +17,10 @@ const HOLD_MS = 350
 export interface RightClickDraw {
   /**
    * Handles the drawing gestures; returns true when it took the event. A
-   * left press only clears (and returns false) so the board's own left-click
-   * behaviour still runs; a touch returns false too, and only becomes a
-   * drawing if the finger rests.
+   * left press on marks drawn here wipes them and takes the event (it does
+   * nothing else); any other left press is the board's own. A touch returns
+   * false, and only becomes a drawing if the finger rests — or, a quick tap
+   * on marks drawn here, a wipe when it lifts.
    */
   onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => boolean
   onContextMenu: (e: ReactMouseEvent) => void
@@ -48,9 +49,10 @@ interface Options {
   /** A touch press just turned into drawing: drop any selection the press made. */
   onHold?: () => void
   /**
-   * A plain left click wipes the marks (the Repertoire Lab gesture). On by
-   * default only for a sketch; marks saved with a position are taken off
-   * one at a time instead, never by a click meant for the board.
+   * A plain left click or a quick tap wipes the marks drawn here (the
+   * Repertoire Lab gesture). On by default only for a sketch; marks saved
+   * with a position are taken off one at a time instead, never by a click
+   * meant for the board.
    */
   clearOnClick?: boolean
   enabled?: boolean
@@ -68,7 +70,13 @@ interface Options {
  * On a touch screen a finger resting on a square takes the right button's
  * place: rest, then drag for an arrow, or rest and lift to highlight. With
  * no keys to pick a colour, drawing the same mark again steps it through
- * the pens and then removes it. Quick taps and drags stay the board's own.
+ * the pens and then removes it. A quick tap wipes a sketch, as a click
+ * does; with nothing drawn, quick taps and drags stay the board's own.
+ *
+ * The wiping click or tap does only that — no piece picked up, no step
+ * forward — as in Chess Arcade and Repertoire Lab: the next one is the
+ * board's. Only marks drawn here are wiped; arrows the page shows (a move's,
+ * a level's own) stay, and don't make a tap a wipe.
  */
 export function useRightClickDraw({
   boardRef,
@@ -99,6 +107,25 @@ export function useRightClickDraw({
   const marks = local ? own : { arrows, highlights }
   const setArrows = (next: BoardArrow[]) => (local ? setSketch({ ...own, arrows: next }) : onArrowsChange?.(next))
   const setHighlights = (next: BoardHighlight[]) => (local ? setSketch({ ...own, highlights: next }) : onHighlightsChange?.(next))
+
+  // The marks drawn here, by position: what a click or a tap wipes. A host's
+  // sketch comes back mixed with what the page shows itself, which isn't
+  // this board's to wipe (and mustn't turn a tap that steps on into a wipe).
+  const drawn = useRef(new Set<string>())
+  const arrowKey = (a: { startSquare: string; endSquare: string }) => `${resetKey}|a:${a.startSquare}-${a.endSquare}`
+  const squareKey = (square: string) => `${resetKey}|h:${square}`
+  const drawnHere = () =>
+    marks.arrows.some((a) => drawn.current.has(arrowKey(a))) || marks.highlights.some((h) => drawn.current.has(squareKey(h.square)))
+  // The position now, for a tap's lift to tell whether its press played a move.
+  const keyRef = useRef(resetKey)
+  useEffect(() => {
+    keyRef.current = resetKey
+  })
+  function wipe() {
+    if (marks.arrows.length) setArrows([])
+    if (marks.highlights.length) setHighlights([])
+    for (const k of [...drawn.current]) if (k.startsWith(`${resetKey}|`)) drawn.current.delete(k)
+  }
   /**
    * Both lists after a change, with the profile's colours worked out again
    * (taking an arrow off recolours the ones after it); each list is only
@@ -154,6 +181,7 @@ export function useRightClickDraw({
     const color = pen + HIGHLIGHT_ALPHA
     const existing = marks.highlights.find((h) => h.square === square)
     const mark: BoardHighlight = { square, color, auto: by.auto, seq: nextSeq(marks.arrows, marks.highlights) }
+    drawn.current.add(squareKey(square))
     if (existing && sameMark(existing, by, color)) setMarks(marks.arrows, marks.highlights.filter((h) => h.square !== square))
     else if (existing) setMarks(marks.arrows, marks.highlights.map((h) => (h.square === square ? mark : h)))
     else setMarks(marks.arrows, [...marks.highlights, mark])
@@ -162,6 +190,7 @@ export function useRightClickDraw({
   function toggleArrow(start: string, end: string, pen: string, by = drawnBy()) {
     const i = marks.arrows.findIndex((a) => a.startSquare === start && a.endSquare === end)
     const arrow: BoardArrow = { startSquare: start, endSquare: end, color: pen, auto: by.auto, seq: nextSeq(marks.arrows, marks.highlights) }
+    drawn.current.add(arrowKey(arrow))
     if (i >= 0 && sameMark(marks.arrows[i], by, pen)) setMarks(marks.arrows.filter((_, j) => j !== i), marks.highlights)
     else if (i >= 0) setMarks(marks.arrows.map((a, j) => (j === i ? arrow : a)), marks.highlights)
     else setMarks([...marks.arrows, arrow], marks.highlights)
@@ -210,6 +239,7 @@ export function useRightClickDraw({
     const id = e.pointerId
     const startX = e.clientX
     const startY = e.clientY
+    const keyAtDown = resetKey
     let dragging = false
     let last = start
 
@@ -251,7 +281,19 @@ export function useRightClickDraw({
     const onUp = (ev: PointerEvent) => {
       if (ev.pointerId !== id) return
       stop()
-      if (!holdingRef.current) return
+      if (!holdingRef.current) {
+        // A quick tap — not held, not moved — on marks drawn here: they're
+        // wiped, and that's all. The piece the press picked up goes back
+        // down and the click that follows doesn't step the board on. (Not
+        // if the press played a move: that's a new position already.)
+        if (ev.type !== 'pointercancel' && wipes && keyRef.current === keyAtDown && drawnHere()) {
+          wipe()
+          claimedRef.current = true
+          onHold?.()
+          swallowNextClick()
+        }
+        return
+      }
       holdingRef.current = false
       setDrawing(false)
       setPreview(null)
@@ -273,11 +315,13 @@ export function useRightClickDraw({
     if (!enabled) return false
     if (e.pointerType !== 'mouse') return e.isPrimary ? onTouchDown(e) : false
     if (e.button === 0) {
-      // A plain left click wipes a sketch; the board's own left-click
-      // handling carries on as usual.
-      if (wipes && marks.arrows.length) setArrows([])
-      if (wipes && marks.highlights.length) setHighlights([])
-      return false
+      // A plain left click on marks drawn here wipes them and does nothing
+      // else; with none, it's the board's own click as usual.
+      if (!wipes || !drawnHere()) return false
+      wipe()
+      claimedRef.current = true
+      swallowNextClick()
+      return true
     }
     if (!isSecondaryButton(e)) return false
     const start = squareAtPoint(e.clientX, e.clientY, boardRef.current)

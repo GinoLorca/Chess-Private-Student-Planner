@@ -10,7 +10,7 @@ interface DrawableBoardProps extends Omit<BoardProps, 'ref' | 'arrows' | 'highli
   onHighlightsChange: (highlights: BoardHighlight[]) => void
   /** A finger is drawing: a swipe around the board should hold off. */
   onDrawingChange?: (drawing: boolean) => void
-  /** These marks are a sketch: a plain left click wipes them. Saved marks never go that way. */
+  /** These marks are a sketch: a plain left click or a quick tap wipes what was drawn. Saved marks never go that way. */
   sketch?: boolean
 }
 

@@ -12,6 +12,18 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   answer on the board, right-drag arrows, write the question and the note, *Save, done* stamps
   it and brings up the next. The folder shows *Annotate · n* until the queue is empty, and
   *+ FENs* on any section appends more.
+- **Marks on every move** — on the editor's Answer tab, step to any move of the answer (tap it
+  in the list, or Back / Next) and draw on that position: right-drag an arrow and right-click a
+  square on a Mac, or rest a finger then drag on the iPad (or *Draw* for the pens). Each move
+  keeps its own, separate from the starting position's, and gets a symbol from the row under
+  the board: `!!` `!` `!?` `?!` `?` `??`. They show as the answer is stepped there in Coach view,
+  Present and the position page, and in Learn once it's solved or shown (never while the student
+  is solving): the move's arrow, the coach's marks, and the symbol as a badge on the move's
+  square, the way Lichess Study shows it. Drawing mid-line in Coach view stays a sketch. The
+  symbols are on the sheet too; Send to Teach, De-Construct and *Start the puzzle here* keep a
+  move's marks, a Lichess study's PGN brings its arrows, squares and `!`/`$1` symbols per move,
+  and a typed line takes them as well (`f5!! Qxf5 d6!`). A typed line that starts with the move
+  that led to the position (`1. d4 f5 …`) says so and offers the line without it.
 - Sections, theme blocks and agenda items stay optional; *Duplicate as next lesson* and
   *Save shape as template* live in the lesson's ⋯ menu.
 - **Quick add** turns a Lichess puzzle / study / game link, a Chess.com game link, a FEN, PGN, a

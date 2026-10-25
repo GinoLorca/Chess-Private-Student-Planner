@@ -10,7 +10,7 @@ import { DEFAULT_TIMEZONE, addDays, checkTimezone, departure, lessonsBetween, is
  *
  * @typedef {{ id: string, name: string }} StudentRow
  * @typedef {{ id: string, number: number, title: string, status: string, total: number, done: number }} LessonRow
- * @typedef {{ san: string, fen: string, comment?: string }} Move
+ * @typedef {{ san: string, fen: string, comment?: string, glyph?: string, arrows?: Arrow[], highlights?: Highlight[] }} Move
  * @typedef {{ startSquare: string, endSquare: string, color: string }} Arrow
  * @typedef {{ square: string, color: string }} Highlight
  * @typedef {{
@@ -41,8 +41,9 @@ import { DEFAULT_TIMEZONE, addDays, checkTimezone, departure, lessonsBetween, is
  * @typedef {{ square: string, color?: string }} HighlightInput
  * @typedef {{
  *   fen: string, setup_moves?: string, source_url?: string, label?: string, question?: string, note?: string,
- *   answer?: string, move_notes?: string[], arrows?: ArrowInput[], highlights?: HighlightInput[]
+ *   answer?: string, move_notes?: string[], move_marks?: (MoveMarksInput | null)[], arrows?: ArrowInput[], highlights?: HighlightInput[]
  * }} PositionInput
+ * @typedef {{ symbol?: string, arrows?: ArrowInput[], highlights?: HighlightInput[] }} MoveMarksInput
  * @typedef {{ db: Db, appOrigin: string, now?: Date }} ToolContext
  */
 
@@ -66,6 +67,27 @@ const PENS = {
 /** Square highlights are the pen at 40%, as when drawn by hand. */
 const HIGHLIGHT_ALPHA = '66'
 const PEN_NAMES = Object.keys(PENS)
+/** A move's symbol, as the app shows it (src/lib/glyphs.ts): brilliant, good, interesting, dubious, a mistake, a blunder. */
+const SYMBOLS = ['!!', '!', '!?', '?!', '?', '??']
+const SYMBOL_AT_END = /(!!|\?\?|!\?|\?!|!|\?)$/
+
+const ARROW_ITEM = {
+  type: 'object',
+  required: ['from', 'to'],
+  properties: {
+    from: { type: 'string', description: 'Square, e.g. "e4".' },
+    to: { type: 'string', description: 'Square, e.g. "h7".' },
+    color: { type: 'string', enum: PEN_NAMES, description: 'green (default) for the idea, red for the threat, blue for a plan or route, yellow for a key square or piece. The others (orange, purple, pink, light-blue, brown, black) are the Sequential colours, for a fifth idea onwards.' },
+  },
+}
+const HIGHLIGHT_ITEM = {
+  type: 'object',
+  required: ['square'],
+  properties: {
+    square: { type: 'string', description: 'Square, e.g. "f7".' },
+    color: { type: 'string', enum: PEN_NAMES, description: 'Same meaning as arrow colours.' },
+  },
+}
 
 const POSITION_SCHEMA = {
   type: 'object',
@@ -103,30 +125,28 @@ const POSITION_SCHEMA = {
       description:
         'One short explanation per move of the answer, in the same order ("Threatens mate on h7", "Forced: the only square"). Shown under each move as the coach steps through the line. Use "" for a move with nothing to say.',
     },
-    arrows: {
+    move_marks: {
       type: 'array',
       items: {
-        type: 'object',
-        required: ['from', 'to'],
+        type: ['object', 'null'],
         properties: {
-          from: { type: 'string', description: 'Square, e.g. "e4".' },
-          to: { type: 'string', description: 'Square, e.g. "h7".' },
-          color: { type: 'string', enum: PEN_NAMES, description: 'green (default) for the idea, red for the threat, blue for a plan or route, yellow for a key square or piece. The others (orange, purple, pink, light-blue, brown, black) are the Sequential colours, for a fifth idea onwards.' },
+          symbol: { type: 'string', enum: SYMBOLS, description: '!! brilliant, ! good, !? interesting, ?! dubious, ? a mistake, ?? a blunder. Shown after the move and as a badge on its square.' },
+          arrows: { type: 'array', items: ARROW_ITEM, description: 'Arrows on the position after this move, e.g. the attack it opens.' },
+          highlights: { type: 'array', items: HIGHLIGHT_ITEM, description: 'Squares to mark on the position after this move, e.g. the square it lands on, or the squares a trapped piece cannot go to.' },
         },
       },
+      description:
+        'What to show on the board at each move of the answer, in the same order as the answer (null or {} for a move with nothing): its symbol, and arrows and marked squares drawn on the position after it. Shown as the coach steps through the line in Coach view and Present, and after the student solves it in Learn. Use them where the idea only shows later in the line: mark the key move "!" with its square, then on the follow-up show the discovered attack or the trapped piece\'s squares.',
+    },
+    arrows: {
+      type: 'array',
+      items: ARROW_ITEM,
       description:
         'Arrows drawn on the starting position, shown when the answer is revealed: the key move, the threat it meets or creates, the plan. One to four arrows; the answer move itself is a good first arrow.',
     },
     highlights: {
       type: 'array',
-      items: {
-        type: 'object',
-        required: ['square'],
-        properties: {
-          square: { type: 'string', description: 'Square, e.g. "f7".' },
-          color: { type: 'string', enum: PEN_NAMES, description: 'Same meaning as arrow colours.' },
-        },
-      },
+      items: HIGHLIGHT_ITEM,
       description: 'Squares to mark on the starting position (the weak square, the hanging piece, the target). One to three.',
     },
   },
@@ -216,7 +236,7 @@ export const TOOLS = [
   {
     name: 'create_lesson',
     description:
-      'Create the next lesson for a student, or in a Teach folder (its id from list_teach_folders), from a list of positions (FENs). In a Teach folder the lesson is for anyone: word the question and every note about the position only (White, Black, the pieces and the moves), never a person, no names and no "you". Fill every position completely: fen, answer (the line), move_notes, question, note, label, source_url, arrows and highlights. The student plays the side to move, and the answer starts with the move they should find; for an exercise that punishes a mistake, the mistake goes in setup_moves. The coach may open Coach view or Present with no preparation, so each position must teach itself: the answer stepped through with a note per move, arrows and marked squares on the board, and the explanation. When a position was taken from a course, carry the course\'s comment on the move into the note; when the source has none, write it yourself. Returns the lesson id and the link to open it in the app.',
+      'Create the next lesson for a student, or in a Teach folder (its id from list_teach_folders), from a list of positions (FENs). In a Teach folder the lesson is for anyone: word the question and every note about the position only (White, Black, the pieces and the moves), never a person, no names and no "you". Fill every position completely: fen, answer (the line), move_notes, move_marks, question, note, label, source_url, arrows and highlights. The student plays the side to move, and the answer starts with the move they should find; for an exercise that punishes a mistake, the mistake goes in setup_moves. The coach may open Coach view or Present with no preparation, so each position must teach itself: the answer stepped through with a note per move, arrows and marked squares on the board (on the start, and on the moves where the idea shows: move_marks, with the key move\'s symbol), and the explanation. When a position was taken from a course, carry the course\'s comment on the move into the note; when the source has none, write it yourself. Returns the lesson id and the link to open it in the app.',
     inputSchema: {
       type: 'object',
       required: ['student_id', 'positions'],
@@ -374,10 +394,46 @@ export function replayAnswer(fen, answer, notes) {
       /** @type {Move} */
       const row = { san: move.san, fen: chess.fen() }
       if (comments[i]) row.comment = comments[i]
+      // A symbol typed on the move ("Rf1!") is kept as its symbol.
+      const symbol = SYMBOL_AT_END.exec(san)?.[1]
+      if (symbol) row.glyph = symbol
       return row
     } catch {
       throw new ToolError(`Illegal move "${san}" in answer "${answer}" from ${fen}`)
     }
+  })
+}
+
+/**
+ * Each answer move's symbol and the marks drawn on the position after it.
+ * @param {Move[]} solution
+ * @param {unknown} marks
+ * @param {string} what
+ * @returns {Move[]}
+ */
+export function withMoveMarks(solution, marks, what) {
+  if (marks === undefined || marks === null) return solution
+  if (!Array.isArray(marks)) throw new ToolError(`${what}: move_marks must be a list, one entry per answer move`)
+  if (marks.length > solution.length) throw new ToolError(`${what}: move_marks has ${marks.length} entries but the answer has ${solution.length} moves`)
+  return solution.map((move, i) => {
+    const m = /** @type {Record<string, unknown> | null} */ (marks[i] && typeof marks[i] === 'object' ? marks[i] : null)
+    if (!m) return move
+    const label = `${what}, move ${i + 1} (${move.san})`
+    /** @type {Move} */
+    const row = { ...move }
+    if (m.symbol !== undefined && m.symbol !== null && m.symbol !== '') {
+      const symbol = String(m.symbol).trim()
+      if (!SYMBOLS.includes(symbol)) throw new ToolError(`${label}: symbol "${m.symbol}" is not one of ${SYMBOLS.join(' ')}`)
+      if (i === 0 && (symbol === '?' || symbol === '??')) {
+        throw new ToolError(`${label}: the first move is the one the student should find, so it can't be marked "${symbol}". If the puzzle punishes that move, pass it as setup_moves.`)
+      }
+      row.glyph = symbol
+    }
+    const arrows = parseArrows(m.arrows, label)
+    const highlights = parseHighlights(m.highlights, label)
+    if (arrows.length) row.arrows = arrows
+    if (highlights.length) row.highlights = highlights
+    return row
   })
 }
 
@@ -389,7 +445,8 @@ export function replayAnswer(fen, answer, notes) {
 export function toRow(p, order) {
   if (!p || typeof p.fen !== 'string') throw new ToolError(`Position ${order + 1} needs a fen`)
   const fen = startingFen(normalizeFen(p.fen), p.setup_moves)
-  const solution = p.answer && String(p.answer).trim() ? replayAnswer(fen, p.answer, p.move_notes) : []
+  const replayed = p.answer && String(p.answer).trim() ? replayAnswer(fen, p.answer, p.move_notes) : []
+  const solution = withMoveMarks(replayed, p.move_marks, `Position ${order + 1}`)
   // The student plays the first answer move, so it must be the one to find,
   // not a course's "Bxf4?" with the punishment after it.
   const first = String(p.answer ?? '').trim().split(/\s+/).map((t) => t.replace(/^\d+\.+/, '')).find(Boolean) ?? ''
@@ -595,6 +652,10 @@ export function describePosition(found, appOrigin) {
     by: (i % 2 === 0) === (side === 'w') ? 'White' : 'Black',
     note: m.comment ?? '',
     ...(m.arrow ? { arrow: { from: m.arrow.startSquare, to: m.arrow.endSquare, color: penName(m.arrow.color) } } : {}),
+    // What the coach marked on this move: its symbol, and what's drawn on the position after it.
+    ...(m.glyph ? { symbol: m.glyph } : {}),
+    ...(Array.isArray(m.arrows) && m.arrows.length ? { arrows: m.arrows.map((a) => ({ from: a.startSquare, to: a.endSquare, color: penName(a.color) })) } : {}),
+    ...(Array.isArray(m.highlights) && m.highlights.length ? { highlights: m.highlights.map((h) => ({ square: h.square, color: penName(h.color) })) } : {}),
     fen_after: m.fen,
   }))
 
@@ -630,7 +691,7 @@ export function describePosition(found, appOrigin) {
     note: p.summary ?? '',
     // The coach's own notes from solving it by hand (migration 0013); not shown to students.
     my_notes: p.coach_notes ?? '',
-    answer_line: answer.map((m) => m.move).join(' '),
+    answer_line: answer.map((m) => m.move + (m.symbol ?? '')).join(' '),
     answer,
     arrows: (Array.isArray(p.arrows) ? p.arrows : []).map((a) => ({ from: a.startSquare, to: a.endSquare, color: penName(a.color) })),
     highlights: (Array.isArray(p.highlights) ? p.highlights : []).map((h) => ({ square: h.square, color: penName(h.color) })),
@@ -784,7 +845,7 @@ function positions(v) {
 // ---------------------------------------------------------------------------
 
 export const PROTOCOL_VERSION = '2025-03-26'
-export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.6.0' }
+export const SERVER_INFO = { name: 'chess-lesson-planner', version: '1.7.0' }
 
 /**
  * One JSON-RPC message in, one response out; notifications (no id) return null.

@@ -1,4 +1,4 @@
-import type { BoardArrow, BoardHighlight, PuzzleSource, SolutionMove } from '../../types/domain'
+import type { BoardArrow, BoardHighlight, MoveGlyph, PuzzleSource, SolutionMove } from '../../types/domain'
 
 /** What every importer produces: enough to fill a puzzle in one shot. */
 export interface ImportedPosition {
@@ -27,6 +27,8 @@ export interface ImportedMove {
   comment?: string
   arrows: BoardArrow[]
   highlights: BoardHighlight[]
+  /** Its symbol in the PGN: "f5!!" or "f5 $3". */
+  glyph?: MoveGlyph
 }
 
 export interface ImportedGame {

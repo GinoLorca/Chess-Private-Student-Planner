@@ -6,6 +6,7 @@ import { fetchLichessGame, fetchLichessPuzzle, fetchLichessStudy } from './liche
 import { fetchChesscomGame } from './chesscom'
 import { parsePgn } from './pgn'
 import type { DetectedInput, ImportedGame, ImportedPosition } from './types'
+import { isGlyph } from '../glyphs'
 
 export * from './types'
 export { detectInput, describeDetected } from './detect'
@@ -64,10 +65,14 @@ export function positionFromGame(game: ImportedGame, ply: number, solutionLength
   const fenBefore = ply === 0 ? game.startFen : game.moves[ply - 1].fen
   const fen = normalizeFen(fenBefore)
   const side = sideToMoveOf(fen)
+  // Each move keeps what the source drew after it, and its symbol.
   const solution: SolutionMove[] = game.moves.slice(ply, ply + solutionLength).map((m) => ({
     san: m.san,
     fen: m.fen,
     comment: m.comment,
+    ...(m.arrows.length ? { arrows: m.arrows } : {}),
+    ...(m.highlights.length ? { highlights: m.highlights } : {}),
+    ...(m.glyph ? { glyph: m.glyph } : {}),
   }))
   // Arrows drawn on the position itself (study-style) belong to the puzzle.
   const at = ply === 0 ? { arrows: game.startArrows, highlights: game.startHighlights, comment: game.startComment } : game.moves[ply - 1]
@@ -103,17 +108,41 @@ export function patchFromImported(p: ImportedPosition): PuzzlePatch {
   }
 }
 
-/** Validate a hand-typed SAN line against a position; returns moves with resulting FENs. */
+/** Validate a hand-typed SAN line against a position; returns moves with resulting FENs (and any symbol typed on a move, "f5!!"). */
 export function replayLine(fen: string, sans: string[]): { moves: SolutionMove[]; error?: string } {
   const chess = new Chess(normalizeFen(fen))
   const moves: SolutionMove[] = []
   for (const san of sans) {
+    const side = chess.turn() === 'w' ? 'White' : 'Black'
+    let move
     try {
-      const move = chess.move(san)
-      moves.push({ san: move.san, fen: chess.fen() })
+      move = chess.move(san)
     } catch {
-      return { moves, error: `"${san}" isn't a legal move here.` }
+      return { moves, error: `"${san}" isn't a legal move for ${side} ${moves.length ? `after ${moves.map((m) => m.san).join(' ')}` : 'here'}.` }
     }
+    const glyph = /(!!|\?\?|!\?|\?!|!|\?)$/.exec(san)?.[1]
+    moves.push({ san: move.san, fen: chess.fen(), ...(isGlyph(glyph) ? { glyph } : {}) })
   }
   return { moves }
+}
+
+/**
+ * A line typed for a position: move numbers ("1.", "1...", "12...Rf8") and
+ * NAGs left out. When it doesn't play but does without its first move or
+ * two (the move that led to the position, typed out of habit), that shorter
+ * line is offered too.
+ */
+export function typedLine(fen: string, text: string): { moves: SolutionMove[]; error?: string; without?: { line: string[]; left: string[] } } {
+  const sans = text
+    .trim()
+    .split(/\s+/)
+    .map((t) => t.replace(/^\d+\.+/, ''))
+    .filter((t) => t && !/^\$\d+$/.test(t) && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t))
+  const whole = replayLine(fen, sans)
+  if (!whole.error) return whole
+  for (const skip of [1, 2]) {
+    const rest = sans.slice(skip)
+    if (rest.length && !replayLine(fen, rest).error) return { ...whole, without: { line: rest, left: sans.slice(0, skip) } }
+  }
+  return whole
 }

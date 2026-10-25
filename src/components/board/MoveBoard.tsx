@@ -6,7 +6,7 @@ import { squareAtPoint, DRAG_THRESHOLD } from './pointer'
 import { useRightClickDraw } from './useRightClickDraw'
 import { usePieceSet } from '../../state/PieceSetContext'
 import { normalizeFen, squareToCell, type Orientation } from '../../lib/fen'
-import type { BoardArrow, BoardHighlight } from '../../types/domain'
+import type { BoardArrow, BoardHighlight, MoveGlyph } from '../../types/domain'
 import { Modal } from '../ui/Modal'
 import { markRendered } from '../../lib/speedCheck'
 
@@ -22,6 +22,8 @@ interface MoveBoardProps {
   /** When set, right-drag draws arrows and right-click highlights, saved through these. */
   onArrowsChange?: (arrows: BoardArrow[]) => void
   onHighlightsChange?: (highlights: BoardHighlight[]) => void
+  /** The symbol of the move just played (!, ??…), on its square. */
+  glyph?: { square: string; glyph: MoveGlyph } | null
 }
 
 /**
@@ -39,6 +41,7 @@ export function MoveBoard({
   disabled,
   onArrowsChange,
   onHighlightsChange,
+  glyph,
 }: MoveBoardProps) {
   const { pieces } = usePieceSet()
   const boardRef = useRef<HTMLDivElement>(null)
@@ -199,6 +202,7 @@ export function MoveBoard({
         arrows={draw.arrows}
         highlights={draw.highlights}
         lastMove={lastMove}
+        glyph={glyph}
         selected={draw.from}
         hiddenSquares={drag ? [drag.from] : undefined}
         interactive

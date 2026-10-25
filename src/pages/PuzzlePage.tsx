@@ -5,6 +5,7 @@ import type { BoardArrow, BoardHighlight } from '../types/domain'
 import { useLesson, usePuzzle, usePuzzleMutations, useStudent } from '../lib/queries'
 import { normalizeFen } from '../lib/fen'
 import { lineSteps, stepLabel } from '../lib/solution'
+import { sanWithGlyph } from '../lib/glyphs'
 import { useClicker } from '../hooks/useClicker'
 import { Page, Card, LoadingPage, SectionLabel } from '../components/ui/Page'
 import { effectiveQuizPrompt } from '../lib/prompts'
@@ -123,7 +124,10 @@ export function PuzzlePage() {
   const sketchAt = `${puzzle.id}:${showing ? showing.key : shownStep}`
   const here = sketch.at === sketchAt ? sketch : { at: sketchAt, arrows: [], highlights: [] }
   const moveArrow = !atStart && current?.arrow ? current.arrow : null
-  const shownArrows = showing ? showing.arrows : moveArrow ? [moveArrow] : []
+  // On a move of the answer: what the coach drew there in the editor, and its symbol.
+  const moveMarks = !atStart && !showing && current ? { arrows: current.arrows ?? [], highlights: current.highlights ?? [] } : { arrows: [], highlights: [] }
+  const glyph = !atStart && !showing && current?.glyph && current.to ? { square: current.to, glyph: current.glyph } : null
+  const shownArrows = showing ? showing.arrows : moveArrow ? [moveArrow, ...moveMarks.arrows] : moveMarks.arrows
   const mark = demo.mark
   const unmarked = (list: BoardHighlight[]) => list.filter((h) => !(mark && h.square === mark.square && h.color === mark.color))
 
@@ -198,15 +202,18 @@ export function PuzzlePage() {
             <DrawableBoard
               fen={showing ? showing.fen : atStart || !current ? fen : current.fen}
               arrows={editable ? puzzle.arrows : [...shownArrows, ...here.arrows]}
-              highlights={[...(editable ? puzzle.highlights : here.highlights), ...(mark ? [mark] : [])]}
+              highlights={[...(editable ? puzzle.highlights : [...moveMarks.highlights, ...here.highlights]), ...(mark ? [mark] : [])]}
               lastMove={showing ? showing.lastMove : lastMove}
+              glyph={glyph}
               orientation={orientation}
               onArrowsChange={(arrows) =>
                 // The move's own arrow is shown, not drawn: it stays out of the sketch.
                 editable ? update.mutate({ arrows }) : setSketch((s) => ({ ...(s.at === sketchAt ? s : here), arrows: arrows.filter((a) => !shownArrows.includes(a)) }))
               }
               onHighlightsChange={(highlights) =>
-                editable ? update.mutate({ highlights: unmarked(highlights) }) : setSketch((s) => ({ ...(s.at === sketchAt ? s : here), highlights: unmarked(highlights) }))
+                editable
+                  ? update.mutate({ highlights: unmarked(highlights) })
+                  : setSketch((s) => ({ ...(s.at === sketchAt ? s : here), highlights: unmarked(highlights).filter((h) => !moveMarks.highlights.includes(h)) }))
               }
               sketch={!editable}
               onClick={showing ? stepForward : last > 0 ? next : undefined}
@@ -222,7 +229,7 @@ export function PuzzlePage() {
                 Back
               </Button>
               <p className="min-w-0 flex-1 truncate text-center font-mono text-[15px] font-semibold whitespace-nowrap text-on-bg">
-                {atStart ? 'Start' : `${stepLabel(puzzle, shownStep)} ${current?.san ?? ''}`}
+                {atStart ? 'Start' : `${stepLabel(puzzle, shownStep)} ${current?.san ?? ''}${current?.glyph ?? ''}`}
                 <span className="ml-2 font-sans text-[12px] font-medium whitespace-nowrap text-on-bg-2 tabular-nums">
                   {shownStep} / {last}
                 </span>
@@ -270,7 +277,7 @@ export function PuzzlePage() {
                         className="flex shrink-0 items-baseline gap-3 text-left after:absolute after:inset-0 after:rounded-lg"
                       >
                         <span className="w-8 shrink-0 text-right font-mono text-[13px] text-ink-3 tabular-nums">{stepLabel(puzzle, i + 1)}</span>
-                        <span className="font-mono text-[17px] font-semibold text-ink">{move.san}</span>
+                        <span className="font-mono text-[17px] font-semibold text-ink">{sanWithGlyph(move)}</span>
                       </button>
                       {move.comment && !hidden && (
                         <span className="text-[14px] text-ink-2">

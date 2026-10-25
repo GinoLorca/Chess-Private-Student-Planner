@@ -6,6 +6,7 @@ import type { Puzzle, SolutionMove } from '../types/domain'
 import type { PuzzlePatch } from '../lib/data'
 import { useLesson, usePuzzleMutations, useStudent } from '../lib/queries'
 import { normalizeFen } from '../lib/fen'
+import { sanWithGlyph } from '../lib/glyphs'
 import { defaultQuizPrompt } from '../lib/prompts'
 import { FOLDER_COLORS, onColor } from '../lib/colors'
 import { Board } from '../components/board/Board'
@@ -161,8 +162,13 @@ function Bench({
   const autoLabel = (line: SolutionMove[]) =>
     puzzle.label && !/^#\d+$/.test(puzzle.label) ? puzzle.label : line[0]?.san || puzzle.label
 
-  // Playing from the end extends the line; playing from an earlier step starts the line over from there.
+  // Playing from the end extends the line; playing from an earlier step starts the line over from there
+  // (the recorded move played again just steps on, the rest of the line kept).
   function addMove(san: string, resultFen: string) {
+    if (puzzle.solution[step]?.san === san) {
+      setStep(step + 1)
+      return
+    }
     const solution = [...puzzle.solution.slice(0, step), { san, fen: resultFen }]
     apply({ solution, label: autoLabel(solution) })
     setStep(solution.length)
@@ -240,7 +246,7 @@ function Bench({
               )}
             >
               <span className="mr-1 text-[11px] font-normal opacity-70">{moveNumber(puzzle.side_to_move, i, fen)}</span>
-              {m.san}
+              {sanWithGlyph(m)}
             </button>
           ))}
           {puzzle.solution.length > 0 && (

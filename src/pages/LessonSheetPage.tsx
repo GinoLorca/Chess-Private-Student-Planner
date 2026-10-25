@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import type { Puzzle } from '../types/domain'
 import { useLesson, useStudent } from '../lib/queries'
 import { normalizeFen } from '../lib/fen'
+import { sanWithGlyph } from '../lib/glyphs'
 import { Board } from '../components/board/Board'
 import { effectiveQuizPrompt } from '../lib/prompts'
 import { Button } from '../components/ui/Button'
@@ -80,7 +81,7 @@ export function LessonSheetPage() {
 function SheetPuzzle({ puzzle, number, sectionTitle }: { puzzle: Puzzle; number: number; sectionTitle: string }) {
   const fen = normalizeFen(puzzle.starting_fen, puzzle.side_to_move)
   const toMove = puzzle.side_to_move === 'w' ? 'White' : 'Black'
-  const line = puzzle.solution.map((m) => m.san).join(', ')
+  const line = puzzle.solution.map(sanWithGlyph).join(', ')
 
   return (
     <article className="break-inside-avoid">
@@ -121,7 +122,7 @@ function SheetPuzzle({ puzzle, number, sectionTitle }: { puzzle: Puzzle; number:
             .filter((m) => m.comment)
             .map((m, i) => (
               <li key={i}>
-                <span className="font-mono font-semibold text-ink">{m.san}</span> — {m.comment}
+                <span className="font-mono font-semibold text-ink">{sanWithGlyph(m)}</span> — {m.comment}
               </li>
             ))}
         </ul>

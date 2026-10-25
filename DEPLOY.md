@@ -268,14 +268,18 @@ the address and door code). If `lesson` is null there's nothing to go to. Never 
 lesson whose status isn't `on`."*
 
 **A position** is `{ fen, setup_moves?, source_url?, label?, question?, note?, answer?,
-move_notes?, arrows?, highlights? }`. Only `fen` is required; the placement alone is fine.
+move_notes?, move_marks?, arrows?, highlights? }`. Only `fen` is required; the placement alone is fine.
 `answer` is the line as moves ("Rf8 Bxh4 b4", move numbers optional), checked against the
 position, so an impossible line is rejected instead of saved. It starts with the move the
 student should find, for the side to move. For an exercise that punishes a mistake (a
 course's "30...Bxf4? 31.Rf1!"), the mistake goes in `setup_moves` ("Bxf4"): it's played first
 and the student, now the other side, answers it; an answer whose first move is marked `?` is
 rejected with that advice. `move_notes` is one short comment per move of that line,
-shown under the move as you step through it in Coach view. `arrows` are
+shown under the move as you step through it in Coach view. `move_marks` is, per move of the
+line too, `{ symbol?, arrows?, highlights? }` (or `null`): its symbol (`!!`, `!`, `!?`, `?!`,
+`?`, `??`; the first move can't be `?` or `??`) and what's drawn on the position after it, shown
+as the answer is stepped there. A symbol typed on a move of `answer` ("Rf1!") is kept too, and
+`get_position` reads each move's back as `symbol`, `arrows` and `highlights`. `arrows` are
 `{ from: "d1", to: "d8", color? }` and `highlights` are `{ square: "g8", color? }`, drawn on
 the starting position and shown once the answer is revealed; colours are the app's four pens,
 `green` (default), `red`, `blue`, `yellow`, or the rest of the Sequential colours, `orange`,

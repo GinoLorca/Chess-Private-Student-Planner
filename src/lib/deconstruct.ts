@@ -1,6 +1,7 @@
 import { Chess, type Move, type Square } from 'chess.js'
 import type { Puzzle, PuzzleLevel, PuzzleLevels, SolutionMove } from '../types/domain'
 import { normalizeFen, parsePlacement } from './fen'
+import { moveExtras } from './glyphs'
 
 // ---------------------------------------------------------------------------
 // De-Construct's strip-down: the Beginner and Intermediate versions of a
@@ -459,8 +460,8 @@ function answerFrom(fen: string, pv: string[], original: SolutionMove[]): Soluti
       break
     }
     same = same && original[out.length]?.san === m.san
-    const comment = same ? original[out.length]?.comment : undefined
-    out.push({ san: m.san, fen: chess.fen(), ...(comment ? { comment } : {}) })
+    // While it's still the recorded line, each move keeps its comment, marks and symbol.
+    out.push({ san: m.san, fen: chess.fen(), ...(same ? moveExtras(original[out.length]) : {}) })
     if (chess.isGameOver()) break
   }
   return out

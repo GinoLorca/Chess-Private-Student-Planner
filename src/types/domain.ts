@@ -98,10 +98,17 @@ export interface BoardHighlight extends DrawnMeta {
   color: string
 }
 
+/** A move's symbol, as in Lichess Study: brilliant, good, interesting, dubious, a mistake, a blunder. */
+export type MoveGlyph = '!!' | '!' | '!?' | '?!' | '?' | '??'
+
 export interface SolutionMove {
   san: string
   fen: string
   comment?: string
+  /** Drawn on the position after this move, shown when the answer is stepped there. */
+  arrows?: BoardArrow[]
+  highlights?: BoardHighlight[]
+  glyph?: MoveGlyph
 }
 
 export type PuzzleSourceKind =

@@ -1,6 +1,7 @@
 import { Chess } from 'chess.js'
-import type { BoardArrow, BoardHighlight, PuzzleSource } from '../../types/domain'
+import type { BoardArrow, BoardHighlight, MoveGlyph, PuzzleSource } from '../../types/domain'
 import { sideToMoveOf } from '../fen'
+import { glyphOfNag, isGlyph } from '../glyphs'
 import type { ImportedGame, ImportedMove } from './types'
 
 // Lichess/ChessBase annotation colours. These are the colours the coach sees on
@@ -59,6 +60,10 @@ export function parsePgn(pgn: string, source: PuzzleSource): ImportedGame {
   const commentsByFen = new Map(chess.getComments().map((c) => [c.fen, c.comment]))
   const history = chess.history({ verbose: true })
 
+  // chess.js reads past the symbols; taken from the text, when its count of moves agrees.
+  const glyphs = mainlineGlyphs(pgn)
+  const glyphAt = (i: number) => (glyphs.length === history.length ? glyphs[i] : undefined)
+
   const startFen = headers.FEN ?? history[0]?.before ?? chess.fen()
   const startNotes = parseAnnotations(commentsByFen.get(startFen) ?? '')
 
@@ -72,6 +77,7 @@ export function parsePgn(pgn: string, source: PuzzleSource): ImportedGame {
       comment: notes.text || undefined,
       arrows: notes.arrows,
       highlights: notes.highlights,
+      ...(glyphAt(i) ? { glyph: glyphAt(i) } : {}),
     }
   })
 
@@ -87,6 +93,38 @@ export function parsePgn(pgn: string, source: PuzzleSource): ImportedGame {
     referenceLabel,
     source,
   }
+}
+
+/**
+ * Each main-line move's symbol, from a suffix ("f5!!") or a NAG ("f5 $3"),
+ * in order, undefined for a move without one. Comments, side lines and the
+ * headers are left out first, so only the main line's moves are counted.
+ */
+export function mainlineGlyphs(pgn: string): (MoveGlyph | undefined)[] {
+  const text = pgn
+    .replace(/\{[^}]*\}/g, ' ')
+    .replace(/;[^\n]*/g, ' ')
+    .replace(/^\s*\[[^\]]*\]\s*$/gm, ' ')
+  let main = ''
+  let depth = 0
+  for (const ch of text) {
+    if (ch === '(') depth++
+    else if (ch === ')') depth = Math.max(0, depth - 1)
+    else if (depth === 0) main += ch
+  }
+  const out: (MoveGlyph | undefined)[] = []
+  for (const raw of main.split(/\s+/)) {
+    const token = raw.replace(/^\d+\.+/, '')
+    if (!token || /^(1-0|0-1|1\/2-1\/2|\*)$/.test(token)) continue
+    if (/^\$\d+$/.test(token)) {
+      // A NAG names the move before it; a suffix already there wins.
+      if (out.length && !out[out.length - 1]) out[out.length - 1] = glyphOfNag(token)
+      continue
+    }
+    const suffix = /(!!|\?\?|!\?|\?!|!|\?)$/.exec(token)?.[1]
+    out.push(isGlyph(suffix) ? suffix : undefined)
+  }
+  return out
 }
 
 /** Human move-number prefix for a ply in a game that starts from `startFen`. */

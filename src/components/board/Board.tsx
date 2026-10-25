@@ -1,7 +1,8 @@
 import { memo, type ComponentType, type CSSProperties, type HTMLAttributes, type ReactNode, type Ref } from 'react'
 import clsx from 'clsx'
-import type { BoardArrow, BoardHighlight } from '../../types/domain'
-import { FILES, cellToSquare, isLightSquare, parsePlacement, type Orientation } from '../../lib/fen'
+import type { BoardArrow, BoardHighlight, MoveGlyph } from '../../types/domain'
+import { FILES, cellToSquare, isLightSquare, parsePlacement, squareToCell, type Orientation } from '../../lib/fen'
+import { glyphInfo } from '../../lib/glyphs'
 import { usePieceSet } from '../../state/PieceSetContext'
 import { haloFor, highlightAlpha, solid, useArrowProfile } from '../../lib/arrowProfiles'
 import { Arrows } from './Arrows'
@@ -22,6 +23,8 @@ export interface BoardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'childr
   interactive?: boolean
   /** Extra layer rendered above pieces but below arrows (drop targets, ghosts…). */
   overlay?: ReactNode
+  /** A move's symbol (!, ??…), as a badge in the corner of the square it landed on, the way Lichess Study shows it. */
+  glyph?: { square: string; glyph: MoveGlyph } | null
 }
 
 /**
@@ -40,6 +43,7 @@ export const Board = memo(function Board({
   hiddenSquares,
   interactive = false,
   overlay,
+  glyph = null,
   className,
   style,
   ...rest
@@ -98,9 +102,35 @@ export const Board = memo(function Board({
       {cells}
       {overlay}
       <Arrows arrows={arrows} orientation={orientation} />
+      {glyph && <GlyphBadge {...glyph} orientation={orientation} />}
     </div>
   )
 })
+
+function GlyphBadge({ square, glyph, orientation }: { square: string; glyph: MoveGlyph; orientation: Orientation }) {
+  const { x, y } = squareToCell(square, orientation)
+  const info = glyphInfo(glyph)
+  return (
+    <span
+      className="board-glyph pointer-events-none absolute flex items-center justify-center rounded-full font-sans leading-none font-bold text-white"
+      title={info.name}
+      aria-label={`${info.name} (${glyph})`}
+      style={{
+        // The square's top-right corner, a little in from the edge so the board's frame never cuts it.
+        left: `${(x + 1) * 12.5 - 5.6}%`,
+        top: `${y * 12.5 + 0.6}%`,
+        width: '5cqw',
+        height: '5cqw',
+        fontSize: glyph.length > 1 ? '2.5cqw' : '3.1cqw',
+        letterSpacing: glyph.length > 1 ? '-0.04em' : undefined,
+        background: info.color,
+        boxShadow: '0 0 0 max(1px, 0.3cqw) rgba(255,255,255,.85), 0 1px 3px rgba(0,0,0,.35)',
+      }}
+    >
+      {glyph}
+    </span>
+  )
+}
 
 export { FILES }
 

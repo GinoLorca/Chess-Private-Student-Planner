@@ -5,6 +5,7 @@ import type { LevelId, Puzzle, PuzzleLevel } from '../types/domain'
 import { useLesson, usePuzzle, usePuzzleMutations, useStudent, useTeachMissing } from '../lib/queries'
 import { TEACH_MIGRATION } from '../lib/data'
 import { normalizeFen } from '../lib/fen'
+import { sanWithGlyph } from '../lib/glyphs'
 import { LEVELS, levelPuzzle, pieceCount, sharedSquares, withLevel, type LevelKey } from '../lib/levels'
 import { suggestLevels, type Progress } from '../lib/deconstruct'
 import { Board } from '../components/board/Board'
@@ -357,7 +358,7 @@ function LevelColumn({
             <p className="mt-1.5 flex flex-wrap gap-1">
               {puzzle.solution.map((m, i) => (
                 <span key={i} className={clsx('rounded-md px-1.5 py-0.5 font-mono text-[13px] font-semibold', i === 0 ? 'bg-accent-soft text-accent-strong' : 'bg-surface-2 text-ink-2')}>
-                  {m.san}
+                  {sanWithGlyph(m)}
                 </span>
               ))}
             </p>

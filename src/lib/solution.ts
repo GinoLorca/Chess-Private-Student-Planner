@@ -1,5 +1,5 @@
 import { Chess } from 'chess.js'
-import type { BoardArrow, Puzzle } from '../types/domain'
+import type { BoardArrow, BoardHighlight, MoveGlyph, Puzzle } from '../types/domain'
 import { normalizeFen } from './fen'
 
 export interface LineStep {
@@ -12,6 +12,10 @@ export interface LineStep {
   comment?: string
   /** The move as an arrow, for drawing it on the board. */
   arrow?: BoardArrow
+  /** What the coach drew on the position after this move (the start: the position's own marks), and its symbol. */
+  arrows?: BoardArrow[]
+  highlights?: BoardHighlight[]
+  glyph?: MoveGlyph
 }
 
 export const MOVE_ARROW = '#15781b'
@@ -23,7 +27,7 @@ export const MOVE_ARROW = '#15781b'
  */
 export function lineSteps(puzzle: Puzzle): LineStep[] {
   const start = normalizeFen(puzzle.starting_fen, puzzle.side_to_move)
-  const steps: LineStep[] = [{ index: 0, fen: start }]
+  const steps: LineStep[] = [{ index: 0, fen: start, arrows: puzzle.arrows, highlights: puzzle.highlights }]
   let chess: Chess | null = null
   try {
     chess = new Chess(start)
@@ -52,6 +56,9 @@ export function lineSteps(puzzle: Puzzle): LineStep[] {
       to,
       comment: move.comment || undefined,
       arrow: from && to ? { startSquare: from, endSquare: to, color: MOVE_ARROW } : undefined,
+      arrows: move.arrows ?? [],
+      highlights: move.highlights ?? [],
+      glyph: move.glyph,
     })
   })
   return steps

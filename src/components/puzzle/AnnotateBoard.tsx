@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import clsx from 'clsx'
-import type { BoardArrow, BoardHighlight } from '../../types/domain'
+import type { BoardArrow, BoardHighlight, MoveGlyph } from '../../types/domain'
 import { Board } from '../board/Board'
 import { squareAtPoint, DRAG_THRESHOLD } from '../board/pointer'
 import { DEFAULT_PEN, HIGHLIGHT_ALPHA, PENS, heldPen } from '../../lib/pens'
@@ -15,6 +15,9 @@ interface AnnotateBoardProps {
   highlights: BoardHighlight[]
   onArrowsChange: (arrows: BoardArrow[]) => void
   onHighlightsChange: (highlights: BoardHighlight[]) => void
+  /** On a move of the answer: the move's squares and its symbol. */
+  lastMove?: { from: string; to: string } | null
+  glyph?: { square: string; glyph: MoveGlyph } | null
 }
 
 /**
@@ -31,6 +34,8 @@ export function AnnotateBoard({
   highlights,
   onArrowsChange,
   onHighlightsChange,
+  lastMove,
+  glyph,
 }: AnnotateBoardProps) {
   // Settings → Arrow colors, on this device. With a profile on, the Auto pen
   // (its colours) is picked to start with; a pen still draws in its own.
@@ -190,6 +195,8 @@ export function AnnotateBoard({
           orientation={orientation}
           arrows={preview ? [...arrows, preview] : arrows}
           highlights={highlights}
+          lastMove={lastMove}
+          glyph={glyph}
           selected={from}
           interactive
           onPointerDown={onPointerDown}

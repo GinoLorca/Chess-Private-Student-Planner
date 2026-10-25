@@ -3,11 +3,11 @@ import { Chess } from 'chess.js'
 import { usePieceSet } from '../state/PieceSetContext'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import clsx from 'clsx'
-import type { LevelId, Puzzle, PuzzleLevels, SolutionMove } from '../types/domain'
+import type { BoardArrow, BoardHighlight, LevelId, MoveGlyph, Puzzle, PuzzleLevels, SolutionMove } from '../types/domain'
 import type { PuzzlePatch } from '../lib/data'
 import { useLesson, usePuzzle, usePuzzleMutations, useStudent } from '../lib/queries'
 import { normalizeFen, parsePlacement, placementOf, serializePlacement, sideToMoveOf, type PieceCode } from '../lib/fen'
-import { patchFromImported, replayLine } from '../lib/import'
+import { patchFromImported, typedLine as readTypedLine } from '../lib/import'
 import { Page, LoadingPage, SectionLabel } from '../components/ui/Page'
 import { DividerPaper, DividerTabs, FolderBody, FolderTab, PaperCard } from '../components/lesson/Folder'
 import { FOLDER_COLORS } from '../lib/colors'
@@ -18,10 +18,11 @@ import { MoveBoard } from '../components/board/MoveBoard'
 import { ImportSheet } from '../components/import/ImportSheet'
 import { EngineCheck } from '../components/import/EngineCheck'
 import { draftExplanation } from '../lib/ai'
-import { answerProblem, stepLabel } from '../lib/solution'
+import { answerProblem, lineSteps, stepLabel } from '../lib/solution'
+import { GLYPHS, marksOf, moveExtras, sanWithGlyph, withMarks } from '../lib/glyphs'
 import { useClicker } from '../hooks/useClicker'
 import { opposite, useFlip } from '../hooks/useFlip'
-import { Check, ChevronDown, ChevronRight, Plus, Sparkle, Target, Teach, Warning } from '../components/ui/Icons'
+import { Check, ChevronDown, ChevronRight, Pencil, Plus, Sparkle, Target, Teach, Warning } from '../components/ui/Icons'
 import { SendToTeachSheet } from '../components/teach/SendToTeachSheet'
 import { isTeach } from '../lib/teach'
 import { levelFromPatch, levelName, levelPuzzle, levelPuzzleId, withLevel } from '../lib/levels'
@@ -170,6 +171,8 @@ function Editor({
   const [importing, setImporting] = useState(false)
   const [typedLine, setTypedLine] = useState('')
   const [lineError, setLineError] = useState<string | null>(null)
+  // The typed line without its first move or two, when that plays and the whole line doesn't.
+  const [lineFix, setLineFix] = useState<{ line: string[]; left: string[] } | null>(null)
   const [drafting, setDrafting] = useState(false)
   const [draftError, setDraftError] = useState<string | null>(null)
   const summaryRef = useRef<HTMLTextAreaElement>(null)
@@ -247,12 +250,13 @@ function Editor({
   const shown = view === null ? puzzle.solution.length : Math.min(view, puzzle.solution.length)
   const answerFen = shown > 0 ? puzzle.solution[shown - 1].fen : fen
   const answerWarning = useMemo(() => answerProblem(puzzle), [puzzle])
-  const lastMove = useMemo(() => {
-    const move = puzzle.solution[shown - 1]
-    if (!move) return null
-    const m = /([a-h][1-8])[^a-h]*$/.exec(move.san.replace(/[+#]/g, ''))
-    return m ? { from: '', to: m[1] } : null
-  }, [puzzle.solution, shown])
+  const steps = useMemo(() => lineSteps(puzzle), [puzzle])
+  const step = steps[shown]
+  const lastMove = shown > 0 && step?.from && step.to ? { from: step.from, to: step.to } : null
+  const shownMove = shown > 0 ? puzzle.solution[shown - 1] : undefined
+  const glyphBadge = shownMove?.glyph && step?.to ? { square: step.to, glyph: shownMove.glyph } : null
+  // The Draw switch: the board takes the touch pen (Arrows tab's) instead of moving pieces.
+  const [drawOn, setDrawOn] = useState(false)
   const stepNext = useCallback(() => {
     if (tab === 'answer') setView((v) => Math.min(puzzle.solution.length, (v ?? puzzle.solution.length) + 1))
   }, [tab, puzzle.solution.length])
@@ -291,6 +295,11 @@ function Editor({
     puzzle.label && !/^#\d+$/.test(puzzle.label) ? puzzle.label : line[0]?.san || puzzle.label
 
   function addMove(san: string, resultFen: string) {
+    // The recorded move played again just steps on: the rest of the line, and its marks, stay.
+    if (puzzle.solution[shown]?.san === san && shown < puzzle.solution.length) {
+      setView(shown + 1 === puzzle.solution.length ? null : shown + 1)
+      return
+    }
     const solution = [...puzzle.solution.slice(0, shown), { san, fen: resultFen }]
     setView(null)
     apply({ solution, label: autoLabel(solution) })
@@ -325,6 +334,24 @@ function Editor({
     apply({ solution: puzzle.solution.map((m, j) => (j === i ? { ...m, comment } : m)) })
   }
 
+  // A move's own arrows, squares and symbol. A stroke can change both lists
+  // at once (a profile recolouring), so each change builds on the last one
+  // made, not on the render's copy, and the two coalesce into one write.
+  const latestLine = useRef(puzzle.solution)
+  useEffect(() => {
+    latestLine.current = puzzle.solution
+  })
+  function setMoveMarks(i: number, marks: Partial<Pick<SolutionMove, 'arrows' | 'highlights' | 'glyph'>>) {
+    const solution = latestLine.current.map((m, j) => (j === i ? withMarks(m, marks) : m))
+    latestLine.current = solution
+    applyDebounced({ solution })
+  }
+  // The board's marks: the position's own at the start, the move's own on a move.
+  const shownMarks = shown === 0 ? { arrows: puzzle.arrows, highlights: puzzle.highlights } : marksOf(shownMove)
+  const onShownArrows = (arrows: BoardArrow[]) => (shown === 0 ? apply({ arrows }) : setMoveMarks(shown - 1, { arrows }))
+  const onShownHighlights = (highlights: BoardHighlight[]) => (shown === 0 ? apply({ highlights }) : setMoveMarks(shown - 1, { highlights }))
+  const setGlyph = (glyph: MoveGlyph) => setMoveMarks(shown - 1, { glyph: shownMove?.glyph === glyph ? undefined : glyph })
+
   /**
    * The puzzle starts later in its own line: the position after the first
    * `count` moves becomes the start, the other side is to move, and the
@@ -355,6 +382,8 @@ function Editor({
       starting_fen: nextFen,
       side_to_move: side,
       solution: rest,
+      // What was drawn on that move is drawn on the new start.
+      ...(last.arrows?.length || last.highlights?.length ? marksOf(last) : {}),
       ...(puzzle.label === played[0].san ? { label: rest[0].san } : {}),
       ...(promptForOldSide ? { quiz_prompt: '' } : {}),
     })
@@ -364,15 +393,17 @@ function Editor({
     apply({ solution: line, label: autoLabel(line) })
   }
 
-  function applyTypedLine() {
-    const sans = typedLine.trim().split(/\s+/).filter((t) => !/^\d+\.+$/.test(t))
-    const { moves, error } = replayLine(fen, sans)
+  function applyTypedLine(text = typedLine) {
+    const { moves, error, without } = readTypedLine(fen, text)
     if (error) {
       setLineError(error)
+      setLineFix(without ?? null)
       return
     }
     setLineError(null)
+    setLineFix(null)
     setTypedLine('')
+    setView(null)
     apply({ solution: moves, label: autoLabel(moves) })
   }
 
@@ -496,26 +527,40 @@ function Editor({
           )}
           {tab === 'answer' && (
             <div className="space-y-3">
-              <div className="mx-auto w-full max-w-[644px] pointer-fine:max-w-[560px]">
-                <MoveBoard
+              {drawOn ? (
+                <AnnotateBoard
                   fen={answerFen}
                   orientation={orientation}
-                  arrows={shown === 0 ? puzzle.arrows : undefined}
-                  highlights={shown === 0 ? puzzle.highlights : undefined}
+                  arrows={shownMarks.arrows}
+                  highlights={shownMarks.highlights}
                   lastMove={lastMove}
-                  onMove={addMove}
-                  // Right-drag annotates while the board still shows the starting position.
-                  onArrowsChange={shown === 0 ? (arrows) => apply({ arrows }) : undefined}
-                  onHighlightsChange={shown === 0 ? (highlights) => apply({ highlights }) : undefined}
+                  glyph={glyphBadge}
+                  onArrowsChange={onShownArrows}
+                  onHighlightsChange={onShownHighlights}
                 />
-              </div>
+              ) : (
+                <div className="mx-auto w-full max-w-[644px] pointer-fine:max-w-[560px]">
+                  <MoveBoard
+                    fen={answerFen}
+                    orientation={orientation}
+                    arrows={shownMarks.arrows}
+                    highlights={shownMarks.highlights}
+                    lastMove={lastMove}
+                    glyph={glyphBadge}
+                    onMove={addMove}
+                    // Right-drag (or a resting finger) draws on the move the answer is stepped to: the start, or any move.
+                    onArrowsChange={onShownArrows}
+                    onHighlightsChange={onShownHighlights}
+                  />
+                </div>
+              )}
               {puzzle.solution.length > 0 && (
                 <div className="flex items-center gap-2">
                   <Button variant="secondary" size="sm" onClick={stepPrev} disabled={shown === 0}>
                     Back
                   </Button>
                   <p className="flex-1 text-center font-mono text-[14px] font-semibold text-ink">
-                    {shown === 0 ? 'Start' : `${shown}. ${puzzle.solution[shown - 1].san}`}
+                    {shown === 0 ? 'Start' : `${stepLabel(puzzle, shown)} ${sanWithGlyph(puzzle.solution[shown - 1])}`}
                     <span className="ml-2 font-sans text-[12px] font-medium text-ink-3 tabular-nums">
                       {shown} / {puzzle.solution.length}
                     </span>
@@ -525,6 +570,13 @@ function Editor({
                   </Button>
                 </div>
               )}
+              <MoveMarking
+                move={shownMove}
+                label={shownMove ? `${stepLabel(puzzle, shown)} ${shownMove.san}` : null}
+                drawOn={drawOn}
+                onDraw={() => setDrawOn((on) => !on)}
+                onGlyph={setGlyph}
+              />
               {shown > 0 && shown < puzzle.solution.length && (
                 <Button variant="ghost" size="sm" onClick={() => startAfter(shown)} className="mt-1 w-full">
                   Start the puzzle here ({sideToMoveOf(puzzle.solution[shown - 1].fen) === 'w' ? 'White' : 'Black'} to move)
@@ -587,7 +639,12 @@ function Editor({
                           )}
                         >
                           <span className="w-6 shrink-0 text-right font-mono text-[12px] text-ink-3 tabular-nums">{i + 1}.</span>
-                          <span className="w-14 shrink-0 text-left font-mono text-[16px] font-semibold text-ink">{m.san}</span>
+                          <span className="min-w-14 shrink-0 text-left font-mono text-[16px] font-semibold text-ink">{sanWithGlyph(m)}</span>
+                          {/* Room for the dot on every row, so the comments line up. */}
+                          <span
+                            className={clsx('h-1.5 w-1.5 shrink-0 rounded-full', m.arrows?.length || m.highlights?.length ? 'bg-ink-3' : 'bg-transparent')}
+                            {...(m.arrows?.length || m.highlights?.length ? { title: 'Has arrows or squares of its own', 'aria-label': 'Has arrows or squares' } : { 'aria-hidden': true })}
+                          />
                         </button>
                         <input
                           defaultValue={m.comment ?? ''}
@@ -609,7 +666,7 @@ function Editor({
                   <input
                     value={typedLine}
                     onChange={(e) => setTypedLine(e.target.value)}
-                    placeholder="Or type the line: Rf8 Bxh4 b4"
+                    placeholder="Or type the line: Rf8! Bxh4 b4"
                     spellCheck={false}
                     autoCapitalize="off"
                     autoCorrect="off"
@@ -620,6 +677,14 @@ function Editor({
                   </Button>
                 </form>
                 {lineError && <p className="mt-1.5 text-[13px] text-danger">{lineError}</p>}
+                {lineError && lineFix && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px] text-ink-2">
+                    <span>Without {lineFix.left.join(' ')} (already played to reach the position) it plays:</span>
+                    <Button size="sm" variant="secondary" onClick={() => applyTypedLine(lineFix.line.join(' '))}>
+                      Use {lineFix.line.join(' ')}
+                    </Button>
+                  </div>
+                )}
               </PaperCard>
               <EngineCheck fen={fen} solution={puzzle.solution} onUseLine={useLine} />
             </>
@@ -782,6 +847,68 @@ function Editor({
 }
 
 /**
+ * Under the Answer tab's board: what drawing there does, the Draw switch
+ * (the touch pen in place of moving pieces), and on a move, its symbol.
+ */
+function MoveMarking({
+  move,
+  label,
+  drawOn,
+  onDraw,
+  onGlyph,
+}: {
+  move: SolutionMove | undefined
+  label: string | null
+  drawOn: boolean
+  onDraw: () => void
+  onGlyph: (glyph: MoveGlyph) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {move && (
+          <div role="group" aria-label={`Symbol for ${label}`} className="flex flex-wrap gap-1">
+            {GLYPHS.map((g) => {
+              const on = move.glyph === g.glyph
+              return (
+                <button
+                  key={g.glyph}
+                  onClick={() => onGlyph(g.glyph)}
+                  aria-pressed={on}
+                  aria-label={g.name}
+                  title={`${g.name} (${g.glyph})`}
+                  className={clsx(
+                    'grid h-9 min-w-9 place-items-center rounded-lg px-1.5 font-mono text-[15px] font-bold transition',
+                    on ? 'text-white' : 'bg-surface-2 text-ink hover:bg-surface-3',
+                  )}
+                  style={on ? { background: g.color } : undefined}
+                >
+                  {g.glyph}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        <Button size="sm" variant={drawOn ? 'soft' : 'ghost'} icon={<Pencil size={15} />} aria-pressed={drawOn} onClick={onDraw} className="ml-auto">
+          {drawOn ? 'Done drawing' : 'Draw'}
+        </Button>
+      </div>
+      <p className="text-[13px] text-ink-3">
+        {drawOn ? (
+          'Pick a pen and drag for an arrow, tap a square to mark it. Tap Done drawing to play moves again.'
+        ) : (
+          <>
+            <span className="pointer-fine:hidden">Draw for the pens, or rest a finger on a square, then drag for an arrow or lift to mark it</span>
+            <span className="hidden pointer-fine:inline">Right-drag for an arrow, right-click a square (hold Z, R, F or C for a colour)</span>
+            {label ? `: kept with ${label}, shown when the answer is stepped there.` : ': kept with the starting position, shown once the answer is revealed.'}
+          </>
+        )}
+      </p>
+    </div>
+  )
+}
+
+/**
  * A level's answer carried onto a new set-up: each move played from the
  * same square to the same square while it's still legal, its note kept.
  * `moves` is null while the set-up isn't a legal position (the answer waits).
@@ -804,7 +931,7 @@ function carryLine(from: { fen: string; solution: SolutionMove[] }, nextFen: str
     }
     try {
       const res = after.move({ from: played.from, to: played.to, promotion: played.promotion })
-      moves.push({ san: res.san, fen: after.fen(), ...(m.comment ? { comment: m.comment } : {}) })
+      moves.push({ san: res.san, fen: after.fen(), ...moveExtras(m) })
     } catch {
       return { moves, note: `The answer stops at move ${i + 1} now (${m.san} can't be played): play the rest on the Answer tab.` }
     }

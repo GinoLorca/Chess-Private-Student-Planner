@@ -364,12 +364,17 @@ function PuzzleView({
   const sketchAt = showing ? showing.key : `step:${step}`
   const sketchHere = sketch && sketch.at === sketchAt ? sketch : null
   const moveArrow = !atStart && current.arrow && revealed && !notesHidden ? current.arrow : null
-  const shownArrows = showing ? showing.arrows : moveArrow ? [moveArrow] : levelMarks ? levelMarks.arrows : []
+  // On a move of the answer: what the coach drew there in the editor, and its symbol.
+  const atMove = !atStart && revealed && !notesHidden && !showing
+  const moveMarks = atMove ? { arrows: current.arrows ?? [], highlights: current.highlights ?? [] } : null
+  const glyph = atMove && current.glyph && current.to ? { square: current.to, glyph: current.glyph } : null
+  const shownArrows = showing ? showing.arrows : moveArrow ? [moveArrow, ...(moveMarks?.arrows ?? [])] : levelMarks ? levelMarks.arrows : []
+  const fixedHighlights = levelMarks?.highlights ?? moveMarks?.highlights ?? []
   // A square tapped in the text, while the text is up.
   const mark = revealed && !notesHidden ? demo.mark : null
   const unmarked = (list: BoardHighlight[]) => list.filter((h) => !(mark && h.square === mark.square && h.color === mark.color))
   const boardArrows = showAnnotations ? puzzle.arrows : [...shownArrows, ...(sketchHere?.arrows ?? [])]
-  const boardHighlights = [...(showAnnotations ? puzzle.highlights : [...(levelMarks?.highlights ?? []), ...(sketchHere?.highlights ?? [])]), ...(mark ? [mark] : [])]
+  const boardHighlights = [...(showAnnotations ? puzzle.highlights : [...fixedHighlights, ...(sketchHere?.highlights ?? [])]), ...(mark ? [mark] : [])]
   const setArrows = (arrows: BoardArrow[]) =>
     showAnnotations
       ? update.mutate({ arrows })
@@ -377,7 +382,7 @@ function PuzzleView({
   const setHighlights = (highlights: BoardHighlight[]) =>
     showAnnotations
       ? update.mutate({ highlights: unmarked(highlights) })
-      : setSketch((s) => ({ at: sketchAt, highlights: unmarked(highlights).filter((h) => !levelMarks?.highlights.includes(h)), arrows: s && s.at === sketchAt ? s.arrows : [] }))
+      : setSketch((s) => ({ at: sketchAt, highlights: unmarked(highlights).filter((h) => !fixedHighlights.includes(h)), arrows: s && s.at === sketchAt ? s.arrows : [] }))
   const lastMove = showing
     ? showing.lastMove
     : !atStart && !notesHidden && current.from && current.to
@@ -543,6 +548,7 @@ function PuzzleView({
             arrows={boardArrows}
             highlights={boardHighlights}
             lastMove={lastMove}
+            glyph={glyph}
             onArrowsChange={setArrows}
             onHighlightsChange={setHighlights}
             onClick={() => (showing ? demo.forward() : revealed ? next() : undefined)}
@@ -671,6 +677,7 @@ function PuzzleView({
                     >
                       <span className="mr-1 text-[12px] font-normal opacity-70">{stepLabel(puzzle, s.index)}</span>
                       {s.san}
+                      {s.glyph}
                     </button>
                   ))}
                 </div>

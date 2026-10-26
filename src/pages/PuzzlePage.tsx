@@ -123,7 +123,10 @@ export function PuzzlePage() {
   const editable = atStart && !showing
   const sketchAt = `${puzzle.id}:${showing ? showing.key : shownStep}`
   const here = sketch.at === sketchAt ? sketch : { at: sketchAt, arrows: [], highlights: [] }
-  const moveArrow = !atStart && current?.arrow ? current.arrow : null
+  // The move just played, as an arrow, on a move the coach hasn't marked; a
+  // marked move shows only what was drawn on it, as the editor does.
+  const marked = Boolean(current?.arrows?.length || current?.highlights?.length)
+  const moveArrow = !atStart && !marked && current?.arrow ? current.arrow : null
   // On a move of the answer: what the coach drew there in the editor, and its symbol.
   const moveMarks = !atStart && !showing && current ? { arrows: current.arrows ?? [], highlights: current.highlights ?? [] } : { arrows: [], highlights: [] }
   const glyph = !atStart && !showing && current?.glyph && current.to ? { square: current.to, glyph: current.glyph } : null

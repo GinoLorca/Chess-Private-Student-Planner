@@ -363,12 +363,15 @@ function PuzzleView({
   // or before the answer is revealed, so a student's board never gives the answer away.
   const sketchAt = showing ? showing.key : `step:${step}`
   const sketchHere = sketch && sketch.at === sketchAt ? sketch : null
-  const moveArrow = !atStart && current.arrow && revealed && !notesHidden ? current.arrow : null
+  // The move just played, as an arrow, on a move the coach hasn't marked; a
+  // marked move shows only what was drawn on it, as the editor does.
+  const marked = Boolean(current.arrows?.length || current.highlights?.length)
+  const moveArrow = !atStart && !marked && current.arrow && revealed && !notesHidden ? current.arrow : null
   // On a move of the answer: what the coach drew there in the editor, and its symbol.
   const atMove = !atStart && revealed && !notesHidden && !showing
   const moveMarks = atMove ? { arrows: current.arrows ?? [], highlights: current.highlights ?? [] } : null
   const glyph = atMove && current.glyph && current.to ? { square: current.to, glyph: current.glyph } : null
-  const shownArrows = showing ? showing.arrows : moveArrow ? [moveArrow, ...(moveMarks?.arrows ?? [])] : levelMarks ? levelMarks.arrows : []
+  const shownArrows = showing ? showing.arrows : moveMarks ? [...(moveArrow ? [moveArrow] : []), ...moveMarks.arrows] : levelMarks ? levelMarks.arrows : []
   const fixedHighlights = levelMarks?.highlights ?? moveMarks?.highlights ?? []
   // A square tapped in the text, while the text is up.
   const mark = revealed && !notesHidden ? demo.mark : null

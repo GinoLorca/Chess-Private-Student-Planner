@@ -43,7 +43,16 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   answer*), then *Show explanation* reveals the line, arrows and notes. A tally for the
   session sits in the top bar.
 - **Recycle** — ⋯ on a lesson → *Recycle for another student…* copies the whole lesson,
-  annotations included, as that student's next lesson.
+  annotations included, as that student's next lesson. One position at a time: right-click or
+  hold its card → *Recycle to another lesson…*, then pick the folder (this one, another
+  student's, or from Teach another Teach folder; private folders stay out), the lesson (the
+  newest not yet taught to start with, or a new one, named after the position's section) and,
+  when it has more than one, the section. It's a copy with everything (answer, comments, each
+  move's marks and symbols, arrows, explanation, levels, source); its dot starts over at red and
+  the original stays put. The last place used comes back at the top as *Again*, so a run of
+  positions goes in one tap each. A student's position whose notes name that student says so,
+  with *Edit the copy* in the note that follows (Send to Teach is the way to take the name out
+  for anyone). Works the same in Teach, which is how a Teach position reaches a student.
 - **Clicker** — in Coach view and Present, a Bluetooth presentation clicker (Page Down / Page
   Up, or the arrow keys and space) walks the whole lesson: reveal, each answer move, then the
   next position; the back button reverses it; Escape returns to the folder. `]` and `[` jump a

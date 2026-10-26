@@ -33,6 +33,7 @@ import { FenSheet } from '../components/lesson/FenSheet'
 import { patchFromImported } from '../lib/import'
 import { Check, ChevronDown, ChevronRight, Document, Download, Eye, Folder, Knight, LinkIcon, More, Pencil, Plus, Recycle, Target, Teach, Trash } from '../components/ui/Icons'
 import { SendToTeachSheet, type TeachItem } from '../components/teach/SendToTeachSheet'
+import { RecycleSheet } from '../components/lesson/RecycleSheet'
 import { isTeach } from '../lib/teach'
 import { answerProblem } from '../lib/solution'
 import { copyText, puzzleLink } from '../lib/links'
@@ -62,7 +63,9 @@ export function LessonPlanDetailPage() {
   const [teachItems, setTeachItems] = useState<TeachItem[] | null>(null)
   const [teachingLesson, setTeachingLesson] = useState(false)
   const canTeach = Boolean(student && !isTeach(student))
-  const [moved, setMoved] = useState<{ text: string; to?: string } | null>(null)
+  const [moved, setMoved] = useState<{ text: string; to?: string; link?: string } | null>(null)
+  // Recycle: one position copied into another lesson, any folder's.
+  const [recyclingPuzzle, setRecyclingPuzzle] = useState<Puzzle | null>(null)
   // Positions' dots need migration 0012; until then the cards go without.
   const codesMissing = useCodesMissing()
   const canDot = codesMissing.data === false
@@ -126,7 +129,7 @@ export function LessonPlanDetailPage() {
     await content.movePuzzle.mutateAsync({ puzzle, toSectionId: sectionId, sortOrder: last + 1 })
   }
 
-  function say(message: { text: string; to?: string }) {
+  function say(message: { text: string; to?: string; link?: string }) {
     setMoved(message)
     window.setTimeout(() => setMoved((m) => (m === message ? null : m)), message.to ? 8000 : 3500)
   }
@@ -159,6 +162,7 @@ export function LessonPlanDetailPage() {
             },
           ]
         : []),
+      { label: 'Recycle to another lesson…', icon: <Recycle />, onSelect: () => setRecyclingPuzzle(puzzle) },
       { label: 'Open', icon: <Eye />, onSelect: () => navigate(`${base}/puzzles/${puzzle.id}`) },
       { label: 'Edit', icon: <Pencil />, onSelect: () => navigate(`${base}/puzzles/${puzzle.id}/edit`) },
       { label: 'Copy link', icon: <LinkIcon />, onSelect: () => void copyText(puzzleLink(puzzle.id)) },
@@ -327,7 +331,7 @@ export function LessonPlanDetailPage() {
                     {moved.text}
                     {moved.to && (
                       <Link to={moved.to} className="underline underline-offset-2">
-                        Open it ›
+                        {moved.link ?? 'Open it ›'}
                       </Link>
                     )}
                   </p>
@@ -500,6 +504,30 @@ export function LessonPlanDetailPage() {
         title={puzzleMenu?.label || 'Position'}
         items={puzzleMenu ? positionItems(puzzleMenu) : []}
       />
+      {student && (
+        <RecycleSheet
+          open={Boolean(recyclingPuzzle)}
+          onClose={() => setRecyclingPuzzle(null)}
+          puzzle={recyclingPuzzle}
+          from={student}
+          sectionTitle={sections.find((s) => s.id === recyclingPuzzle?.section_id)?.title ?? 'Positions'}
+          currentLessonId={lessonPlanId}
+          onDone={(r, { folderName, mentions }) => {
+            const what = recyclingPuzzle?.label || 'Position'
+            const lesson = `/students/${r.studentId}/lessons/${r.lessonId}`
+            // Named in its notes: the copy's editor is one tap away.
+            say(
+              mentions.length
+                ? {
+                    text: `${what} recycled to ${folderName} · Lesson ${r.lessonNumber}. Its notes mention ${mentions.join(', ')}.`,
+                    to: `${lesson}/puzzles/${r.puzzle.id}/edit`,
+                    link: 'Edit the copy ›',
+                  }
+                : { text: `${what} recycled to ${folderName} · Lesson ${r.lessonNumber}.`, to: lesson },
+            )
+          }}
+        />
+      )}
       <InputModal
         open={Boolean(movingToNew)}
         title="Move to a new section"

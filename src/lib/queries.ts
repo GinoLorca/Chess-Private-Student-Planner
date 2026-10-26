@@ -5,6 +5,7 @@ import type { LessonPayment, FolderKind, LessonPlan, LessonSection, LessonStatus
 import { reminderFor } from './schedule'
 import { usePrivateFolders } from './privateFolders'
 import { isTeach, sendLessonToTeach, sendPositionsToTeach, type TeachDestination, type TeachResult } from './teach'
+import { recyclePosition, type RecycleDestination, type RecycleResult } from './recycle'
 
 export const keys = {
   students: ['students'] as const,
@@ -120,6 +121,21 @@ export function useSendToTeach() {
     onSuccess: landed,
   })
   return { positions, lesson }
+}
+
+/** One position copied into another lesson, any folder's (see lib/recycle). */
+export function useRecyclePosition() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ puzzle, to }: { puzzle: Puzzle; to: RecycleDestination }) => recyclePosition(puzzle, to),
+    onSuccess: (r: RecycleResult) => {
+      qc.invalidateQueries({ queryKey: keys.lessonPlans(r.studentId) })
+      qc.invalidateQueries({ queryKey: keys.folderCounts(r.studentId) })
+      qc.invalidateQueries({ queryKey: keys.lesson(r.lessonId) })
+      qc.invalidateQueries({ queryKey: keys.lessonHistory })
+      qc.invalidateQueries({ queryKey: keys.library })
+    },
+  })
 }
 
 /** A single folder (a student's or a Teach folder), served from the cached list so its screens open instantly. */

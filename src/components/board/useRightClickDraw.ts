@@ -17,10 +17,10 @@ const HOLD_MS = 350
 export interface RightClickDraw {
   /**
    * Handles the drawing gestures; returns true when it took the event. A
-   * left press on marks drawn here wipes them and takes the event (it does
-   * nothing else); any other left press is the board's own. A touch returns
-   * false, and only becomes a drawing if the finger rests — or, a quick tap
-   * on marks drawn here, a wipe when it lifts.
+   * left press on marks it may wipe (see clearOnClick) wipes them and takes
+   * the event (it does nothing else); any other left press is the board's
+   * own. A touch returns false, and only becomes a drawing if the finger
+   * rests — or, a quick tap on marks it may wipe, a wipe when it lifts.
    */
   onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => boolean
   onContextMenu: (e: ReactMouseEvent) => void
@@ -49,12 +49,14 @@ interface Options {
   /** A touch press just turned into drawing: drop any selection the press made. */
   onHold?: () => void
   /**
-   * A plain left click or a quick tap wipes the marks drawn here (the
-   * Repertoire Lab gesture). On by default only for a sketch; marks saved
-   * with a position are taken off one at a time instead, never by a click
-   * meant for the board.
+   * What a plain left click or a quick tap on the board wipes (the
+   * Repertoire Lab gesture): 'all', every mark on the position (the
+   * editors, where the marks are what's being edited); 'drawn', only those
+   * drawn on this board this visit, so marks prepared in the editor stay
+   * (a sketch, and the boards a lesson is taught from); false, none. A
+   * sketch is 'drawn' unless told otherwise; saved marks, false.
    */
-  clearOnClick?: boolean
+  clearOnClick?: 'all' | 'drawn' | false
   enabled?: boolean
   /** The position the marks are on, for the Strategic arrow colours; the resetKey (every board's FEN) when not given. */
   fen?: string
@@ -75,8 +77,9 @@ interface Options {
  *
  * The wiping click or tap does only that — no piece picked up, no step
  * forward — as in Chess Arcade and Repertoire Lab: the next one is the
- * board's. Only marks drawn here are wiped; arrows the page shows (a move's,
- * a level's own) stay, and don't make a tap a wipe.
+ * board's. In an editor it wipes every mark on the position; elsewhere only
+ * the marks drawn here, so arrows the page shows (a move's, a level's own)
+ * and those prepared in the editor stay, and don't make a tap a wipe.
  */
 export function useRightClickDraw({
   boardRef,
@@ -101,16 +104,17 @@ export function useRightClickDraw({
 
   // No save handlers: a sketch of the board's own, gone with the position.
   const local = !onArrowsChange
-  const wipes = clearOnClick ?? local
+  const wipes = clearOnClick ?? (local ? 'drawn' : false)
   const [sketch, setSketch] = useState<{ key: string; arrows: BoardArrow[]; highlights: BoardHighlight[] }>({ key: resetKey, arrows: [], highlights: [] })
   const own = sketch.key === resetKey ? sketch : { key: resetKey, arrows: [], highlights: [] }
   const marks = local ? own : { arrows, highlights }
   const setArrows = (next: BoardArrow[]) => (local ? setSketch({ ...own, arrows: next }) : onArrowsChange?.(next))
   const setHighlights = (next: BoardHighlight[]) => (local ? setSketch({ ...own, highlights: next }) : onHighlightsChange?.(next))
 
-  // The marks drawn here, by position: what a click or a tap wipes. A host's
-  // sketch comes back mixed with what the page shows itself, which isn't
-  // this board's to wipe (and mustn't turn a tap that steps on into a wipe).
+  // The marks drawn here, by position: what a click or a tap wipes short of
+  // 'all'. A host's marks come back mixed with what the page shows itself
+  // (or what was prepared in the editor), which isn't this board's to wipe
+  // (and mustn't turn a tap that steps on into a wipe).
   const drawn = useRef(new Set<string>())
   const arrowKey = (a: { startSquare: string; endSquare: string }) => `${resetKey}|a:${a.startSquare}-${a.endSquare}`
   const squareKey = (square: string) => `${resetKey}|h:${square}`
@@ -121,9 +125,13 @@ export function useRightClickDraw({
   useEffect(() => {
     keyRef.current = resetKey
   })
+  /** A click or a tap now would wipe something. */
+  const wipeable = () => (wipes === 'all' ? marks.arrows.length > 0 || marks.highlights.length > 0 : wipes === 'drawn' && drawnHere())
   function wipe() {
-    if (marks.arrows.length) setArrows([])
-    if (marks.highlights.length) setHighlights([])
+    const arrowsLeft = wipes === 'all' ? [] : marks.arrows.filter((a) => !drawn.current.has(arrowKey(a)))
+    const highlightsLeft = wipes === 'all' ? [] : marks.highlights.filter((h) => !drawn.current.has(squareKey(h.square)))
+    if (arrowsLeft.length !== marks.arrows.length) setArrows(arrowsLeft)
+    if (highlightsLeft.length !== marks.highlights.length) setHighlights(highlightsLeft)
     for (const k of [...drawn.current]) if (k.startsWith(`${resetKey}|`)) drawn.current.delete(k)
   }
   /**
@@ -291,11 +299,11 @@ export function useRightClickDraw({
       if (ev.pointerId !== id) return
       stop()
       if (!holdingRef.current) {
-        // A quick tap — not held, not moved — on marks drawn here: they're
+        // A quick tap — not held, not moved — on marks it may wipe: they're
         // wiped, and that's all. The piece the press picked up goes back
         // down and the click that follows doesn't step the board on. (Not
         // if the press played a move: that's a new position already.)
-        if (ev.type !== 'pointercancel' && wipes && keyRef.current === keyAtDown && drawnHere()) {
+        if (ev.type !== 'pointercancel' && keyRef.current === keyAtDown && wipeable()) {
           wipe()
           claimedRef.current = true
           onHold?.()
@@ -324,9 +332,9 @@ export function useRightClickDraw({
     if (!enabled) return false
     if (e.pointerType !== 'mouse') return e.isPrimary ? onTouchDown(e) : false
     if (e.button === 0) {
-      // A plain left click on marks drawn here wipes them and does nothing
+      // A plain left click on marks it may wipe wipes them and does nothing
       // else; with none, it's the board's own click as usual.
-      if (!wipes || !drawnHere()) return false
+      if (!wipeable()) return false
       wipe()
       claimedRef.current = true
       swallowNextClick()

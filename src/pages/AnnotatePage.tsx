@@ -216,6 +216,8 @@ function Bench({
           highlights={atStart ? puzzle.highlights : undefined}
           lastMove={lastMove}
           onMove={addMove}
+          // A left click or a tap on the board clears what's drawn, as in the editor.
+          clearOnClick="all"
           onArrowsChange={atStart ? (arrows) => apply({ arrows }) : undefined}
           onHighlightsChange={atStart ? (highlights) => apply({ highlights }) : undefined}
         />

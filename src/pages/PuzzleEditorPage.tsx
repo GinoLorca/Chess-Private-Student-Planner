@@ -548,7 +548,9 @@ function Editor({
                     lastMove={lastMove}
                     glyph={glyphBadge}
                     onMove={addMove}
-                    // Right-drag (or a resting finger) draws on the move the answer is stepped to: the start, or any move.
+                    // Right-drag (or a resting finger) draws on the move the answer is stepped to: the start, or any move;
+                    // a left click or a tap on the board clears what's there, as on the Arrows tab.
+                    clearOnClick="all"
                     onArrowsChange={onShownArrows}
                     onHighlightsChange={onShownHighlights}
                   />
@@ -900,7 +902,9 @@ function MoveMarking({
           <>
             <span className="pointer-fine:hidden">Draw for the pens, or rest a finger on a square, then drag for an arrow or lift to mark it</span>
             <span className="hidden pointer-fine:inline">Right-drag for an arrow, right-click a square (hold Z, R, F or C for a colour)</span>
-            {label ? `: kept with ${label}, shown when the answer is stepped there.` : ': kept with the starting position, shown once the answer is revealed.'}
+            {label ? `: kept with ${label}, shown when the answer is stepped there.` : ': kept with the starting position, shown once the answer is revealed.'}{' '}
+            <span className="pointer-fine:hidden">A tap on the board clears them.</span>
+            <span className="hidden pointer-fine:inline">A left click on the board clears them.</span>
           </>
         )}
       </p>

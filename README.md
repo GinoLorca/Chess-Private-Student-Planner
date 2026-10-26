@@ -19,7 +19,11 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   the board: `!!` `!` `!?` `?!` `?` `??`. They show as the answer is stepped there in Coach view,
   Present and the position page, and in Learn once it's solved or shown (never while the student
   is solving): the move's arrow, the coach's marks, and the symbol as a badge on the move's
-  square, the way Lichess Study shows it. Drawing mid-line in Coach view stays a sketch. The
+  square, the way Lichess Study shows it. Drawing mid-line in Coach view stays a sketch.
+  A left click (or a tap) on the board clears the marks: in the editor and the workbench every
+  mark on the position shown, as on the Arrows tab; in Coach view, Present and on the position
+  page only what was drawn there that visit, so the marks prepared in the editor never go with a
+  click meant to step on. The clearing click does only that; the next one is the board's. The
   symbols are on the sheet too; Send to Teach, De-Construct and *Start the puzzle here* keep a
   move's marks, a Lichess study's PGN brings its arrows, squares and `!`/`$1` symbols per move,
   and a typed line takes them as well (`f5!! Qxf5 d6!`). A typed line that starts with the move

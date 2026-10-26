@@ -556,7 +556,6 @@ function PuzzleView({
             onHighlightsChange={setHighlights}
             onClick={() => (showing ? demo.forward() : revealed ? next() : undefined)}
             onDrawingChange={onDrawingChange}
-            sketch={!showAnnotations}
             className="shadow-float"
           />
         </motion.div>

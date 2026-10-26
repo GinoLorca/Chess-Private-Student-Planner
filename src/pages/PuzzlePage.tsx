@@ -218,7 +218,6 @@ export function PuzzlePage() {
                   ? update.mutate({ highlights: unmarked(highlights) })
                   : setSketch((s) => ({ ...(s.at === sketchAt ? s : here), highlights: unmarked(highlights).filter((h) => !moveMarks.highlights.includes(h)) }))
               }
-              sketch={!editable}
               onClick={showing ? stepForward : last > 0 ? next : undefined}
             />
           )}

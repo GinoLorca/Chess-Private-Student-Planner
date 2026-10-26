@@ -24,6 +24,8 @@ interface MoveBoardProps {
   onHighlightsChange?: (highlights: BoardHighlight[]) => void
   /** The symbol of the move just played (!, ??…), on its square. */
   glyph?: { square: string; glyph: MoveGlyph } | null
+  /** What a left click or a quick tap on the board wipes (see useRightClickDraw); an editor passes 'all'. */
+  clearOnClick?: 'all' | 'drawn' | false
 }
 
 /**
@@ -42,6 +44,7 @@ export function MoveBoard({
   onArrowsChange,
   onHighlightsChange,
   glyph,
+  clearOnClick,
 }: MoveBoardProps) {
   const { pieces } = usePieceSet()
   const boardRef = useRef<HTMLDivElement>(null)
@@ -58,6 +61,7 @@ export function MoveBoard({
     onArrowsChange,
     onHighlightsChange,
     resetKey: fen,
+    clearOnClick,
     onHold: () => {
       setSelected(null)
       setDrag(null)

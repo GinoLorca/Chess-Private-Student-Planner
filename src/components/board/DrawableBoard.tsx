@@ -10,14 +10,14 @@ interface DrawableBoardProps extends Omit<BoardProps, 'ref' | 'arrows' | 'highli
   onHighlightsChange: (highlights: BoardHighlight[]) => void
   /** A finger is drawing: a swipe around the board should hold off. */
   onDrawingChange?: (drawing: boolean) => void
-  /** These marks are a sketch: a plain left click or a quick tap wipes what was drawn. Saved marks never go that way. */
-  sketch?: boolean
 }
 
 /** A read-only board that still takes arrows and highlights: right-drag on a mouse, rest-and-drag on touch. */
-export function DrawableBoard({ arrows, highlights, onArrowsChange, onHighlightsChange, onDrawingChange, sketch = false, onPointerDown, ...rest }: DrawableBoardProps) {
+export function DrawableBoard({ arrows, highlights, onArrowsChange, onHighlightsChange, onDrawingChange, onPointerDown, ...rest }: DrawableBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null)
-  const draw = useRightClickDraw({ boardRef, arrows, highlights, onArrowsChange, onHighlightsChange, resetKey: rest.fen, clearOnClick: sketch })
+  // A lesson is taught from these boards: a click or a tap takes off what was
+  // drawn here this visit, never the marks prepared in the editor.
+  const draw = useRightClickDraw({ boardRef, arrows, highlights, onArrowsChange, onHighlightsChange, resetKey: rest.fen, clearOnClick: 'drawn' })
   const drawing = draw.drawing
   const report = useRef(onDrawingChange)
   useEffect(() => {

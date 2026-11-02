@@ -89,8 +89,12 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
 - **Analysis board** — *Analyze* on a position (and in Coach view) opens it on Repertoire Lab's
   analysis board, carried over as it is there: its board in the skin's colours, Stockfish 16 on
   the device (the evaluation bar, three lines and their arrows), the Lichess opening explorer,
-  a move list that keeps variations, the pens, and its keyboard (←/→, X to flip, E for the
-  engine, 1/2/3 for alternatives). The engine downloads once (about 40 MB) and then works
+  a move list that keeps variations, the pens, and its keyboard (←/→, X to flip; Chess
+  Arcade's engine keys: 1 / 2 / 3 switch the best / 2nd / 3rd best arrow, E hides the
+  suggested moves while the engine and the evaluation bar keep going, with *Show* in the engine
+  card for a finger, L turns the engine on and off; Shift+1/2/3 jumps into a side line, 9 back
+  to the main line). The gear menu shows each key and has *Hide suggested moves*; the arrows
+  and the hiding are remembered on the device. The engine downloads once (about 40 MB) and then works
   offline. None of the lesson's own arrows come with the position.
 - **Teach** — the Teach button on the Students page: lessons for anyone, kept apart from the
   students (never on the Schedule, in the student folders or among the private folders). Its

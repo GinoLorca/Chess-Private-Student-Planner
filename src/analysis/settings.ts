@@ -10,6 +10,8 @@ export interface AnalysisSettings {
   arrowBest: boolean
   arrowSecond: boolean
   arrowThird: boolean
+  /** E: the suggested moves (engine lines and arrows) hidden while the engine and the bar keep going (Chess Arcade's). */
+  hideSuggestions: boolean
   engineAuto: boolean
   soundEnabled: boolean
   showLegalMoves: boolean
@@ -28,6 +30,7 @@ export const DEFAULT_ANALYSIS_SETTINGS: AnalysisSettings = {
   arrowBest: true,
   arrowSecond: true,
   arrowThird: true,
+  hideSuggestions: false,
   engineAuto: true,
   soundEnabled: true,
   showLegalMoves: true,

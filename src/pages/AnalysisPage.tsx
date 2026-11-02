@@ -45,6 +45,7 @@ const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 // Best move, second, third — three hues rather than three blues, so a glance
 // at the board tells you which arrow is which line.
 const ARROW_COLORS = ['rgba(56, 176, 120, 0.92)', 'rgba(59, 132, 235, 0.85)', 'rgba(226, 142, 46, 0.85)']
+const ARROW_NAMES = ['Best move', '2nd best', '3rd best']
 
 // meta: what the arrow colour profiles need of each drawn mark ('a:e2e4' for an arrow, 's:e4' for a square).
 type Marks = { arrows: Arrow[]; squares: Record<string, string>; meta?: Record<string, ProfileMeta> }
@@ -187,8 +188,10 @@ function AnalysisBoard({
   const { w: viewportWidth, h: viewportHeight } = useViewport()
 
   const showEvalBar = settings.evalBar
-  const showEngineLines = settings.engineLines
-  const showEngineArrows = settings.engineArrows
+  // E hides the suggested moves (lines and arrows); Stockfish and the bar keep going.
+  const hidden = settings.hideSuggestions
+  const showEngineLines = settings.engineLines && !hidden
+  const showEngineArrows = settings.engineArrows && !hidden
   const arrowOn = [settings.arrowBest, settings.arrowSecond, settings.arrowThird]
 
   // ---------- The line ----------
@@ -241,8 +244,9 @@ function AnalysisBoard({
     })
   }
 
-  // 1 / 2 / 3: jump into the top / second / third alternative tried here and
-  // mark that line; the same number again clears it and steps back out.
+  // Shift+1 / 2 / 3: jump into the top / second / third alternative tried here
+  // and mark that line; the same again clears it and steps back out. (1 / 2 / 3
+  // alone are the engine arrows, as on Chess Arcade's board.)
   const pickAlternative = (slot: number) => {
     const color = SLOT_COLORS[slot]
     const currentBranch = branchRootOf(tree, head)
@@ -264,6 +268,47 @@ function AnalysisBoard({
   // ---------- Keyboard (roughly what chess.com and Lichess use) ----------
 
   const toggle = (k: keyof AnalysisSettings) => setSettings({ [k]: !settings[k] } as Partial<AnalysisSettings>)
+
+  // A key that changes no move (1, 2, 3, E, L) says what it did, on screen
+  // and to a screen reader, as on Chess Arcade's board.
+  const [said, setSaid] = useState<{ text: string; n: number } | null>(null)
+  const sayTimer = useRef<number | null>(null)
+  const say = (text: string) => {
+    setSaid((prev) => ({ text, n: (prev?.n ?? 0) + 1 }))
+    if (sayTimer.current) window.clearTimeout(sayTimer.current)
+    sayTimer.current = window.setTimeout(() => setSaid(null), 2200)
+  }
+  useEffect(() => () => {
+    if (sayTimer.current) window.clearTimeout(sayTimer.current)
+  }, [])
+
+  // 1 / 2 / 3 and E work the engine's suggestions, so they need it on.
+  const engineKeyBlocked = () => {
+    if (engineOn) return false
+    say('The engine is off — press L to turn it on.')
+    return true
+  }
+  // 1 / 2 / 3: the best / 2nd / 3rd best arrow on or off. With the suggested
+  // moves hidden (or the arrows switched off) it brings them back with that
+  // arrow on, since a toggle there would show nothing.
+  const toggleArrow = (i: 0 | 1 | 2) => {
+    if (engineKeyBlocked()) return
+    const k = (['arrowBest', 'arrowSecond', 'arrowThird'] as const)[i]
+    const back = hidden || !settings.engineArrows
+    const on = back ? true : !settings[k]
+    setSettings({ [k]: on, ...(back ? { hideSuggestions: false, engineArrows: true } : {}) } as Partial<AnalysisSettings>)
+    say(`${back && hidden ? 'Suggested moves shown. ' : ''}${ARROW_NAMES[i]} arrow ${on ? 'on' : 'off'}`)
+  }
+  // E: hide or show the suggested moves; the engine and its bar keep running.
+  const setHidden = (on: boolean) => {
+    setSettings({ hideSuggestions: on })
+    say(on ? 'Suggested moves hidden. Press E to show them.' : 'Suggested moves shown')
+  }
+  const toggleEngine = () => {
+    setEngineOn((v) => !v)
+    say(engineOn ? 'Engine off' : 'Engine on')
+  }
+
   const keyRef = useRef<(e: KeyboardEvent) => void>(() => {})
   useEffect(() => {
     keyRef.current = (e: KeyboardEvent) => {
@@ -309,19 +354,31 @@ function AnalysisBoard({
         default:
           break
       }
+      // 1, 2, 3 by the key's place on the top row or the keypad as well as by
+      // the digit typed, so AZERTY (whose top row types symbols unshifted)
+      // works too. Shift with one: the 1st / 2nd / 3rd side line from here.
+      const slot = /^[123]$/.test(e.key) ? Number(e.key) : Number(/^(?:Digit|Numpad)([123])$/.exec(e.code ?? '')?.[1] ?? 0)
+      if (slot && e.key.length === 1) {
+        e.preventDefault()
+        if (e.repeat) return
+        if (e.shiftKey) pickAlternative(slot - 1)
+        else toggleArrow((slot - 1) as 0 | 1 | 2)
+        return
+      }
       // Pen keys aren't here: they're held during a drag, not pressed once.
       switch (e.key.toLowerCase()) {
         case 'x':
           setOrientation((o) => (o === 'white' ? 'black' : 'white'))
           break
         case 'e':
-          setEngineOn((v) => !v)
+          if (e.repeat || engineKeyBlocked()) break
+          setHidden(!hidden)
           break
         case 'a':
           toggle('engineArrows')
           break
         case 'l':
-          toggle('engineLines')
+          if (!e.repeat) toggleEngine()
           break
         case 'b':
           toggle('evalBar')
@@ -334,15 +391,6 @@ function AnalysisBoard({
           break
         case 'o':
           setSidePane((p) => (p === 'engine' ? 'explorer' : 'engine'))
-          break
-        case '1':
-          pickAlternative(0)
-          break
-        case '2':
-          pickAlternative(1)
-          break
-        case '3':
-          pickAlternative(2)
           break
         case '9':
           setHead(lastMainLineAncestor(tree, head))
@@ -735,17 +783,31 @@ function AnalysisBoard({
   })()
   const totals = explorer ? explorerTotals(explorer) : 0
 
-  const settingRow = (k: keyof AnalysisSettings, label: string, dot?: string) => (
+  const settingRow = (k: keyof AnalysisSettings, label: string, dot?: string, key?: string) => (
     <label key={k} className={`board-menu-row${settings[k] ? ' on' : ''}`}>
-      <input type="checkbox" checked={Boolean(settings[k])} onChange={(e) => setSettings({ [k]: e.target.checked } as Partial<AnalysisSettings>)} />
+      <input
+        type="checkbox"
+        checked={Boolean(settings[k])}
+        aria-keyshortcuts={key}
+        onChange={(e) => setSettings({ [k]: e.target.checked } as Partial<AnalysisSettings>)}
+      />
       {dot && <span className="pv-dot" style={{ background: dot }} />}
       {label}
+      {key && (
+        <kbd className="row-key" aria-hidden>
+          {key}
+        </kbd>
+      )}
     </label>
   )
 
   return (
     <Page back={back} width="full">
       <div className="rl-analysis" data-rl-skin={skin} data-rl-theme={resolved} style={paletteStyle}>
+        {/* What a key did (1, 2, 3, E, L). Always there, so a screen reader hears each change. */}
+        <div className={`key-note${said ? ' on' : ''}`} role="status" aria-live="polite">
+          {said && <span key={said.n}>{said.text}</span>}
+        </div>
         <div ref={setLayoutEl} className={`analysis-layout ${layoutClass}${tight ? ' tight' : ''}${compact ? ' compact' : ''}`} style={layoutStyle}>
           <div
             className="analysis-board"
@@ -818,11 +880,14 @@ function AnalysisBoard({
                     {settingRow('engineLines', 'Engine lines')}
                     {settingRow('engineArrows', 'Engine arrows')}
                     {/* Which of the three candidates get drawn. */}
-                    <div className={`board-menu-group${showEngineArrows ? '' : ' off'}`}>
-                      {settingRow('arrowBest', 'Best move', ARROW_COLORS[0])}
-                      {settingRow('arrowSecond', '2nd best', ARROW_COLORS[1])}
-                      {settingRow('arrowThird', '3rd best', ARROW_COLORS[2])}
+                    {/* Greyed only with the arrows switched off: hidden by E, they can still be picked. */}
+                    <div className={`board-menu-group${settings.engineArrows ? '' : ' off'}`}>
+                      {settingRow('arrowBest', ARROW_NAMES[0], ARROW_COLORS[0], '1')}
+                      {settingRow('arrowSecond', ARROW_NAMES[1], ARROW_COLORS[1], '2')}
+                      {settingRow('arrowThird', ARROW_NAMES[2], ARROW_COLORS[2], '3')}
                     </div>
+                    {/* E: the lines and arrows hidden, the engine and the bar still going. */}
+                    {settingRow('hideSuggestions', 'Hide suggested moves', undefined, 'E')}
                     {settingRow('engineAuto', 'Engine on when the board opens')}
                     {settingRow('showLegalMoves', 'Legal-move dots')}
                     {settingRow('soundEnabled', 'Move sounds')}
@@ -936,7 +1001,7 @@ function AnalysisBoard({
                     Stockfish 16
                     {engineStatus === 'running' && engineLines[1] && <span className="depth-tag">depth {engineLines[1].depth}</span>}
                     <span className="spacer" />
-                    <button className="small" onClick={() => setEngineOn((v) => !v)}>
+                    <button className="small" onClick={() => setEngineOn((v) => !v)} title={engineOn ? 'Stop the engine (L)' : 'Start the engine (L)'} aria-keyshortcuts="L">
                       {engineOn ? (
                         'Stop'
                       ) : (
@@ -947,9 +1012,22 @@ function AnalysisBoard({
                     </button>
                   </h3>
                   {!engineOn && (
-                    <div style={{ color: 'var(--muted)', fontSize: 14 }}>Engine is off — press Analyze for the lines, the arrows on the board and the evaluation bar.</div>
+                    <div style={{ color: 'var(--muted)', fontSize: 14 }}>
+                      Engine is off — press Analyze (or <kbd>L</kbd>) for the lines, the arrows on the board and the evaluation bar.
+                    </div>
                   )}
-                  {engineOn && !showEngineArrows && (
+                  {/* E: the suggested moves hidden, the bar and depth still going. Show is for a finger. */}
+                  {engineOn && hidden && (
+                    <div className="hidden-note">
+                      <span>
+                        Suggested moves hidden · press <kbd>E</kbd> to show
+                      </span>
+                      <button className="linkish" aria-keyshortcuts="E" aria-label="Show suggested moves" onClick={() => setHidden(false)}>
+                        Show
+                      </button>
+                    </div>
+                  )}
+                  {engineOn && !hidden && !showEngineArrows && (
                     <div className="muted-note" style={{ margin: '2px 0 10px' }}>
                       Arrows are off.{' '}
                       <button className="linkish" onClick={() => setSettings({ engineArrows: true })}>
@@ -958,7 +1036,7 @@ function AnalysisBoard({
                     </div>
                   )}
                   {engineOn && engineStatus === 'starting' && <div style={{ color: 'var(--muted)', fontSize: 14 }}>Starting engine…</div>}
-                  {engineOn && !showEngineLines && (
+                  {engineOn && !hidden && !showEngineLines && (
                     <div style={{ color: 'var(--muted)', fontSize: 14 }}>Lines are hidden — the bar beside the board still follows the evaluation.</div>
                   )}
                   {engineOn &&

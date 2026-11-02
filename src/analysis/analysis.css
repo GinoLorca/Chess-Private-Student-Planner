@@ -225,6 +225,27 @@
 .rl-analysis .board-menu-row.on { color: var(--text); font-weight: 600; }
 .rl-analysis .board-menu-row input { width: 15px; height: 15px; accent-color: var(--accent); }
 .rl-analysis .board-menu-group { margin: 2px 0 2px 12px; padding-left: 8px; border-left: 2px solid var(--border); }
+/* Each engine row's key (1, 2, 3, E) at its right end, as in Chess Arcade's cog. */
+.rl-analysis .board-menu-row .row-key { margin-left: auto; padding-left: 5px; padding-right: 5px; font-weight: 600; color: var(--muted); }
+/* E: the suggested moves hidden, with Show for a finger. */
+.rl-analysis .hidden-note {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  margin: 2px 0 10px; padding: 9px 12px; border-radius: 8px;
+  background: var(--panel); border: 1px dashed var(--border);
+  color: var(--muted); font-size: 13.5px;
+}
+.rl-analysis .hidden-note .linkish { font-weight: 600; min-height: 32px; }
+/* What a key just did: a moment at the foot of the screen. */
+.rl-analysis .key-note {
+  position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 60;
+  transform: translate(-50%, 8px); opacity: 0; pointer-events: none;
+  max-width: calc(100vw - 32px); padding: 8px 14px; border-radius: 999px;
+  background: var(--text); color: var(--bg); font-size: 13.5px; font-weight: 600;
+  box-shadow: 0 8px 20px var(--shadow);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.rl-analysis .key-note.on { opacity: 0.94; transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) { .rl-analysis .key-note { transition: none; } }
 .rl-analysis .board-menu-group.off { opacity: 0.4; pointer-events: none; }
 .rl-analysis .draw-hint { line-height: 1.5; }
 .rl-analysis .viewer-controls { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }

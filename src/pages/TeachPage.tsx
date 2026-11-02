@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import type { Student } from '../types/domain'
+import type { LessonPlan, Student } from '../types/domain'
 import * as api from '../lib/data'
 import { keys, useLessonPlans, useStudentMutations, useTeachFolderMutations, useTeachFolders, useTeachMissing } from '../lib/queries'
 import { EmptyState, LoadingPage, Page } from '../components/ui/Page'
@@ -11,6 +11,8 @@ import { InputModal } from '../components/ui/InputModal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { MigrationNotice } from '../components/ui/MigrationNotice'
 import { FolderBody, FolderTab } from '../components/lesson/Folder'
+import { LessonMenu, type LessonMenuNote } from '../components/lesson/LessonMenu'
+import { useLongPress } from '../hooks/useLongPress'
 import { onColor } from '../lib/colors'
 import { ChevronRight, Document, More, Pencil, Plus, Trash } from '../components/ui/Icons'
 import teachSql from '../../supabase/migrations/0014_teach_and_levels.sql?raw'
@@ -31,6 +33,12 @@ export function TeachPage() {
   const { update, remove } = useStudentMutations()
   const [naming, setNaming] = useState(false)
   const [menuFor, setMenuFor] = useState<Student | null>(null)
+  // What a lesson's menu did (recycled, duplicated), with where to see it.
+  const [note, setNote] = useState<LessonMenuNote | null>(null)
+  function say(n: LessonMenuNote) {
+    setNote(n)
+    window.setTimeout(() => setNote((m) => (m === n ? null : m)), 8000)
+  }
   const [renaming, setRenaming] = useState<Student | null>(null)
   const [deleting, setDeleting] = useState<Student | null>(null)
   const [pickingImport, setPickingImport] = useState(false)
@@ -101,11 +109,23 @@ export function TeachPage() {
               }
             />
           ) : (
-            <div className="grid grid-cols-1 gap-x-5 gap-y-7 lg:grid-cols-2">
-              {folders.map((f) => (
-                <TeachFolderCard key={f.id} folder={f} onMenu={() => setMenuFor(f)} />
-              ))}
-            </div>
+            <>
+              {note && (
+                <p role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-accent-soft px-3.5 py-2 text-[14px] font-semibold text-accent-strong">
+                  {note.text}
+                  {note.to && (
+                    <Link to={note.to} className="underline underline-offset-2">
+                      Open it ›
+                    </Link>
+                  )}
+                </p>
+              )}
+              <div className="grid grid-cols-1 gap-x-5 gap-y-7 lg:grid-cols-2">
+                {folders.map((f) => (
+                  <TeachFolderCard key={f.id} folder={f} onMenu={() => setMenuFor(f)} onNote={say} />
+                ))}
+              </div>
+            </>
           )}
         </>
       )}
@@ -171,8 +191,10 @@ export function TeachPage() {
 }
 
 /** One Teach folder: its tab, and its newest lessons on the folder to open straight away. */
-function TeachFolderCard({ folder, onMenu }: { folder: Student; onMenu: () => void }) {
+function TeachFolderCard({ folder, onMenu, onNote }: { folder: Student; onMenu: () => void; onNote: (note: LessonMenuNote) => void }) {
   const { data: plans } = useLessonPlans(folder.id)
+  // Right-click or hold a lesson: its menu (recycle it for a student…).
+  const [lessonMenu, setLessonMenu] = useState<LessonPlan | null>(null)
   const count = plans?.length ?? 0
   const lessons = `/students/${folder.id}/lessons`
   return (
@@ -183,16 +205,7 @@ function TeachFolderCard({ folder, onMenu }: { folder: Student; onMenu: () => vo
           {plans && plans.length > 0 ? (
             <ul>
               {plans.slice(0, 4).map((p) => (
-                <li key={p.id}>
-                  <Link
-                    to={`${lessons}/${p.id}`}
-                    className="flex min-h-11 items-center gap-3 rounded-lg px-2.5 text-[15px] text-ink hover:bg-black/5"
-                  >
-                    <span className="w-7 shrink-0 font-display text-[18px] font-bold tabular-nums">{p.number}</span>
-                    <span className="min-w-0 flex-1 truncate">{p.title || p.theme || 'Untitled lesson'}</span>
-                    <ChevronRight size={16} className="shrink-0 text-ink-3" />
-                  </Link>
-                </li>
+                <TeachLessonRow key={p.id} plan={p} to={`${lessons}/${p.id}`} onMenu={() => setLessonMenu(p)} />
               ))}
             </ul>
           ) : (
@@ -210,6 +223,21 @@ function TeachFolderCard({ folder, onMenu }: { folder: Student; onMenu: () => vo
           </IconButton>
         </div>
       </FolderBody>
+      <LessonMenu plan={lessonMenu} folder={folder} onClose={() => setLessonMenu(null)} onNote={onNote} />
     </div>
+  )
+}
+
+/** A lesson on a Teach folder: a tap opens it, a right-click or a hold brings up its menu. */
+function TeachLessonRow({ plan, to, onMenu }: { plan: LessonPlan; to: string; onMenu: () => void }) {
+  const press = useLongPress(onMenu)
+  return (
+    <li {...press.bind} onClickCapture={press.onClickCapture}>
+      <Link to={to} className="flex min-h-11 items-center gap-3 rounded-lg px-2.5 text-[15px] text-ink hover:bg-black/5">
+        <span className="w-7 shrink-0 font-display text-[18px] font-bold tabular-nums">{plan.number}</span>
+        <span className="min-w-0 flex-1 truncate">{plan.title || plan.theme || 'Untitled lesson'}</span>
+        <ChevronRight size={16} className="shrink-0 text-ink-3" />
+      </Link>
+    </li>
   )
 }

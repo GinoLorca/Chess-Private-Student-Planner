@@ -42,8 +42,11 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   accepted and the other side replies; a wrong one bounces back. Solved (or *Show me the
   answer*), then *Show explanation* reveals the line, arrows and notes. A tally for the
   session sits in the top bar.
-- **Recycle** — ⋯ on a lesson → *Recycle for another student…* copies the whole lesson,
-  annotations included, as that student's next lesson. One position at a time: right-click or
+- **Recycle** — right-click (or hold) a lesson where lessons are listed (a student's or a Teach
+  folder's lesson plans, the Teach page) or ⋯ inside it → *Recycle for another student…* copies
+  the whole lesson, its sections and every position with all its annotations, as that student's
+  next lesson; a note says which lesson it became, with *Open it*. The same menu opens the
+  lesson, duplicates it as the folder's next lesson, or deletes it. One position at a time: right-click or
   hold its card → *Recycle to another lesson…*, then pick the folder (this one, another
   student's, or from Teach another Teach folder; private folders stay out), the lesson (the
   newest not yet taught to start with, or a new one, named after the position's section) and,

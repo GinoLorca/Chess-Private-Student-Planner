@@ -452,6 +452,7 @@ export function LessonCard({
   to,
   onDelete,
   onStatus,
+  onMenu,
 }: {
   number: number
   title?: string
@@ -462,11 +463,17 @@ export function LessonCard({
   onDelete: () => void
   /** Tap the dot: not given yet → in progress → taught. */
   onStatus?: () => void
+  /** Right-click or press and hold: the lesson's menu (recycle for another student…). */
+  onMenu?: () => void
 }) {
+  const press = useLongPress(() => onMenu?.())
   return (
     <div
-      className="index-card relative rounded-xl border border-line bg-surface shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)] transition active:scale-[0.99]"
+      {...(onMenu ? press.bind : {})}
+      onClickCapture={onMenu ? press.onClickCapture : undefined}
+      className="lesson-card index-card relative rounded-xl border border-line bg-surface shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)] transition active:scale-[0.99]"
       style={{
+        ...(onMenu ? press.bind.style : {}),
         transform: `rotate(${number % 2 === 0 ? 0.4 : -0.5}deg)`,
         backgroundImage: 'repeating-linear-gradient(to bottom, transparent 0 27px, var(--paper-rule) 27px 28px)',
         backgroundPosition: '0 44px',

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { LessonPlan } from '../types/domain'
 import { useLessonPlanMutations, useLessonPlans, useStudent } from '../lib/queries'
 import { Page, LoadingPage } from '../components/ui/Page'
@@ -12,6 +12,7 @@ import { FOLDER_COLORS } from '../lib/colors'
 import { nextStatus } from '../lib/lessonStatus'
 import { todayIso } from '../lib/schedule'
 import { isTeach } from '../lib/teach'
+import { LessonMenu, type LessonMenuNote } from '../components/lesson/LessonMenu'
 
 export function LessonPlanListPage() {
   const { studentId = '' } = useParams<{ studentId: string }>()
@@ -21,6 +22,13 @@ export function LessonPlanListPage() {
   const { createFromPositions, remove, update } = useLessonPlanMutations(studentId)
   const [deleting, setDeleting] = useState<LessonPlan | null>(null)
   const [creating, setCreating] = useState(false)
+  // Right-click or hold a card: its menu (open, recycle for another student, duplicate, delete).
+  const [menuFor, setMenuFor] = useState<LessonPlan | null>(null)
+  const [note, setNote] = useState<LessonMenuNote | null>(null)
+  function say(n: LessonMenuNote) {
+    setNote(n)
+    window.setTimeout(() => setNote((m) => (m === n ? null : m)), 8000)
+  }
 
 
   if (isLoading && !plans) return <LoadingPage />
@@ -46,6 +54,16 @@ export function LessonPlanListPage() {
             <h1 className="font-display text-[28px] leading-none font-bold text-ink sm:text-[32px]">Lesson plans</h1>
             <span className="text-[13px] font-semibold text-ink-3 tabular-nums">{plans?.length ?? 0}</span>
           </div>
+          {note && (
+            <p role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-accent-soft px-3.5 py-2 text-[14px] font-semibold text-accent-strong">
+              {note.text}
+              {note.to && (
+                <Link to={note.to} className="underline underline-offset-2">
+                  Open it ›
+                </Link>
+              )}
+            </p>
+          )}
           {/* minmax(0, 1fr) columns: a long title must never widen the card past the folder. */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {plans?.map((plan) => (
@@ -58,6 +76,7 @@ export function LessonPlanListPage() {
                 taughtOn={plan.taught_on}
                 to={`/students/${studentId}/lessons/${plan.id}`}
                 onDelete={() => setDeleting(plan)}
+                onMenu={() => setMenuFor(plan)}
                 onStatus={() => {
                   const status = nextStatus(plan.status)
                   update.mutate({ id: plan.id, patch: { status, taught_on: status === 'taught' ? todayIso() : null } })
@@ -89,6 +108,7 @@ export function LessonPlanListPage() {
           navigate(`/students/${studentId}/lessons/${plan.id}${positions.length ? '/annotate' : ''}`)
         }}
       />
+      <LessonMenu plan={menuFor} folder={student} onClose={() => setMenuFor(null)} onDelete={setDeleting} onNote={say} />
       <ConfirmDialog
         open={Boolean(deleting)}
         title={`Delete Lesson ${deleting?.number ?? ''}?`}

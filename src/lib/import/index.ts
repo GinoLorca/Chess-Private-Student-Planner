@@ -90,6 +90,19 @@ export function positionFromGame(game: ImportedGame, ply: number, solutionLength
   }
 }
 
+/**
+ * Where a puzzle-style game (one set up from a FEN) starts: after its first
+ * move when the source marks that move a mistake ("Bxg4??", "$4"), since that
+ * is the move the puzzle punishes, as in a Chess.com or Lichess puzzle's PGN,
+ * whose first move is the opponent's. The other side is then to move, and the
+ * rest of the line is the answer. Otherwise the set-up position itself.
+ */
+export function puzzleStart(game: ImportedGame): number {
+  if (!game.headers.FEN) return 0
+  const first = game.moves[0]?.glyph
+  return first === '?' || first === '??' ? 1 : 0
+}
+
 /** The fields an imported position fills in on a puzzle row. */
 export function patchFromImported(p: ImportedPosition): PuzzlePatch {
   return {

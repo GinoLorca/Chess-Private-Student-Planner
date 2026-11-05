@@ -274,13 +274,18 @@ the key set, the buttons show a clear message and everything else keeps working.
 | Lichess puzzle link or 5-character id | Position, side to move and the full solution line |
 | Lichess study (chapter) link | The chapter's moves, **with the arrows and highlights drawn in the study** |
 | Lichess or Chess.com game link | The game opens in a scrubber; step to the moment, choose the answer length |
-| FEN / PGN text | Imported directly (PGN comments' `[%cal]` / `[%csl]` arrows come along) |
+| FEN / PGN text | Imported directly (PGN comments' `[%cal]` / `[%csl]` arrows come along). A puzzle PGN (set up from a FEN) brings its whole line as the answer; when its first move is marked a mistake (`?`, `??`, `$2`, `$4`), as in a Chess.com puzzle's *Share → PGN*, whose first move is the opponent's, the puzzle starts after it with the other side to move |
 | A Lichess theme chip | A random puzzle of that theme, with *Another* |
 | A photo or screenshot | Read into a position by the AI helper (see above) |
 | A `.pgn` file, or a `.zip` of them (*Open a .pgn or .zip*) | Read into the box as if pasted: each game that starts from a set-up position becomes a position with its moves as the answer |
 | **Several at once** — links or FENs one per line, a multi-game PGN, or a whole study | One position each, added in one go; study chapters and puzzle-style PGN games bring their answer line. Full games are listed for you to pick the moment. Then *Next without explanation* in the editor sweeps through them. |
 
 Chess.com game links need your Chess.com username in Settings (the public archive is per player).
+If an import still starts a move early (the wrong side to move), step to that move on the editor's
+Answer tab and tap *Start the puzzle here* — on any move, the last one too, where the answer is then
+recorded from scratch. An answer whose first move is marked `?` or `??` says so in the editor, with
+*Start after it*. (The Position tab's *White to move / Black to move* switches the side on the same
+position.)
 **Engine check** in the editor asks Lichess's cloud analysis for the top line of any position — no
 account or key needed — and says whether it agrees with your first move.
 

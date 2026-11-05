@@ -1,6 +1,6 @@
 import { detectInput, describeDetected } from './detect'
 import { splitPgnGames } from './lichess'
-import { positionFromGame, resolveInput } from './index'
+import { positionFromGame, puzzleStart, resolveInput } from './index'
 import type { DetectedInput, ImportedGame, ImportedPosition } from './types'
 
 /**
@@ -53,7 +53,8 @@ export interface BatchItemResult {
 /**
  * A study chapter or a puzzle-style PGN (one that starts from a set-up
  * position) is a puzzle already: the start is the position and the whole line
- * is the answer. A full game from move one needs the coach to pick the
+ * is the answer (from after the opponent's move, when the source marks it a
+ * mistake). A full game from move one needs the coach to pick the
  * moment, so it's left out with a note rather than guessed.
  */
 export function autoPositionsFromGames(games: ImportedGame[]): { positions: ImportedPosition[]; skipped: number } {
@@ -64,8 +65,10 @@ export function autoPositionsFromGames(games: ImportedGame[]): { positions: Impo
       skipped++
       continue
     }
-    const p = positionFromGame(game, 0, game.moves.length)
-    positions.push({ ...p, label: p.label || game.moves[0].san })
+    // After the mistake it punishes, when the source marks one (see puzzleStart).
+    const start = puzzleStart(game)
+    const p = positionFromGame(game, start, game.moves.length - start)
+    positions.push({ ...p, label: p.label || game.moves[start]?.san || '' })
   }
   return { positions, skipped }
 }

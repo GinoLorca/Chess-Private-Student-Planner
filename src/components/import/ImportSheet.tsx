@@ -8,6 +8,7 @@ import {
   fetchLichessPuzzle,
   moveLabel,
   positionFromGame,
+  puzzleStart,
   resolveInput,
 } from '../../lib/import'
 import { usePieceSet } from '../../state/PieceSetContext'
@@ -100,7 +101,7 @@ export function ImportSheet({ open, onClose, onImport, mode }: ImportSheetProps)
     run(async () => {
       const outcome = await resolveInput(detected, { chesscomUsername: settings?.chesscom_username })
       if (outcome.type === 'position') return { kind: 'position', position: outcome.position }
-      return { kind: 'game', games: outcome.games, gameIndex: 0, ply: defaultPly(outcome.games[0]), length: 1 }
+      return { kind: 'game', games: outcome.games, gameIndex: 0, ...defaultMoment(outcome.games[0]) }
     }, `Fetching ${describeDetected(detected).toLowerCase()}…`)
   }
 
@@ -377,10 +378,19 @@ export function ImportSheet({ open, onClose, onImport, mode }: ImportSheetProps)
 }
 
 /** Studies usually annotate the start; games are more interesting later on. Start there. */
-function defaultPly(game: ImportedGame | undefined): number {
-  if (!game) return 0
-  if (game.headers.FEN) return 0
-  return Math.min(game.moves.length, 20)
+/**
+ * Where the picker starts. A puzzle-style game (set up from a FEN) is a puzzle
+ * already: its whole line is the answer, from after the opponent's move when
+ * the source marks it a mistake (a Chess.com puzzle's "1... Bxg4??"). A full
+ * game opens twenty moves in, one move of answer, for the coach to pick.
+ */
+function defaultMoment(game: ImportedGame | undefined): { ply: number; length: number } {
+  if (!game) return { ply: 0, length: 1 }
+  if (game.headers.FEN) {
+    const ply = puzzleStart(game)
+    return { ply, length: Math.max(1, game.moves.length - ply) }
+  }
+  return { ply: Math.min(game.moves.length, 20), length: 1 }
 }
 
 function PositionPreview({
@@ -510,7 +520,7 @@ function GamePicker({
           value={stage.gameIndex}
           onChange={(e) => {
             const gameIndex = Number(e.target.value)
-            onChange({ ...stage, gameIndex, ply: defaultPly(stage.games[gameIndex]), length: 1 })
+            onChange({ ...stage, gameIndex, ...defaultMoment(stage.games[gameIndex]) })
           }}
           className="h-11 w-full rounded-xl border border-line-strong bg-surface-2 px-3 text-[15px]"
         >
@@ -552,6 +562,13 @@ function GamePicker({
         </Button>
       </div>
 
+      {stage.ply > 0 && stage.ply === puzzleStart(game) && (
+        <p className="text-[13px] text-ink-2">
+          Starts after {moveLabel(game.startFen, stage.ply)} {game.moves[stage.ply - 1].san}
+          {game.moves[stage.ply - 1].glyph}, the mistake the puzzle punishes.
+          {position.solution.length === 0 ? ' The PGN has no answer after it: record it in the editor.' : ''}
+        </p>
+      )}
       <div className="max-h-28 overflow-y-auto rounded-xl bg-surface-2 p-2">
         <div className="flex flex-wrap gap-x-1 gap-y-1 font-mono text-[13px]">
           {game.moves.map((m, i) => (
@@ -597,7 +614,8 @@ function GamePicker({
           Back
         </Button>
         <div className="flex-1" />
-        <Button variant="primary" onClick={onCommit} disabled={saving || position.solution.length === 0}>
+        {/* At the end of the game there's no answer to take: the position comes over to record it in the editor. */}
+        <Button variant="primary" onClick={onCommit} disabled={saving || (position.solution.length === 0 && stage.ply < game.moves.length)}>
           {saving ? 'Saving…' : actionLabel}
         </Button>
       </div>

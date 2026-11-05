@@ -363,7 +363,7 @@ function Editor({
     const played = puzzle.solution.slice(0, count)
     const rest = puzzle.solution.slice(count)
     const last = played[played.length - 1]
-    if (!last || rest.length === 0) return
+    if (!last) return
     const nextFen = normalizeFen(last.fen)
     const side = sideToMoveOf(nextFen)
     const name = (c: 'w' | 'b') => (c === 'w' ? 'White' : 'Black')
@@ -373,7 +373,9 @@ function Editor({
     const moves = played.map((m, i) => `${stepLabel(puzzle, i + 1)}${m.san}`).join(' ')
     const ok = window.confirm(
       `Start the puzzle after ${moves}?\n\n` +
-        `${name(side)} will be to move, and the answer will start with ${rest[0].san}. ` +
+        (rest.length
+          ? `${name(side)} will be to move, and the answer will start with ${rest[0].san}. `
+          : `${name(side)} will be to move, with the answer to record from there. `) +
         (promptForOldSide ? `The question says ${name(puzzle.side_to_move)} is to move, so it goes back to the suggested one.` : 'The question stays as it is.'),
     )
     if (!ok) return
@@ -384,7 +386,7 @@ function Editor({
       solution: rest,
       // What was drawn on that move is drawn on the new start.
       ...(last.arrows?.length || last.highlights?.length ? marksOf(last) : {}),
-      ...(puzzle.label === played[0].san ? { label: rest[0].san } : {}),
+      ...(puzzle.label === played[0].san ? { label: rest[0]?.san ?? '' } : {}),
       ...(promptForOldSide ? { quiz_prompt: '' } : {}),
     })
   }
@@ -579,7 +581,8 @@ function Editor({
                 onDraw={() => setDrawOn((on) => !on)}
                 onGlyph={setGlyph}
               />
-              {shown > 0 && shown < puzzle.solution.length && (
+              {/* Any move, the last one too: an import that started a move early (the opponent's move, Black to move) is put right here. */}
+              {shown > 0 && (
                 <Button variant="ghost" size="sm" onClick={() => startAfter(shown)} className="mt-1 w-full">
                   Start the puzzle here ({sideToMoveOf(puzzle.solution[shown - 1].fen) === 'w' ? 'White' : 'Black'} to move)
                 </Button>
@@ -623,6 +626,20 @@ function Editor({
                   <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-warn-soft px-2.5 py-1.5 text-[13px] text-warn">
                     <Warning size={15} className="mt-0.5 shrink-0" /> {answerWarning}
                   </p>
+                )}
+                {/* An answer that starts with a move marked a mistake is the opponent's move (a Chess.com
+                    puzzle's PGN starts with it): the puzzle is the reply, from after it. */}
+                {(puzzle.solution[0]?.glyph === '?' || puzzle.solution[0]?.glyph === '??') && (
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg bg-warn-soft px-2.5 py-1.5 text-[13px] text-warn">
+                    <span className="flex min-w-0 flex-1 items-start gap-1.5">
+                      <Warning size={15} className="mt-0.5 shrink-0" />
+                      {stepLabel(puzzle, 1)} {puzzle.solution[0].san}
+                      {puzzle.solution[0].glyph} is marked a mistake, so it's likely the opponent's move: the answer is the reply to it.
+                    </span>
+                    <Button size="sm" variant="secondary" onClick={() => startAfter(1)}>
+                      Start after it ({sideToMoveOf(puzzle.solution[0].fen) === 'w' ? 'White' : 'Black'} to move)
+                    </Button>
+                  </div>
                 )}
                 {puzzle.solution.length === 0 ? (
                   <p className="mt-2 text-[14px] text-ink-3">No moves yet.</p>

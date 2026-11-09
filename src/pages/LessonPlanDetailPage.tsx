@@ -31,9 +31,10 @@ import { ActionSheet } from '../components/ui/ActionSheet'
 import { ImportSheet } from '../components/import/ImportSheet'
 import { FenSheet } from '../components/lesson/FenSheet'
 import { patchFromImported } from '../lib/import'
-import { Check, ChevronDown, ChevronRight, Document, Download, Eye, Folder, Knight, LinkIcon, More, Pencil, Plus, Recycle, Target, Teach, Trash } from '../components/ui/Icons'
+import { Check, ChevronDown, ChevronRight, ChevronUp, Document, Download, Eye, Folder, Grip, Knight, LinkIcon, More, Pencil, Plus, Recycle, Target, Teach, Trash } from '../components/ui/Icons'
 import { SendToTeachSheet, type TeachItem } from '../components/teach/SendToTeachSheet'
 import { RecycleSheet } from '../components/lesson/RecycleSheet'
+import { ReorderList } from '../components/lesson/ReorderList'
 import { isTeach } from '../lib/teach'
 import { answerProblem } from '../lib/solution'
 import { copyText, puzzleLink } from '../lib/links'
@@ -66,6 +67,8 @@ export function LessonPlanDetailPage() {
   const [moved, setMoved] = useState<{ text: string; to?: string; link?: string } | null>(null)
   // Recycle: one position copied into another lesson, any folder's.
   const [recyclingPuzzle, setRecyclingPuzzle] = useState<Puzzle | null>(null)
+  // The section whose positions are being put in order (the Reorder list in place of its cards).
+  const [reordering, setReordering] = useState<string | null>(null)
   // Positions' dots need migration 0012; until then the cards go without.
   const codesMissing = useCodesMissing()
   const canDot = codesMissing.data === false
@@ -129,6 +132,18 @@ export function LessonPlanDetailPage() {
     await content.movePuzzle.mutateAsync({ puzzle, toSectionId: sectionId, sortOrder: last + 1 })
   }
 
+  /** A position to another place in its section (0 is the top), saved at once. */
+  function placeAt(puzzle: Puzzle, to: number) {
+    const list = puzzlesBySection[puzzle.section_id] ?? []
+    const from = list.findIndex((p) => p.id === puzzle.id)
+    if (from < 0 || to === from) return
+    const ordered = [...list]
+    ordered.splice(from, 1)
+    ordered.splice(to, 0, puzzle)
+    content.reorderSection.mutate({ sectionId: puzzle.section_id, ordered })
+    say({ text: `${puzzle.label || 'Position'} is now #${to + 1}.` })
+  }
+
   function say(message: { text: string; to?: string; link?: string }) {
     setMoved(message)
     window.setTimeout(() => setMoved((m) => (m === message ? null : m)), message.to ? 8000 : 3500)
@@ -145,7 +160,18 @@ export function LessonPlanDetailPage() {
   function positionItems(puzzle: Puzzle) {
     const others = sections.filter((sec) => sec.id !== puzzle.section_id)
     const notTaught = canDot ? allPuzzles.filter((p) => p.status !== 'taught') : []
+    // Its place in the section: up, down, and to either end when that's further than one step.
+    const here = puzzlesBySection[puzzle.section_id] ?? []
+    const at = here.findIndex((p) => p.id === puzzle.id)
+    const last = here.length - 1
+    const order = [
+      ...(at > 1 ? [{ label: 'Move to top', icon: <ChevronUp />, onSelect: () => placeAt(puzzle, 0) }] : []),
+      ...(at > 0 ? [{ label: 'Move up', icon: <ChevronUp />, onSelect: () => placeAt(puzzle, at - 1) }] : []),
+      ...(at >= 0 && at < last ? [{ label: 'Move down', icon: <ChevronDown />, onSelect: () => placeAt(puzzle, at + 1) }] : []),
+      ...(at >= 0 && at < last - 1 ? [{ label: 'Move to bottom', icon: <ChevronDown />, onSelect: () => placeAt(puzzle, last) }] : []),
+    ]
     return [
+      ...order,
       ...others.map((sec) => ({
         label: `Move to ${sec.title || 'Untitled section'}`,
         icon: <ChevronRight />,
@@ -321,10 +347,17 @@ export function LessonPlanDetailPage() {
             {active ? (
               <>
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <h2 className="text-[13px] font-bold tracking-[0.1em] text-ink-2 uppercase">{active.title || 'Untitled section'}</h2>
-                  <IconButton label="Section options" className="-mr-2 h-9 w-9 text-ink-3" onClick={() => setSectionMenu(active)}>
-                    <More size={18} />
-                  </IconButton>
+                  <h2 className="min-w-0 truncate text-[13px] font-bold tracking-[0.1em] text-ink-2 uppercase">{active.title || 'Untitled section'}</h2>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {activePuzzles.length > 1 && reordering !== active.id && (
+                      <Button variant="ghost" size="sm" icon={<Grip size={16} />} onClick={() => setReordering(active.id)}>
+                        Reorder
+                      </Button>
+                    )}
+                    <IconButton label="Section options" className="-mr-2 h-9 w-9 text-ink-3" onClick={() => setSectionMenu(active)}>
+                      <More size={18} />
+                    </IconButton>
+                  </div>
                 </div>
                 {moved && (
                   <p role="status" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-accent-soft px-3.5 py-2 text-[14px] font-semibold text-accent-strong">
@@ -336,6 +369,18 @@ export function LessonPlanDetailPage() {
                     )}
                   </p>
                 )}
+                {reordering === active.id ? (
+                  <ReorderList
+                    key={active.id}
+                    puzzles={activePuzzles}
+                    onCancel={() => setReordering(null)}
+                    onDone={(ordered) => {
+                      setReordering(null)
+                      content.reorderSection.mutate({ sectionId: active.id, ordered })
+                      say({ text: 'New order saved.' })
+                    }}
+                  />
+                ) : (
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   {activePuzzles.map((puzzle, i) => (
                     <IndexCard
@@ -360,6 +405,7 @@ export function LessonPlanDetailPage() {
                     </Button>
                   </div>
                 </div>
+                )}
               </>
             ) : (
               <div className="py-8 text-center">
@@ -494,6 +540,18 @@ export function LessonPlanDetailPage() {
         onClose={() => setSectionMenu(null)}
         title={sectionMenu?.title || 'Section'}
         items={[
+          ...(sectionMenu && (puzzlesBySection[sectionMenu.id]?.length ?? 0) > 1
+            ? [
+                {
+                  label: 'Reorder positions',
+                  icon: <Grip />,
+                  onSelect: () => {
+                    openSection(sectionMenu.id)
+                    setReordering(sectionMenu.id)
+                  },
+                },
+              ]
+            : []),
           { label: 'Rename section', icon: <Pencil />, onSelect: () => setRenamingSection(sectionMenu) },
           { label: 'Delete section', icon: <Trash />, danger: true, onSelect: () => setDeletingSection(sectionMenu) },
         ]}

@@ -316,6 +316,32 @@ export function useLessonContentMutations(planId: string) {
       qc.invalidateQueries({ queryKey: keys.puzzle(puzzle.id) })
     },
   })
+  /**
+   * A section's positions in the coach's order. Every place is renumbered
+   * from 0 (so positions that shared a number sort out) and only the ones
+   * whose number changed are written; the cards move at once and move back
+   * if the save fails.
+   */
+  const reorderSection = useMutation({
+    mutationFn: async ({ ordered }: { sectionId: string; ordered: Puzzle[] }) => {
+      await Promise.all(ordered.map((p, i) => (p.sort_order === i ? null : api.updatePuzzle(p.id, { sort_order: i }))))
+    },
+    onMutate: async ({ sectionId, ordered }) => {
+      const key = keys.lesson(planId)
+      await qc.cancelQueries({ queryKey: key })
+      const prev = qc.getQueryData<api.LessonBundle>(key)
+      if (prev) {
+        const list = ordered.map((p, i) => ({ ...p, sort_order: i }))
+        qc.setQueryData<api.LessonBundle>(key, { ...prev, puzzlesBySection: { ...prev.puzzlesBySection, [sectionId]: list } })
+      }
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => ctx?.prev && qc.setQueryData(keys.lesson(planId), ctx.prev),
+    onSettled: () => {
+      invalidate()
+      qc.invalidateQueries({ queryKey: keys.library })
+    },
+  })
   /** A position's red / yellow / green dot; the card changes at once. */
   const setPuzzleStatus = useMutation({
     mutationFn: ({ puzzle, status }: { puzzle: Puzzle; status: LessonStatus }) => api.updatePuzzle(puzzle.id, { status }),
@@ -366,7 +392,7 @@ export function useLessonContentMutations(planId: string) {
       }
     },
   })
-  return { createSection, updateSection, deleteSection, createPuzzle, deletePuzzle, movePuzzle, setPuzzleStatus, moveToNewLesson }
+  return { createSection, updateSection, deleteSection, createPuzzle, deletePuzzle, movePuzzle, reorderSection, setPuzzleStatus, moveToNewLesson }
 }
 
 export function useCustomPieceSetMutations() {

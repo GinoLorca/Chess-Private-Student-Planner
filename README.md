@@ -28,6 +28,11 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   move's marks, a Lichess study's PGN brings its arrows, squares and `!`/`$1` symbols per move,
   and a typed line takes them as well (`f5!! Qxf5 d6!`). A typed line that starts with the move
   that led to the position (`1. d4 f5 …`) says so and offers the line without it.
+- **Your order** — *Reorder* above a section's cards (or ⋯ → *Reorder positions*) turns them into
+  a list: drag a row by its handle, or tap ↑ / ↓, then *Done* (*Cancel* leaves it as it was).
+  Right-click or hold a card for *Move up*, *Move down*, *Move to top* or *Move to bottom* in one
+  go. The numbers, Coach view, Present, Learn, the clicker, the sheet, and anything recycled or
+  sent to Teach follow the order, kept on every device.
 - Sections, theme blocks and agenda items stay optional; *Duplicate as next lesson* and
   *Save shape as template* live in the lesson's ⋯ menu.
 - **Quick add** turns a Lichess puzzle / study / game link, a Chess.com game link, a FEN, PGN, a

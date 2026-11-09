@@ -99,11 +99,10 @@ function PositionRow({ entry, inTeach }: { entry: LibraryEntry; inTeach: boolean
   return (
     <div className="index-card flex gap-3 rounded-xl border border-line bg-surface p-3 shadow-[0_10px_22px_-16px_rgba(0,0,0,0.5)]">
       <Link to={present} className="w-[84px] shrink-0">
+        {/* The puzzle as it's set: no arrows or marked squares, which usually show the answer. */}
         <Board
           fen={normalizeFen(puzzle.starting_fen, puzzle.side_to_move)}
           orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'}
-          arrows={puzzle.arrows}
-          highlights={puzzle.highlights}
           coordinates={false}
           className="rounded-[3px] shadow-none"
         />

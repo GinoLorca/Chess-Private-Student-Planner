@@ -259,11 +259,10 @@ export function IndexCard({
       <Link to={to} className="block p-4 pb-3">
         <div className="flex items-start gap-3.5">
           <div className="w-[88px] shrink-0 sm:w-[104px]">
+            {/* The puzzle as it's set: no arrows or marked squares, which usually show the answer. */}
             <Board
               fen={normalizeFen(puzzle.starting_fen, puzzle.side_to_move)}
               orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'}
-              arrows={puzzle.arrows}
-              highlights={puzzle.highlights}
               coordinates={false}
               className="rounded-[3px] shadow-none"
             />

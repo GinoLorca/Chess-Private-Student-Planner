@@ -5,23 +5,32 @@ import { hasLevels, levelRun } from '../../lib/levels'
 import { Board } from '../board/Board'
 import { Button } from '../ui/Button'
 import { SectionLabel } from '../ui/Page'
-import { Layers } from '../ui/Icons'
+import { Layers, Play } from '../ui/Icons'
 
 /**
  * On the position page: its De-Construct levels at a glance (hidden while the
  * answer is, since an easier version gives the idea away), or the way in.
  */
-export function DeconstructCard({ puzzle, to, hidden }: { puzzle: Puzzle; to: string; hidden: boolean }) {
+export function DeconstructCard({ puzzle, to, presentTo, hidden }: { puzzle: Puzzle; to: string; presentTo: string; hidden: boolean }) {
   const run = hasLevels(puzzle) ? levelRun(puzzle) : []
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
         <SectionLabel className="mb-0">De-Construct</SectionLabel>
-        <Link to={to}>
-          <Button size="sm" variant={run.length ? 'ghost' : 'secondary'} icon={<Layers size={16} />}>
-            {run.length ? 'Open' : 'Break it down'}
-          </Button>
-        </Link>
+        <div className="flex items-center gap-1">
+          {run.length > 0 && (
+            <Link to={presentTo}>
+              <Button size="sm" variant="secondary" icon={<Play size={15} />}>
+                Present
+              </Button>
+            </Link>
+          )}
+          <Link to={to}>
+            <Button size="sm" variant={run.length ? 'ghost' : 'secondary'} icon={<Layers size={16} />}>
+              {run.length ? 'Open' : 'Break it down'}
+            </Button>
+          </Link>
+        </div>
       </div>
       {run.length === 0 ? (
         <p className="mt-1 text-[14px] text-ink-2">The same idea at Beginner, Intermediate and Advanced: fewer pieces first, then more to see past.</p>

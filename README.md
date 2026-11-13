@@ -133,7 +133,10 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   return). Or build them by hand. *Present* and *Learn* on the De-Construct page run Beginner →
   Intermediate → Advanced, the pieces each level adds settling onto the board. The levels
   live on the position (lessons don't fill with copies), show as *3 levels* on its card, and
-  come along to Teach. An agent can write them too (`set_levels`).
+  come along to Teach. They're saved as soon as they're made or changed: the De-Construct page
+  says *Saved with this position*, with *Present the three* and *Learn the three*; later, the
+  position page's De-Construct card has *Present*, and Coach view and Present show *Present its
+  3 levels* on that position, coming back to it after. An agent can write them too (`set_levels`).
 - **Arrow colors** — Settings → Arrow colors picks how the arrows and highlights you draw are
   coloured, per device, the same three profiles as Chess Arcade. **Default** is the pen as
   always: green, or the one whose key you hold (Z, R, F, C). **Sequential** gives each arrow on a

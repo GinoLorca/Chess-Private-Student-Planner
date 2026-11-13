@@ -160,6 +160,50 @@ export function DeconstructPage() {
             </Card>
           ) : null}
 
+          {/* The levels are kept with the position as soon as they're made or changed: say so, and put
+              Present and Learn where they're seen, with where to find them later. A save that fails says so. */}
+          {any && !running && (
+            <Card className="mb-5 flex flex-wrap items-center gap-3 p-4">
+              <div className="min-w-[220px] flex-1">
+                <p className="flex items-center gap-1.5 text-[16px] font-semibold text-ink">
+                  {update.isPending ? (
+                    <>
+                      <Spinner className="h-4 w-4" /> Saving…
+                    </>
+                  ) : update.isError ? (
+                    <>
+                      <Warning size={17} className="text-warn" /> Not saved
+                    </>
+                  ) : (
+                    <>
+                      <Check size={17} className="text-accent" /> Saved with this position
+                    </>
+                  )}
+                </p>
+                {update.isError ? (
+                  <p className="mt-0.5 text-[13.5px] text-warn">
+                    {update.error instanceof Error ? update.error.message : 'The save didn’t go through.'}{' '}
+                    <button className="font-semibold underline underline-offset-2" onClick={() => update.variables && update.mutate(update.variables)}>
+                      Try again
+                    </button>
+                  </p>
+                ) : (
+                  <p className="mt-0.5 text-[13.5px] text-ink-2">
+                    Present them now, or any time later: from this position's page, or <em>Present its levels</em> in Coach view and Present.
+                  </p>
+                )}
+              </div>
+              <Link to={`${base}/present?levels=${puzzle.id}`}>
+                <Button variant="primary" icon={<Play size={17} />}>
+                  Present the three
+                </Button>
+              </Link>
+              <Link to={`${base}/learn?levels=${puzzle.id}`}>
+                <Button icon={<Check size={17} />}>Learn the three</Button>
+              </Link>
+            </Card>
+          )}
+
           {error && <p className="mb-4 rounded-xl bg-warn-soft px-4 py-3 text-[14px] text-warn">{error}</p>}
           {note && !running && <p className="mb-4 rounded-xl bg-surface-2 px-4 py-3 text-[14px] text-ink-2">{note}</p>}
 

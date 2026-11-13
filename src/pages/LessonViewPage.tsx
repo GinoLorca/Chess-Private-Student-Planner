@@ -24,7 +24,7 @@ import { FOLDER_COLORS, onColor } from '../lib/colors'
 import { Check, ChevronLeft, ChevronRight, Close, Document, ExternalLink, Eye, EyeOff } from '../components/ui/Icons'
 import { SendToTeachSheet } from '../components/teach/SendToTeachSheet'
 import { isTeach } from '../lib/teach'
-import { addedSquares, levelRun } from '../lib/levels'
+import { addedSquares, hasLevels, levelRun } from '../lib/levels'
 import { LevelMarks } from '../components/deconstruct/LevelMarks'
 import { ArrowProfileLabel } from '../components/board/ArrowProfileLabel'
 import { useHideToggle } from '../hooks/useHideToggle'
@@ -111,7 +111,15 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   )
 
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
-  const exitTo = solo ? '/' : levelsOf ? `${base}/puzzles/${levelsOf}/deconstruct` : base
+  // Levels opened from a lesson go back to that position in it; from the De-Construct page, back there.
+  const fromLesson = params.get('from')
+  const exitTo = solo
+    ? '/'
+    : levelsOf
+      ? fromLesson === 'coach' || fromLesson === 'present'
+        ? `${base}/${fromLesson}?p=${levelsOf}`
+        : `${base}/puzzles/${levelsOf}/deconstruct`
+      : base
   // A sideways swipe anywhere on the screen turns the page, as in Photos.
   const swipe = useSwipeNav((dir) => go(index + dir))
 
@@ -505,6 +513,16 @@ function PuzzleView({
               title="De-Construct: Beginner, Intermediate, Advanced"
             >
               De-Construct
+            </Link>
+          )}
+          {/* Its De-Construct levels, run Beginner → Advanced, then back to this position. */}
+          {mode !== 'learn' && !level && hasLevels(puzzle) && (
+            <Link
+              to={`/students/${studentId}/lessons/${lessonPlanId}/${mode}?levels=${puzzle.id}&from=${mode}`}
+              className="shrink-0 pb-1.5 text-[13px] font-semibold text-accent hover:underline"
+              title="De-Construct: Beginner, Intermediate, Advanced"
+            >
+              Present its {levelRun(puzzle).length} levels
             </Link>
           )}
           {/* What the drawn colours mean, while a profile is on; under the board on a phone. */}

@@ -318,7 +318,7 @@ export function PuzzlePage() {
           </Card>
 
           <Card className="p-4">
-            <DeconstructCard puzzle={puzzle} to={`${base}/puzzles/${puzzle.id}/deconstruct`} hidden={hidden} />
+            <DeconstructCard puzzle={puzzle} to={`${base}/puzzles/${puzzle.id}/deconstruct`} presentTo={`${base}/present?levels=${puzzle.id}`} hidden={hidden} />
           </Card>
 
           {puzzle.reference_url && (

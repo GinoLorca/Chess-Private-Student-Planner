@@ -5,7 +5,8 @@
     "Per theme, all optional: label (else Arcade's), description, suggestedPieceSet, dark (nocturnal: its light mode is dark chrome),",
     "display (a font-family, else the one Arcade sets on its titles), analysisFromRepertoireLab (the analysis board keeps",
     "Repertoire Lab's palette for it), tokens (CSS variables in both modes: folder stamps, sticky note, clip, corners),",
-    "lightTokens / darkTokens (the same, one mode only). A theme Arcade has that isn't listed here imports with defaults."
+    "lightTokens / darkTokens (the same, one mode only). A theme Arcade has that isn't listed here imports with defaults.",
+    "pieceSets: Arcade's piece sets this app has its own copy of (Arcade id -> this app's set id); every other set Arcade has is generated into src/lib/pieceSets/arcade.generated.ts."
   ],
   "themes": {
     "felt": {
@@ -182,5 +183,9 @@
         "--radius-3xl": "8px"
       }
     }
+  },
+  "pieceSets": {
+    "default": "staunton",
+    "wavyCoach": "wavy"
   }
 }

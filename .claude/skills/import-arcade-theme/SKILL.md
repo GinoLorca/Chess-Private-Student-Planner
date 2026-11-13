@@ -16,6 +16,7 @@ It reads Arcade's single `index.html` and writes:
 | `public/skins/<id>-bg.(svg\|jpg)` | artwork, only where Arcade ships some |
 | `public/sounds/themes/<id>/*.mp3` | the theme's sounds (move, capture, castle, check, checkmate, promote, win, lose, matchStart); an event Arcade points at another of the theme's sounds (Uptown's solved is its capture) is shared through `soundAliases`, not copied |
 | `index.html` | any Google Font a theme uses that isn't loaded yet |
+| `src/lib/pieceSets/arcade.generated.ts` (+ `.css`) | Arcade's piece sets (its `PIECE_SETS`, Settings → Piece style there) that this app has no copy of its own, with their names and hints, each SVG tagged with its code; and the `:root` CSS variables only a set reads (Rim Light's `--pw-rim-white`). `pieceSets` in the config maps the sets this app has its own copy of (Arcade's `default` is Theme Staunton, `wavyCoach` is Wavy) |
 
 The app's own choices per theme (description, folder stamps, sticky note,
 clip, corner radii, which piece set it pairs with) live in
@@ -42,7 +43,8 @@ in Arcade, and artwork or sounds Arcade no longer ships.
 npm run arcade:import -- --from <path-to-chess-arcade>
 ```
 
-If `--check` listed files Arcade no longer ships, show the coach that list and
+`--only pieces` writes just the piece sets (when the coach asks only for new piece sets, so
+no theme file or sound is overwritten); `--only themes` just the themes. If `--check` listed files Arcade no longer ships, show the coach that list and
 get a yes before deleting them (their standing rule), then run again with
 `--prune`. A theme new in Arcade imports with defaults; give it a config entry
 (description, stamps and sticky note under `tokens`) and, if its board needs a

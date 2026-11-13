@@ -314,12 +314,16 @@ Every Chess Arcade theme is generated from Arcade's own source, never ported by 
 `npm run arcade:import -- --from <chess-arcade checkout>` (add `--check` to see what's new or out
 of date first, `--prune` to drop artwork or sounds Arcade no longer ships). It writes
 `src/skins.arcade.css`, `src/lib/arcadeThemes.generated.ts`, the artwork and the sounds; the
-app's own touches per theme are in `scripts/arcade-themes.config.json` and `src/skins.css`. The
-project skill `.claude/skills/import-arcade-theme` walks through it.
+app's own touches per theme are in `scripts/arcade-themes.config.json` and `src/skins.css`. It
+also brings Arcade's piece sets this app has no copy of its own (Rim Light, Royal Minimal) into
+`src/lib/pieceSets/arcade.generated.ts`; `--only pieces` brings just those, `--only themes` just
+the themes. The project skill `.claude/skills/import-arcade-theme` walks through it.
 
 ## Piece sets and board colours
 
-Settings has four built-in piece sets (Classic, Bauhaus Set, Wavy, Theme Staunton) and seven board colour presets plus a custom pair. **Import
+Settings has six built-in piece sets (Classic, Bauhaus Set, Wavy, Theme Staunton, and Chess Arcade's
+Rim Light and Royal Minimal, which the skin colours like Theme Staunton and which the analysis board
+uses too) and seven board colour presets plus a custom pair. **Import
 piece set** takes the twelve piece images from any set (Chess Arcade or elsewhere): files named
 like `wK.png` or `black_knight.svg` are matched automatically, the rest you assign with a picker.
 Imported sets are stored with your account and sync across devices.

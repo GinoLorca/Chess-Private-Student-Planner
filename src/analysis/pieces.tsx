@@ -1,5 +1,6 @@
 import { createElement, type CSSProperties, type ReactElement, type ReactNode } from 'react'
 import { usePieceSet } from '../state/PieceSetContext'
+import { isArcadePieceSet } from '../lib/pieceSets'
 import type { PieceRenderers } from '../lib/pieceSets'
 
 // Repertoire Lab's board pieces (src/lib/pieces.jsx there), carried over as is.
@@ -91,8 +92,8 @@ function boardPieces(renderers: PieceRenderers) {
   return set
 }
 
-/** The theme's own pieces on this board, or undefined to keep its palette's. */
+/** The theme's own pieces on this board (Theme Staunton and Chess Arcade's other sets), or undefined to keep its palette's. */
 export function useThemePieces(): Record<string, PieceRenderer> | undefined {
   const { pieceSetId, pieces } = usePieceSet()
-  return pieceSetId === 'staunton' ? boardPieces(pieces) : undefined
+  return isArcadePieceSet(pieceSetId) ? boardPieces(pieces) : undefined
 }

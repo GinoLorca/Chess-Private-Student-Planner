@@ -132,11 +132,19 @@ and highlights, a quiz prompt, the answer line and the coach's explanation.
   doesn't, and the level's answer kept as far as it still plays (and growing back as pieces
   return). Or build them by hand. *Present* and *Learn* on the De-Construct page run Beginner →
   Intermediate → Advanced, the pieces each level adds settling onto the board. The levels
-  live on the position (lessons don't fill with copies), show as *3 levels* on its card, and
-  come along to Teach. They're saved as soon as they're made or changed: the De-Construct page
-  says *Saved with this position*, with *Present the three* and *Learn the three*; later, the
-  position page's De-Construct card has *Present*, and Coach view and Present show *Present its
-  3 levels* on that position, coming back to it after. An agent can write them too (`set_levels`).
+  live on the position (lessons don't fill with copies) and come along to Teach. They're saved
+  as soon as they're made or changed: the De-Construct page says *Saved with this position*,
+  with *Present the three* and *Learn the three*. An agent can write them too (`set_levels`).
+- **Level ▾** — once a position is broken down, a *Level* dropdown sits beside whose move it is,
+  on the position page and in Coach view, Present and Learn. Pick **Beginner**, **Intermediate**
+  or **Advanced** (the position itself) and that level is shown in place: its board, question,
+  answer, explanation and arrows, while *Next* / *Previous* and the clicker still go from
+  position to position. The pick is remembered per position on the device, so a position comes
+  back at the level it was left at (Advanced until you pick one), and the lesson card says it:
+  *3 levels · Beginner*, with that board as the thumbnail. *Edit* on the position page edits the
+  level shown. The menu also has *Run all three* (Beginner → Advanced, then back to where you
+  were) and *Edit levels…* (the De-Construct page). Drawing on a level is a sketch, as in a
+  run; switching levels never changes the position.
 - **Arrow colors** — Settings → Arrow colors picks how the arrows and highlights you draw are
   coloured, per device, the same three profiles as Chess Arcade. **Default** is the pen as
   always: green, or the one whose key you hold (Z, R, F, C). **Sequential** gives each arrow on a

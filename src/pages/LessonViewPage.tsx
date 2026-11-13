@@ -24,7 +24,9 @@ import { FOLDER_COLORS, onColor } from '../lib/colors'
 import { Check, ChevronLeft, ChevronRight, Close, Document, ExternalLink, Eye, EyeOff } from '../components/ui/Icons'
 import { SendToTeachSheet } from '../components/teach/SendToTeachSheet'
 import { isTeach } from '../lib/teach'
-import { addedSquares, hasLevels, levelRun } from '../lib/levels'
+import { addedSquares, hasLevels, levelPuzzle, levelRun, type LevelKey } from '../lib/levels'
+import { levelShown, useShownLevels } from '../lib/shownLevel'
+import { LevelPicker } from '../components/deconstruct/LevelPicker'
 import { LevelMarks } from '../components/deconstruct/LevelMarks'
 import { ArrowProfileLabel } from '../components/board/ArrowProfileLabel'
 import { useHideToggle } from '../hooks/useHideToggle'
@@ -47,6 +49,13 @@ type Mode = 'coach' | 'present' | 'learn'
  * skeleton, different defaults.
  */
 export function LessonViewPage({ mode }: { mode: Mode }) {
+  // A levels run is a list of its own: a fresh view going in and coming back out, so it starts where the
+  // link says (the run at Beginner; back out, at the position) and not at the other list's place.
+  const [params] = useSearchParams()
+  return <LessonView key={params.get('levels') ?? ''} mode={mode} />
+}
+
+function LessonView({ mode }: { mode: Mode }) {
   const { studentId = '', lessonPlanId = '' } = useParams()
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
@@ -91,6 +100,8 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   const shown = useSessionSet(`learn-shown-${lessonPlanId}`)
   // The eye in the top bar (or the clicker's third button) hides the notes across positions.
   const [notesHidden, toggleNotes] = useHideToggle(false, `${mode}:${lessonPlanId}:eye`)
+  // Each broken-down position at the level picked for it (the Level dropdown), remembered on the device.
+  const shownLevels = useShownLevels()
 
   // Once the lesson loads, land on the requested puzzle (deep link from a position page).
   useEffect(() => {
@@ -111,14 +122,17 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   )
 
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
-  // Levels opened from a lesson go back to that position in it; from the De-Construct page, back there.
+  // Levels opened from a lesson go back to that position in it; from the position's page or the
+  // De-Construct page, back there.
   const fromLesson = params.get('from')
   const exitTo = solo
     ? '/'
     : levelsOf
-      ? fromLesson === 'coach' || fromLesson === 'present'
+      ? fromLesson === 'coach' || fromLesson === 'present' || fromLesson === 'learn'
         ? `${base}/${fromLesson}?p=${levelsOf}`
-        : `${base}/puzzles/${levelsOf}/deconstruct`
+        : fromLesson === 'position'
+          ? `${base}/puzzles/${levelsOf}`
+          : `${base}/puzzles/${levelsOf}/deconstruct`
       : base
   // A sideways swipe anywhere on the screen turns the page, as in Photos.
   const swipe = useSwipeNav((dir) => go(index + dir))
@@ -133,6 +147,9 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
   }
 
   const current = items[Math.min(index, items.length - 1)]
+  // The position as it's shown: at its picked level, unless this is a levels run already.
+  const atKey: LevelKey = levelsOf ? 'advanced' : levelShown(current.puzzle, shownLevels)
+  const at = { key: atKey, puzzle: levelPuzzle(current.puzzle, atKey) }
 
   return (
     <div className="flex min-h-svh touch-pan-y flex-col bg-bg" {...swipe}>
@@ -197,7 +214,7 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-3 pb-28">
         <AnimatePresence mode="wait" initial={false} custom={direction}>
           <motion.div
-            key={`${mode}-${current.puzzle.id}`}
+            key={`${mode}-${at.puzzle.id}`}
             custom={direction}
             initial={{ opacity: 0, x: direction * 40 }}
             animate={{ opacity: 1, x: 0 }}
@@ -205,14 +222,16 @@ export function LessonViewPage({ mode }: { mode: Mode }) {
             transition={{ duration: 0.18 }}
           >
             <PuzzleView
-              key={`${mode}-${current.puzzle.id}`}
-              puzzle={current.puzzle}
+              key={`${mode}-${at.puzzle.id}`}
+              puzzle={at.puzzle}
+              original={levelsOf ? undefined : current.puzzle}
+              levelKey={at.key}
               sectionTitle={current.sectionTitle}
               position={index + 1}
               mode={mode}
               color={student?.color ?? FOLDER_COLORS[0]}
-              teachFrom={student && !isTeach(student) && !levelsOf ? student.name : undefined}
-              level={levelsOf ? { fresh: current.fresh ?? [] } : undefined}
+              teachFrom={student && !isTeach(student) && !levelsOf && at.key === 'advanced' ? student.name : undefined}
+              level={levelsOf ? { fresh: current.fresh ?? [] } : at.key !== 'advanced' ? { fresh: [] } : undefined}
               onSwipe={(dir) => go(index + dir)}
               onExit={() => navigate(exitTo)}
               onResult={(kind) => (kind === 'solved' ? solved.add : shown.add)(current.puzzle.id)}
@@ -262,8 +281,14 @@ function PuzzleView({
   onResult,
   notesHidden,
   onToggleNotes,
+  original,
+  levelKey = 'advanced',
 }: {
   puzzle: Puzzle
+  /** The position itself, when it's shown at one of its levels or could be: for the Level dropdown. */
+  original?: Puzzle
+  /** The level it's shown at. */
+  levelKey?: LevelKey
   sectionTitle: string
   position: number
   mode: Mode
@@ -506,24 +531,28 @@ function PuzzleView({
               Teach
             </button>
           )}
-          {mode === 'coach' && !level && (
-            <Link
-              to={`/students/${studentId}/lessons/${lessonPlanId}/puzzles/${puzzle.id}/deconstruct`}
-              className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg"
-              title="De-Construct: Beginner, Intermediate, Advanced"
-            >
-              De-Construct
-            </Link>
-          )}
-          {/* Its De-Construct levels, run Beginner → Advanced, then back to this position. */}
-          {mode !== 'learn' && !level && hasLevels(puzzle) && (
-            <Link
-              to={`/students/${studentId}/lessons/${lessonPlanId}/${mode}?levels=${puzzle.id}&from=${mode}`}
-              className="shrink-0 pb-1.5 text-[13px] font-semibold text-accent hover:underline"
-              title="De-Construct: Beginner, Intermediate, Advanced"
-            >
-              Present its {levelRun(puzzle).length} levels
-            </Link>
+          {/* Broken down: the Level dropdown shows it at Beginner, Intermediate or Advanced in place, runs all
+              three (then back here) or opens De-Construct. Not broken down yet: Coach view's way in to De-Construct. */}
+          {original && hasLevels(original) ? (
+            <LevelPicker
+              puzzle={original}
+              value={levelKey}
+              tone="page"
+              className="shrink-0 pb-0.5"
+              runTo={`/students/${studentId}/lessons/${lessonPlanId}/${mode}?levels=${original.id}&from=${mode}`}
+              editTo={`/students/${studentId}/lessons/${lessonPlanId}/puzzles/${original.id}/deconstruct`}
+            />
+          ) : (
+            mode === 'coach' &&
+            !level && (
+              <Link
+                to={`/students/${studentId}/lessons/${lessonPlanId}/puzzles/${puzzle.id}/deconstruct`}
+                className="shrink-0 pb-1.5 text-[13px] font-medium text-on-bg-2 hover:text-on-bg"
+                title="De-Construct: Beginner, Intermediate, Advanced"
+              >
+                De-Construct
+              </Link>
+            )
           )}
           {/* What the drawn colours mean, while a profile is on; under the board on a phone. */}
           <ArrowProfileLabel className="hidden shrink-0 pb-1.5 sm:block" />
@@ -756,10 +785,10 @@ function PuzzleView({
           </PaperCard>
         )}
 
-        {/* The coach's own notes: Coach view only, never on the student's screen. */}
-        {mode === 'coach' && !level && (
+        {/* The coach's own notes: Coach view only, never on the student's screen. At a level, the position's own. */}
+        {mode === 'coach' && (!level || original) && (
           <PaperCard className="p-4" ruled tilt={0.3}>
-            <MyNotes key={puzzle.id} puzzle={puzzle} lessonPlanId={lessonPlanId} hidden={!revealed || notesHidden} />
+            <MyNotes key={(original ?? puzzle).id} puzzle={original ?? puzzle} lessonPlanId={lessonPlanId} hidden={!revealed || notesHidden} />
           </PaperCard>
         )}
 

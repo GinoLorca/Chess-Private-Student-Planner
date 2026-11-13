@@ -28,6 +28,9 @@ import { findMentions } from '../lib/moveMentions'
 import { useMoveDemo } from '../hooks/useMoveDemo'
 import { LineBar, MoveText } from '../components/lesson/MoveText'
 import { useEventSound, useMoveSound } from '../analysis/sound'
+import { hasLevels } from '../lib/levels'
+import { levelShown, shownPuzzle, useShownLevels } from '../lib/shownLevel'
+import { LevelPicker } from '../components/deconstruct/LevelPicker'
 
 /**
  * One position. It opens with the eye closed: the answer and explanation
@@ -40,8 +43,14 @@ export function PuzzlePage() {
   const location = useLocation()
   const { data: student } = useStudent(studentId)
   const { data: lesson } = useLesson(lessonPlanId)
-  const { data: puzzle, isLoading } = usePuzzle(puzzleId)
+  const { data: original, isLoading } = usePuzzle(puzzleId)
   const { update } = usePuzzleMutations(puzzleId, lessonPlanId)
+  // A broken-down position shows at the level picked for it (Beginner, Intermediate or Advanced, the
+  // position itself), from the Level dropdown; everything below follows. Only the position itself is saved to.
+  const shownLevels = useShownLevels()
+  const levelKey = original ? levelShown(original, shownLevels) : 'advanced'
+  const puzzle = useMemo(() => (original ? shownPuzzle(original, shownLevels) : undefined), [original, shownLevels])
+  const atLevel = levelKey !== 'advanced'
 
   const steps = useMemo(() => (puzzle ? lineSteps(puzzle) : []), [puzzle])
   // The moves and squares named in the explanation and the answer's comments, to show on the board.
@@ -62,15 +71,16 @@ export function PuzzlePage() {
   const [hidden, toggleHidden, setHidden] = useHideToggle(true, `pos:${puzzleId}:eye`)
   // Each position opens with the eye closed: the answer hidden, the board ready to solve.
   const [sendingToTeach, setSendingToTeach] = useState(false)
-  const [openedId, setOpenedId] = useState(puzzleId)
-  if (openedId !== puzzleId) {
-    setOpenedId(puzzleId)
-    setHidden(true)
+  const [openedId, setOpenedId] = useState(`${puzzleId}:${levelKey}`)
+  if (openedId !== `${puzzleId}:${levelKey}`) {
+    // Another position opens with the eye closed; another level of this one, from its start.
+    if (!openedId.startsWith(`${puzzleId}:`)) setHidden(true)
+    setOpenedId(`${puzzleId}:${levelKey}`)
     setStep(0)
   }
   // With the answer hidden the board is live, to play the line out; solving
   // it brings the answer back, at the move the line was played to.
-  const solve = useSolve(steps, puzzleId, (at) => {
+  const solve = useSolve(steps, puzzle?.id ?? puzzleId, (at) => {
     setStep(at)
     setHidden(false)
   })
@@ -80,7 +90,7 @@ export function PuzzlePage() {
     step,
     setStep,
     boardRef,
-    reset: `${puzzleId}:${hidden}`,
+    reset: `${puzzle?.id ?? puzzleId}:${hidden}`,
   })
   // While a side line from the text is up, the clicker and arrow keys walk it.
   const { forward: demoForward, back: demoBack } = demo
@@ -105,7 +115,7 @@ export function PuzzlePage() {
 
   if (isLoading && !puzzle) return <LoadingPage />
   const base = `/students/${studentId}/lessons/${lessonPlanId}`
-  if (!puzzle) return <Page back={base}>Position not found.</Page>
+  if (!puzzle || !original) return <Page back={base}>Position not found.</Page>
 
   const section = lesson?.sections.find((s) => s.id === puzzle.section_id)
   const fen = normalizeFen(puzzle.starting_fen, puzzle.side_to_move)
@@ -120,7 +130,7 @@ export function PuzzlePage() {
   // A side line or threat from the text, up in place of the answer.
   const showing = hidden ? null : demo.view
   // Drawings on the starting position are saved with it; anything else is a sketch.
-  const editable = atStart && !showing
+  const editable = atStart && !showing && !atLevel
   const sketchAt = `${puzzle.id}:${showing ? showing.key : shownStep}`
   const here = sketch.at === sketchAt ? sketch : { at: sketchAt, arrows: [], highlights: [] }
   // The move just played, as an arrow, on a move the coach hasn't marked; a
@@ -144,7 +154,7 @@ export function PuzzlePage() {
           <IconButton label={hidden ? 'Show answer and explanation' : 'Hide answer and explanation'} onClick={toggleHidden}>
             {hidden ? <EyeOff /> : <Eye />}
           </IconButton>
-          <CopyLinkButton puzzleId={puzzle.id} />
+          <CopyLinkButton puzzleId={original.id} />
           {/* The position as the student sees it, on Repertoire Lab's analysis board, with its line to step through. */}
           <Link
             to={analysisHref({
@@ -167,17 +177,18 @@ export function PuzzlePage() {
             </Button>
           )}
           {/* De-Construct is also a card below on every size; up here where there's room. */}
-          <Link to={`${base}/puzzles/${puzzle.id}/deconstruct`} className="hidden lg:block">
+          <Link to={`${base}/puzzles/${original.id}/deconstruct`} className="hidden lg:block">
             <Button variant="ghost" size="sm" icon={<Layers size={16} />} title="De-Construct: Beginner, Intermediate, Advanced">
               De-Construct
             </Button>
           </Link>
-          <Link to={`${base}/coach?p=${puzzle.id}`}>
+          <Link to={`${base}/coach?p=${original.id}`}>
             <Button variant="ghost" size="sm" icon={<Play size={16} />} aria-label="Coach view" title="Coach view">
               <span className="hidden sm:inline">Coach view</span>
             </Button>
           </Link>
-          <Link to={`${base}/puzzles/${puzzle.id}/edit`}>
+          {/* At a level, Edit opens that level in the editor. */}
+          <Link to={atLevel ? `${base}/puzzles/${original.id}/levels/${levelKey}/edit` : `${base}/puzzles/${original.id}/edit`}>
             {/* On a phone the pencil alone, so the top bar keeps to the screen. */}
             <Button variant="primary" size="sm" icon={<Pencil size={16} />} aria-label="Edit" title="Edit">
               <span className="hidden sm:inline">Edit</span>
@@ -191,9 +202,21 @@ export function PuzzlePage() {
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start pointer-fine:lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] pointer-fine:min-[1280px]:max-w-[1300px] pointer-fine:min-[1280px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="mx-auto w-full min-w-0 max-w-[644px] pointer-fine:max-w-[min(560px,calc(100svh-190px))] pointer-fine:min-[1280px]:max-w-[min(665px,calc(100svh-190px))]">
           {/* The title sits on its own paper strip so it reads on any skin's background. */}
-          <div className="mb-2 flex items-baseline justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-2.5 shadow-card">
-            <h1 className="min-w-0 truncate text-[24px] font-bold tracking-tight text-ink">{hidden ? 'Position' : puzzle.label || 'Untitled position'}</h1>
-            <span className="shrink-0 text-[14px] font-semibold text-ink-2">{toMove} to play</span>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-xl border border-line bg-surface px-4 py-2.5 shadow-card">
+            {/* Room for the name first: on a phone the Level dropdown and whose move go under it. */}
+            <h1 className="min-w-[9rem] flex-1 truncate text-[24px] font-bold tracking-tight text-ink">{hidden ? 'Position' : puzzle.label || 'Untitled position'}</h1>
+            <span className="flex shrink-0 items-center gap-3">
+              {/* Broken down: the level it's shown at, picked here. */}
+              {hasLevels(original) && (
+                <LevelPicker
+                  puzzle={original}
+                  value={levelKey}
+                  runTo={`${base}/present?levels=${original.id}&from=position`}
+                  editTo={`${base}/puzzles/${original.id}/deconstruct`}
+                />
+              )}
+              <span className="text-[14px] font-semibold text-ink-2">{toMove} to play</span>
+            </span>
           </div>
           {/* The starting position carries the saved annotations; each answer
               move shows its own arrow. Drawings are saved only on the start. */}
@@ -314,12 +337,15 @@ export function PuzzlePage() {
           )}
 
           <Card className="p-4">
-            <MyNotes key={puzzle.id} puzzle={puzzle} lessonPlanId={lessonPlanId} hidden={hidden} />
+            <MyNotes key={original.id} puzzle={original} lessonPlanId={lessonPlanId} hidden={hidden} />
           </Card>
 
-          <Card className="p-4">
-            <DeconstructCard puzzle={puzzle} to={`${base}/puzzles/${puzzle.id}/deconstruct`} presentTo={`${base}/present?levels=${puzzle.id}`} hidden={hidden} />
-          </Card>
+          {/* Once it's broken down, the Level dropdown above the board takes over from this card. */}
+          {!hasLevels(original) && (
+            <Card className="p-4">
+              <DeconstructCard puzzle={original} to={`${base}/puzzles/${original.id}/deconstruct`} presentTo={`${base}/present?levels=${original.id}`} hidden={hidden} />
+            </Card>
+          )}
 
           {puzzle.reference_url && (
             <a
@@ -338,7 +364,7 @@ export function PuzzlePage() {
         open={sendingToTeach}
         onClose={() => setSendingToTeach(false)}
         studentName={student?.name ?? ''}
-        items={[{ puzzle, sectionTitle: section?.title ?? 'Positions' }]}
+        items={[{ puzzle: original, sectionTitle: section?.title ?? 'Positions' }]}
       />
     </Page>
   )

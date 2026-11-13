@@ -1,5 +1,6 @@
 import clsx from 'clsx'
-import { hasLevels, levelRun } from '../../lib/levels'
+import { hasLevels, levelName, levelRun } from '../../lib/levels'
+import { levelShown, shownPuzzle, useShownLevels } from '../../lib/shownLevel'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -242,7 +243,11 @@ export function IndexCard({
   const press = useLongPress(() => onMenu?.())
   const excerpt = puzzle.summary.replace(/\s+/g, ' ').trim()
   const broken = answerProblem(puzzle)
-  const toMove = puzzle.side_to_move === 'w' ? 'White' : 'Black'
+  // Broken down: the card shows the level it's set to (the Level dropdown), board and all.
+  const shownLevels = useShownLevels()
+  const atLevel = hasLevels(puzzle) ? levelShown(puzzle, shownLevels) : 'advanced'
+  const board = atLevel === 'advanced' ? puzzle : shownPuzzle(puzzle, shownLevels)
+  const toMove = board.side_to_move === 'w' ? 'White' : 'Black'
   return (
     <div
       {...(onMenu ? press.bind : {})}
@@ -261,8 +266,8 @@ export function IndexCard({
           <div className="w-[88px] shrink-0 sm:w-[104px]">
             {/* The puzzle as it's set: no arrows or marked squares, which usually show the answer. */}
             <Board
-              fen={normalizeFen(puzzle.starting_fen, puzzle.side_to_move)}
-              orientation={puzzle.side_to_move === 'b' ? 'black' : 'white'}
+              fen={normalizeFen(board.starting_fen, board.side_to_move)}
+              orientation={board.side_to_move === 'b' ? 'black' : 'white'}
               coordinates={false}
               className="rounded-[3px] shadow-none"
             />
@@ -277,8 +282,11 @@ export function IndexCard({
                 </span>
               )}
               {hasLevels(puzzle) && (
-                <span title="De-Constructed: Beginner, Intermediate and Advanced" className="rounded-md bg-accent-soft px-1.5 py-0.5 text-[12px] font-semibold text-accent-strong">
-                  {levelRun(puzzle).length} levels
+                <span
+                  title={`De-Constructed: shown at ${levelName(atLevel)}. Change it with Level on the position.`}
+                  className="rounded-md bg-accent-soft px-1.5 py-0.5 text-[12px] font-semibold text-accent-strong"
+                >
+                  {levelRun(puzzle).length} levels · {levelName(atLevel)}
                 </span>
               )}
               {broken && (

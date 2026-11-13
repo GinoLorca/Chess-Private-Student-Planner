@@ -367,14 +367,20 @@ function themeRules(id) {
       else if (rest === ' .sq.last-move') found.last.push(...decls)
       else if (rest === ' .board-frame' && decls.some(([k]) => k === 'border-image')) found.frame.push(...decls)
       else if (/piece-wrap|svg\[data-p/.test(rest)) {
+        // An :is() list keeps the alternatives that are a board's pieces (".sq .piece-wrap"): a drag
+        // ghost or a drill's own pieces (".wl-who .piece-wrap") have no counterpart here.
         const mapped = rest
-          .replace(/:is\(\.sq \.piece-wrap,\s*\.piece-wrap\.drag-ghost\)/g, '.board-piece')
+          .replace(/:is\(([^()]*)\)/g, (all, list) => {
+            const keep = list.split(',').map((x) => x.trim()).filter((x) => x === '.sq .piece-wrap' || x === '.piece-wrap')
+            return keep.length ? keep[0] : all
+          })
           .replace(/\.sq \.piece-wrap/g, '.board-piece')
           .replace(/\.piece-wrap/g, '.board-piece')
           .replace(/:has\(>\s*/g, ':has(')
         // Arcade lays its piece wrapper out its own way: on the piece itself only the look comes over.
         const look = mapped.includes('::') ? decls : decls.filter(([k]) => !LAYOUT.includes(k))
-        if (/drag-ghost|#board|move-ring|plaque|promo|picked|\.sq\b/.test(mapped)) found.skipped++
+        // Arcade-only places: a drag ghost, a drill's board or panel (any class above the piece).
+        if (/drag-ghost|#board|move-ring|plaque|promo|picked|\.sq\b|\.[\w-]+ \.board-piece/.test(mapped)) found.skipped++
         else if (look.length) found.pieces.push({ sel: mapped, decls: look })
       } else found.skipped++
     }

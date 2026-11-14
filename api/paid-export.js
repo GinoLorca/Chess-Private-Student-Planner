@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { floorFor, ownerOf, paidDoc, sameDoc } from './_lib/paidExport.js'
+import { floorFor, ownerOf, paidDoc, sameDoc, serialize } from './_lib/paidExport.js'
 
 /**
  * Optional: copies the paid lessons into a JSON file in a private GitHub repository, for another app
@@ -114,7 +114,7 @@ async function writeFile(token, repo, path, doc) {
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: 'Update',
-        content: Buffer.from(`${JSON.stringify(doc, null, 1)}\n`, 'utf8').toString('base64'),
+        content: Buffer.from(serialize(doc), 'utf8').toString('base64'),
         ...(sha ? { sha } : {}),
       }),
     })

@@ -23,9 +23,28 @@ export const KEEP_DAYS = 400
 /** The reader's limits; the file is kept inside them by moving `from` later. */
 export const MAX_ITEMS = 5000
 export const MAX_PAYERS = 500
+/** The reader refuses a file over 1,000,000 bytes; this leaves a margin. */
+export const MAX_BYTES = 900_000
+/** The largest fee the reader takes, in cents ($1,000,000.00). */
+export const MAX_CENTS = 100_000_000
+const ID = /^[A-Za-z0-9_.:-]{1,80}$/
 const WHAT = 'Lesson'
 const NAME_MAX = 60
 const DAY_MS = 86_400_000
+
+/** A calendar date that exists: '2026-02-30' does not. */
+function isRealDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s))
+  if (!m) return false
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  const t = new Date(Date.UTC(y, mo - 1, d))
+  return t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d
+}
+
+/** The file as it is written: compact, one line. */
+export function serialize(doc) {
+  return `${JSON.stringify(doc)}\n`
+}
 
 /** 'Joseph "Jo" Smith' → 'Jo'; 'Sam Smith' → 'Sam'. Never ends in half of an emoji. */
 export function firstName(name) {
@@ -60,8 +79,10 @@ export function paidDoc(payments, students, owner, writtenAt, from) {
   for (const p of payments) {
     const cents = Math.round(Number(p.amount) * 100)
     const at = new Date(p.created_at)
-    if (p.amount == null || !Number.isFinite(cents) || cents < 1 || !names.has(p.student_id)) continue
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(p.lesson_date)) || Number.isNaN(at.getTime())) continue
+    // only what the reader can take: anything else is left out rather than spoil the whole file
+    if (p.amount == null || !Number.isFinite(cents) || cents < 1 || cents > MAX_CENTS || !names.has(p.student_id)) continue
+    if (!ID.test(String(p.id)) || !ID.test(String(p.student_id))) continue
+    if (!isRealDate(p.lesson_date) || Number.isNaN(at.getTime())) continue
     const iso = at.toISOString()
     if (iso < from) continue
     items.push({ id: p.id, payer: p.student_id, cents, day: p.lesson_date, at: iso })
@@ -70,15 +91,28 @@ export function paidDoc(payments, students, owner, writtenAt, from) {
   // Inside the reader's limits: the oldest lessons go first, and the floor moves up to the oldest kept.
   let floor = from
   const payersOf = (list) => new Set(list.map((i) => i.payer))
-  while (items.length > MAX_ITEMS || payersOf(items).size > MAX_PAYERS) {
-    let cut = Math.max(1, items.length - MAX_ITEMS)
+  const build = () => ({
+    format: FORMAT,
+    what: WHAT,
+    writtenAt,
+    from: floor,
+    owner,
+    payers: [...payersOf(items)].sort().map((id) => ({ id, name: names.get(id) })),
+    items,
+  })
+  const cutTo = (cut) => {
     // never split lessons marked at the same instant: all of them stay, or all go with the cut
     while (cut < items.length && items[cut].at === items[cut - 1].at) cut++
     items = items.slice(cut)
     floor = items.length ? items[0].at : writtenAt
   }
-  const payers = [...payersOf(items)].sort().map((id) => ({ id, name: names.get(id) }))
-  return { format: FORMAT, what: WHAT, writtenAt, from: floor, owner, payers, items }
+  while (items.length > MAX_ITEMS || payersOf(items).size > MAX_PAYERS) cutTo(Math.max(1, items.length - MAX_ITEMS))
+  let doc = build()
+  while (items.length && Buffer.byteLength(serialize(doc), 'utf8') > MAX_BYTES) {
+    cutTo(Math.max(1, Math.ceil(items.length / 20)))
+    doc = build()
+  }
+  return doc
 }
 
 /**

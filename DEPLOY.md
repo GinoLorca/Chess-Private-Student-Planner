@@ -332,9 +332,9 @@ and whenever the app starts, the server rewrites the file. Until it's set up, no
 3. **Deployments → ⋯ on the latest → Redeploy**, then open the app (or mark a lesson paid). The
    file appears within seconds.
 
-**What the file holds:** for each paid lesson, when you marked it paid, the fee recorded then and
-the lesson's date; for each student, the first name (the nickname, if the name has one in
-quotes). No address, code, note or full name. A lesson you un-mark leaves the file. The file
+**What the file holds:** for each lesson marked paid in the last 400 days, when you marked it
+paid, the fee recorded then and the lesson's date; for each student, the first name (the
+nickname, if the name has one in quotes). No address, code, note or full name. A lesson you un-mark leaves the file. The file
 remembers which login it belongs to, so no other account can replace it. When the token
 expires, the file simply stops updating: make a new token and replace `PAYMENTS_EXPORT_TOKEN`.
 

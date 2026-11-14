@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { ownerOf, paidDoc, sameDoc } from './_lib/paidExport.js'
+import { floorFor, ownerOf, paidDoc, sameDoc } from './_lib/paidExport.js'
 
 /**
  * Optional: copies the paid lessons into a JSON file in a private GitHub repository, for another app
@@ -18,6 +18,7 @@ import { ownerOf, paidDoc, sameDoc } from './_lib/paidExport.js'
  */
 
 const DEFAULT_PATH = 'income/lessons.json'
+const PAGE = 1000
 const GITHUB = 'https://api.github.com'
 
 /** @param {Request} req */
@@ -44,20 +45,43 @@ export async function POST(req) {
   const { data: who, error: authError } = await sb.auth.getUser(jwt)
   if (authError || !who?.user) return json(401, { error: 'The sign-in has expired' })
 
-  const [payments, students] = await Promise.all([
-    sb.from('lesson_payments').select('id, student_id, lesson_date, amount, created_at'),
-    sb.from('students').select('id, name'),
-  ])
-  if (payments.error || students.error) return json(502, { error: (payments.error ?? students.error).message })
+  const now = Date.now()
+  const from = floorFor(now)
+  let payments
+  let students
+  try {
+    ;[payments, students] = await Promise.all([
+      allRows((q) => q.from('lesson_payments').select('id, student_id, lesson_date, amount, created_at').gte('created_at', from).order('created_at').order('id'), sb),
+      allRows((q) => q.from('students').select('id, name').order('id'), sb),
+    ])
+  } catch (e) {
+    return json(502, { error: e instanceof Error ? e.message : String(e) })
+  }
 
   const owner = ownerOf(who.user.id)
-  const doc = paidDoc(payments.data ?? [], students.data ?? [], owner, new Date().toISOString())
+  const doc = paidDoc(payments, students, owner, new Date(now).toISOString(), from)
   try {
     const result = await writeFile(ghToken, repo, path, doc)
     return json(result.status, result.body)
   } catch (e) {
     return json(502, { error: e instanceof Error ? e.message : String(e) })
   }
+}
+
+/**
+ * Every row of a query, page by page. The database answers at most its own row limit per request
+ * (1,000 on Supabase unless changed), so a single request could leave rows out without saying so.
+ * Each page starts where the rows so far end, and only an empty page ends the reading.
+ */
+async function allRows(build, sb) {
+  const rows = []
+  for (let pages = 0; pages < 200; pages++) {
+    const { data, error } = await build(sb).range(rows.length, rows.length + PAGE - 1)
+    if (error) throw new Error(error.message)
+    if (!data || data.length === 0) return rows
+    rows.push(...data)
+  }
+  throw new Error('Too many rows to read')
 }
 
 /** Write the file when what it says changed; read again and retry when another write got there first. */

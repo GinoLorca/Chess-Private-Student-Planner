@@ -28,15 +28,19 @@ export const MAX_BYTES = 900_000
 /** The largest fee the reader takes, in cents ($1,000,000.00). */
 export const MAX_CENTS = 100_000_000
 const ID = /^[A-Za-z0-9_.:-]{1,80}$/
+/** Ids the reader never takes, whatever their letters. */
+const RESERVED = new Set(['__proto__', 'constructor', 'prototype'])
+const isId = (id) => typeof id === 'string' && ID.test(id) && !RESERVED.has(id)
 const WHAT = 'Lesson'
 const NAME_MAX = 60
 const DAY_MS = 86_400_000
 
-/** A calendar date that exists: '2026-02-30' does not. */
+/** A calendar date that exists, in the years the reader takes: '2026-02-30' does not. */
 function isRealDate(s) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s))
   if (!m) return false
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  if (y < 2000 || y > 2100) return false
   const t = new Date(Date.UTC(y, mo - 1, d))
   return t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d
 }
@@ -76,15 +80,17 @@ export function floorFor(nowMs) {
 export function paidDoc(payments, students, owner, writtenAt, from) {
   const names = new Map(students.map((s) => [s.id, firstName(s.name)]))
   let items = []
+  const seen = new Set()
   for (const p of payments) {
     const cents = Math.round(Number(p.amount) * 100)
     const at = new Date(p.created_at)
     // only what the reader can take: anything else is left out rather than spoil the whole file
     if (p.amount == null || !Number.isFinite(cents) || cents < 1 || cents > MAX_CENTS || !names.has(p.student_id)) continue
-    if (!ID.test(String(p.id)) || !ID.test(String(p.student_id))) continue
+    if (!isId(p.id) || !isId(p.student_id) || seen.has(p.id)) continue
     if (!isRealDate(p.lesson_date) || Number.isNaN(at.getTime())) continue
     const iso = at.toISOString()
     if (iso < from) continue
+    seen.add(p.id)
     items.push({ id: p.id, payer: p.student_id, cents, day: p.lesson_date, at: iso })
   }
   items.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : a.id < b.id ? -1 : 1))

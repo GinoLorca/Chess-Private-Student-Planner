@@ -313,4 +313,31 @@ Opening `https://<your-app>.vercel.app/api/mcp` in a browser shows the same info
 
 ---
 
+## Paid lessons into a private file (optional)
+
+The app can keep a copy of your paid lessons in a small file in a private GitHub repository of
+yours, for another app of yours to read. A moment after you mark a lesson paid (or tap to undo),
+and whenever the app starts, the server rewrites the file. Until it's set up, nothing happens.
+
+**Set up (≈3 min, once):**
+
+1. On GitHub: **Settings → Developer settings → Personal access tokens → Fine-grained tokens →
+   Generate new token**. **Repository access**: *Only select repositories* → the private
+   repository. **Permissions → Repository permissions → Contents**: *Read and write*. Pick an
+   expiration you're happy with, then **Generate token** and copy it.
+2. In Vercel: your project → **Settings → Environment Variables**. Add, for **Production**:
+   - `PAYMENTS_EXPORT_TOKEN` = the token you just copied
+   - `PAYMENTS_EXPORT_REPO` = the repository, as `owner/name`
+   - optionally `PAYMENTS_EXPORT_PATH` = where the file goes (`income/lessons.json` unless set)
+3. **Deployments → ⋯ on the latest → Redeploy**, then open the app (or mark a lesson paid). The
+   file appears within seconds.
+
+**What the file holds:** for each paid lesson, when you marked it paid, the fee recorded then and
+the lesson's date; for each student, the first name (the nickname, if the name has one in
+quotes). No address, code, note or full name. A lesson you un-mark leaves the file. The file
+remembers which login it belongs to, so no other account can replace it. When the token
+expires, the file simply stops updating: make a new token and replace `PAYMENTS_EXPORT_TOKEN`.
+
+---
+
 **Stuck anywhere?** Tell Claude which step and paste what the screen says.

@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import * as api from './data'
 import type { LessonPayment, FolderKind, LessonPlan, LessonSection, LessonStatus, LessonTemplate, NewLessonInit, Note, Puzzle, Reminder, ScheduleChange, ScheduleSlot, Student, StudentPlace } from '../types/domain'
-import { reminderFor } from './schedule'
+import { reminderFor, todayIso } from './schedule'
+import { schedulePaidExport } from './paidExport'
 import { usePrivateFolders } from './privateFolders'
 import { isTeach, sendLessonToTeach, sendPositionsToTeach, type TeachDestination, type TeachResult } from './teach'
 import { recyclePosition, type RecycleDestination, type RecycleResult } from './recycle'
@@ -607,8 +608,14 @@ function mutationFns(qc: QueryClient) {
     updateReminder: async ({ id, patch }: ReminderVars) => (isPending(id) ? undefined : api.updateReminder(id, patch)),
     removeReminder: async (id: string) => (isPending(id) ? undefined : api.deleteReminder(id)),
     savePlace: ({ studentId, patch }: PlaceVars) => api.saveStudentPlace(studentId, patch),
-    paid: (input: api.PaymentInput) => api.markPaid(input),
-    unpaid: (lessonKey: string) => api.markUnpaid(lessonKey),
+    paid: async (input: api.PaymentInput) => {
+      await api.markPaid(input)
+      schedulePaidExport()
+    },
+    unpaid: async (lessonKey: string) => {
+      await api.markUnpaid(lessonKey)
+      schedulePaidExport()
+    },
   }
 }
 
@@ -772,7 +779,7 @@ export function usePaymentMutations() {
     onMutate: (input) =>
       patchList<LessonPayment>(qc, keys.payments, (list) => [
         ...list.filter((p) => p.lesson_key !== input.lesson_key),
-        { id: `pending-${input.lesson_key}`, user_id: '', paid_on: new Date().toISOString().slice(0, 10), created_at: '', ...input },
+        { id: `pending-${input.lesson_key}`, user_id: '', paid_on: todayIso(), created_at: '', ...input },
       ]),
     onError: restore(qc),
     onSettled: settle,

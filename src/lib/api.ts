@@ -821,7 +821,8 @@ export async function paymentsTableMissing(): Promise<boolean> {
   return Boolean(error && (error.code === 'PGRST205' || error.code === '42P01' || /does not exist|schema cache|could not find the table/i.test(error.message)))
 }
 
-export type PaymentInput = Pick<LessonPayment, 'student_id' | 'lesson_key' | 'lesson_date' | 'amount'>
+/** paid_on is the coach's own date when they tap (left to the database it would be UTC's, a day ahead in the evening). */
+export type PaymentInput = Pick<LessonPayment, 'student_id' | 'lesson_key' | 'lesson_date' | 'amount'> & { paid_on?: string }
 
 export async function listPayments(): Promise<LessonPayment[]> {
   const { data, error } = await supabase.from('lesson_payments').select('*')

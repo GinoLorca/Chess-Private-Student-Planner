@@ -374,7 +374,7 @@ export function SchedulePage() {
     const key = payKey(o)
     if (!key) return
     if (payments.has(key)) pay.unpaid.mutate(key)
-    else pay.paid.mutate({ student_id: o.studentId, lesson_key: key, lesson_date: o.date, amount: lessonFee(o, rates.get(o.studentId)) })
+    else pay.paid.mutate({ student_id: o.studentId, lesson_key: key, lesson_date: o.date, amount: lessonFee(o, rates.get(o.studentId)), paid_on: todayIso() })
   }
   const missingMoney = [rateMissing.data && { file: RATE_MIGRATION, sql: rateSql }, paymentsMissing.data && { file: PAYMENTS_MIGRATION, sql: paymentsSql }].filter(
     (x): x is { file: string; sql: string } => Boolean(x),
